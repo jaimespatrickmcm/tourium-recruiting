@@ -2,6 +2,23 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.2.0] - 2026-08-11
+
+Application form completo, acesso do candidato por token, gerador de perguntas e detecção anti-IA. Provedor de IA migrado para OpenAI GPT-5.
+
+### Added
+- Application form multi-seção (estilo Typeform): dados do candidato com cidade, perguntas técnicas por vaga e perguntas de cultura/raciocínio, uma por tela.
+- Gerador de perguntas em `/app/perguntas`: wizard que gera perguntas + resposta esperada + rubrica de pontuação a partir da cultura da empresa, com opção manual. Abas Cultura, Raciocínio e Por vaga.
+- Acesso do candidato por token (magic link), servido por edge functions, sem depender de OAuth. Páginas de acesso e área do candidato (candidaturas, jornada, perfil).
+- Flag público/privada na criação de vaga + view `public_job_board` para o portal de vagas.
+- Detecção anti-IA por canary token: instrução invisível injetada no enunciado das perguntas abertas; respostas geradas por LLM são sinalizadas com o selo "IA suspeita" no detalhe da vaga (nunca reprova sozinho).
+- Tabelas: `company_questions`, `job_questions`, `application_answers`, `applicant_profiles`, `applicant_tokens`; colunas `applications.city`, `form_completed_at`, `ai_suspected`, `ai_flags` e `jobs.visibility`.
+
+### Changed
+- Provedor de IA migrado de Anthropic para OpenAI GPT-5 (secret `OPENAI_API_KEY`), com helper compartilhado `_shared/openai.ts`. Custo medido em ~$0.02 por candidato analisado.
+- Candidatura simplificada agora exige telefone e a tela de sucesso leva ao application form ou ao perfil.
+- Redirect do LinkedIn volta para a career page (fim do link perdido).
+
 ## [0.1.0] - 2026-08-11
 
 Primeira versão ponta a ponta: da candidatura ao desenvolvimento do colaborador.
