@@ -82,6 +82,11 @@ verify_jwt = false
 [functions.generate-job-description]
 verify_jwt = true
 
+# delete-application: recrutador logado apaga candidatura da própria empresa.
+# Valida JWT + ownership internamente e usa service_role pros deletes.
+[functions.delete-application]
+verify_jwt = true
+
 # debug-login: dev-only, guardado pelo secret DEBUG_LOGIN_ENABLED
 [functions.debug-login]
 verify_jwt = false
