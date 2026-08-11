@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { useCompany } from '@/hooks/use-company';
 import { supabase } from '@/lib/supabase';
+import type { HighlightType } from '@/types/database';
 
 const TOTAL_STEPS = 2;
 
@@ -28,6 +29,10 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
+  const [highlightOn, setHighlightOn] = useState(false);
+  const [highlightType, setHighlightType] = useState<HighlightType>('yes_no');
+  const [highlightQuestion, setHighlightQuestion] = useState('');
+  const [highlightExpected, setHighlightExpected] = useState<'sim' | 'nao'>('sim');
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -40,6 +45,10 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       setTitle('');
       setDescription('');
       setVisibility('private');
+      setHighlightOn(false);
+      setHighlightType('yes_no');
+      setHighlightQuestion('');
+      setHighlightExpected('sim');
       setGenerationError(null);
       setGenerating(false);
       hasGeneratedRef.current = false;
@@ -113,6 +122,12 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
         title,
         description: description || null,
         visibility,
+        highlight_question: highlightOn && highlightQuestion.trim() ? highlightQuestion.trim() : null,
+        highlight_type: highlightOn && highlightQuestion.trim() ? highlightType : null,
+        highlight_expected:
+          highlightOn && highlightType === 'yes_no' && highlightQuestion.trim()
+            ? highlightExpected
+            : null,
       })
       .select('id')
       .single();
@@ -308,6 +323,112 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                     </p>
                   </button>
                 </div>
+              </div>
+
+              {/* Pergunta de destaque (opcional) */}
+              <div className="mt-5 rounded-xl border border-gray-200 p-4">
+                <button
+                  type="button"
+                  onClick={() => setHighlightOn((v) => !v)}
+                  className="flex w-full items-start gap-3 text-left"
+                >
+                  <span
+                    className={
+                      'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ' +
+                      (highlightOn ? 'border-sky-500 bg-sky-500' : 'border-gray-300 bg-white')
+                    }
+                  >
+                    {highlightOn && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                  </span>
+                  <span>
+                    <span className="block text-[13px] font-semibold text-[#1d1d1f]">
+                      Adicionar pergunta de destaque
+                    </span>
+                    <span className="block text-[12px] text-[#6b6b70] mt-0.5">
+                      Uma pergunta rápida de triagem que todo candidato responde antes de enviar.
+                    </span>
+                  </span>
+                </button>
+
+                {highlightOn && (
+                  <div className="mt-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setHighlightType('yes_no')}
+                        className={
+                          'rounded-xl border px-3.5 py-2.5 text-[13px] font-semibold transition-colors ' +
+                          (highlightType === 'yes_no'
+                            ? 'border-sky-500 bg-sky-50/60 text-[#1d1d1f]'
+                            : 'border-gray-200 text-[#6b6b70] hover:border-gray-300')
+                        }
+                      >
+                        Sim ou Não
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHighlightType('short_text')}
+                        className={
+                          'rounded-xl border px-3.5 py-2.5 text-[13px] font-semibold transition-colors ' +
+                          (highlightType === 'short_text'
+                            ? 'border-sky-500 bg-sky-50/60 text-[#1d1d1f]'
+                            : 'border-gray-200 text-[#6b6b70] hover:border-gray-300')
+                        }
+                      >
+                        Texto curto
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">
+                        A pergunta
+                      </label>
+                      <Input
+                        value={highlightQuestion}
+                        onChange={(e) => setHighlightQuestion(e.target.value)}
+                        placeholder="Tem disponibilidade para trabalho presencial em BH?"
+                        className="h-11 rounded-xl border-gray-200 text-[15px]"
+                      />
+                    </div>
+
+                    {highlightType === 'yes_no' && (
+                      <div>
+                        <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">
+                          Resposta ideal
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setHighlightExpected('sim')}
+                            className={
+                              'rounded-xl border px-3.5 py-2 text-[13px] font-semibold transition-colors ' +
+                              (highlightExpected === 'sim'
+                                ? 'border-sky-500 bg-sky-50/60 text-[#1d1d1f]'
+                                : 'border-gray-200 text-[#6b6b70] hover:border-gray-300')
+                            }
+                          >
+                            Sim
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHighlightExpected('nao')}
+                            className={
+                              'rounded-xl border px-3.5 py-2 text-[13px] font-semibold transition-colors ' +
+                              (highlightExpected === 'nao'
+                                ? 'border-sky-500 bg-sky-50/60 text-[#1d1d1f]'
+                                : 'border-gray-200 text-[#6b6b70] hover:border-gray-300')
+                            }
+                          >
+                            Não
+                          </button>
+                        </div>
+                        <p className="mt-1.5 text-[12px] text-[#8a8a8f]">
+                          Candidatos com outra resposta ficam sinalizados, não reprovados.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

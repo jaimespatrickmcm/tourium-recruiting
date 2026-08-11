@@ -15,6 +15,7 @@ export type ScoreSource = 'analise_inicial' | 'avaliacao';
 export type GoalStatus = 'em_andamento' | 'concluida' | 'pausada';
 export type QuestionKind = 'culture' | 'reasoning';
 export type JobVisibility = 'public' | 'private';
+export type HighlightType = 'yes_no' | 'short_text';
 export type AnswerSource = 'candidate_info' | 'job_question' | 'culture' | 'reasoning';
 
 export type Database = {
@@ -90,6 +91,9 @@ export type Database = {
           description: string | null;
           status: string;
           visibility: JobVisibility;
+          highlight_question: string | null;
+          highlight_type: HighlightType | null;
+          highlight_expected: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -116,6 +120,8 @@ export type Database = {
           form_completed_at: string | null;
           resume_path: string | null;
           linkedin_url: string | null;
+          highlight_answer: string | null;
+          highlight_matched: boolean | null;
           ai_suspected: boolean;
           ai_flags: Json | null;
           created_at: string;

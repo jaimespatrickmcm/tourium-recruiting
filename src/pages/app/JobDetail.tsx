@@ -26,7 +26,7 @@ import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import type { ApplicationStatus, ApplicationEventType } from '@/types/database';
+import type { ApplicationStatus, ApplicationEventType, HighlightType } from '@/types/database';
 
 type Job = {
   id: string;
@@ -35,6 +35,8 @@ type Job = {
   description: string | null;
   status: string;
   created_at: string;
+  highlight_question: string | null;
+  highlight_type: HighlightType | null;
 };
 
 type AppEvent = {
@@ -117,7 +119,7 @@ export function JobDetail() {
       if (!id) return;
       const { data } = await supabase
         .from('jobs')
-        .select('id, slug, title, description, status, created_at')
+        .select('id, slug, title, description, status, created_at, highlight_question, highlight_type')
         .eq('id', id)
         .maybeSingle<Job>();
       setJob(data);
@@ -304,6 +306,8 @@ export function JobDetail() {
                     key={selected.id}
                     app={selected}
                     jobTitle={job.title}
+                    highlightQuestion={job.highlight_question}
+                    highlightType={job.highlight_type}
                     refetch={refetch}
                     patchApplication={patchApplication}
                   />
@@ -360,11 +364,15 @@ function StagePill({
 function CandidateDetail({
   app,
   jobTitle,
+  highlightQuestion,
+  highlightType,
   refetch,
   patchApplication,
 }: {
   app: ApplicationWithAnalysis;
   jobTitle: string;
+  highlightQuestion: string | null;
+  highlightType: HighlightType | null;
   refetch: () => Promise<void>;
   patchApplication: (id: string, patch: Partial<ApplicationWithAnalysis>) => void;
 }) {
@@ -705,6 +713,29 @@ function CandidateDetail({
         </div>
       )}
 
+      {highlightQuestion && app.highlight_answer && (
+        <div className="mb-6">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+            Pergunta de destaque
+          </p>
+          <p className="text-[13px] font-medium text-[#6b6b70] mb-2">{highlightQuestion}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[15px] font-semibold text-[#1d1d1f]">
+              {formatHighlightAnswer(app.highlight_answer, highlightType)}
+            </span>
+            {app.highlight_matched === false && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                <AlertCircle className="h-3 w-3" />
+                Fora do critério de destaque
+              </span>
+            )}
+            {app.highlight_matched === true && (
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            )}
+          </div>
+        </div>
+      )}
+
       {app.why_interested && (
         <div className="mb-6">
           <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
@@ -830,6 +861,14 @@ function CandidateDetail({
       </div>
     </div>
   );
+}
+
+function formatHighlightAnswer(answer: string, type: HighlightType | null): string {
+  if (type === 'yes_no') {
+    if (answer === 'sim') return 'Sim';
+    if (answer === 'nao') return 'Não';
+  }
+  return answer;
 }
 
 function eventLabel(e: AppEvent): string {

@@ -29,6 +29,8 @@ export type ApplicationWithAnalysis = {
   form_completed_at: string | null;
   resume_path: string | null;
   linkedin_url: string | null;
+  highlight_answer: string | null;
+  highlight_matched: boolean | null;
   ai_analysis: ApplicationAnalysis | null;
 };
 
@@ -48,7 +50,7 @@ export function useApplications(jobId: string | undefined) {
       .from('applications')
       .select(
         `
-        id, company_id, candidate_id, candidate_name, candidate_email, why_interested, status, created_at, ai_suspected, form_completed_at, resume_path, linkedin_url,
+        id, company_id, candidate_id, candidate_name, candidate_email, why_interested, status, created_at, ai_suspected, form_completed_at, resume_path, linkedin_url, highlight_answer, highlight_matched,
         ai_analysis:ai_analyses(score, recommendation, reasoning, dimensions, status, error_message, ran_at)
       `,
       )
