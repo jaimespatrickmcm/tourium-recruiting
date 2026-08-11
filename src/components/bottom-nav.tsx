@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Building2,
   Dna,
+  ListChecks,
   Briefcase,
   Users,
   UserCog,
@@ -42,6 +43,13 @@ const items: Item[] = [
     icon: Dna,
     to: '/app/dna',
     matchPath: (p) => p.startsWith('/app/dna'),
+  },
+  {
+    key: 'perguntas',
+    label: 'Perguntas',
+    icon: ListChecks,
+    to: '/app/perguntas',
+    matchPath: (p) => p.startsWith('/app/perguntas'),
   },
   {
     key: 'jobs',

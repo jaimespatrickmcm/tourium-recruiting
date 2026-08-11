@@ -270,14 +270,25 @@ export function JobDetail() {
                             )}
                           </div>
                         </div>
-                        <span
-                          className={cn(
-                            'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border mt-2',
-                            stageChipColors[app.status],
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={cn(
+                              'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
+                              stageChipColors[app.status],
+                            )}
+                          >
+                            {stageLabels[app.status]}
+                          </span>
+                          {app.ai_suspected && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-700"
+                              title="A resposta contém a palavra-canário escondida no enunciado. Provável uso de IA pra gerar a resposta."
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                              IA suspeita
+                            </span>
                           )}
-                        >
-                          {stageLabels[app.status]}
-                        </span>
+                        </div>
                       </button>
                     );
                   })

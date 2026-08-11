@@ -27,6 +27,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -38,6 +39,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       setStep(1);
       setTitle('');
       setDescription('');
+      setVisibility('private');
       setGenerationError(null);
       setGenerating(false);
       hasGeneratedRef.current = false;
@@ -110,6 +112,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
         slug: finalSlug,
         title,
         description: description || null,
+        visibility,
       })
       .select('id')
       .single();
@@ -269,6 +272,43 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                   {generationError}
                 </div>
               )}
+
+              {/* Visibilidade da vaga */}
+              <div className="mt-5">
+                <p className="text-[12px] font-semibold text-[#1d1d1f] mb-2">Onde essa vaga aparece</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibility('private')}
+                    className={
+                      'text-left rounded-xl border px-3.5 py-3 transition-colors ' +
+                      (visibility === 'private'
+                        ? 'border-sky-500 bg-sky-50/60'
+                        : 'border-gray-200 hover:border-gray-300')
+                    }
+                  >
+                    <p className="text-[13px] font-semibold text-[#1d1d1f]">Privada</p>
+                    <p className="text-[12px] text-[#6b6b70] mt-0.5">
+                      Só quem tem o link da vaga consegue se candidatar.
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVisibility('public')}
+                    className={
+                      'text-left rounded-xl border px-3.5 py-3 transition-colors ' +
+                      (visibility === 'public'
+                        ? 'border-sky-500 bg-sky-50/60'
+                        : 'border-gray-200 hover:border-gray-300')
+                    }
+                  >
+                    <p className="text-[13px] font-semibold text-[#1d1d1f]">Pública</p>
+                    <p className="text-[12px] text-[#6b6b70] mt-0.5">
+                      Entra no portal de vagas e chega a candidatos que procuram.
+                    </p>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
