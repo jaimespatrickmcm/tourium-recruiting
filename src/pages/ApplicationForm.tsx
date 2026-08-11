@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton, BrandCtaLink } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
+import { invokeEdge } from '@/lib/functions';
 import { makeCanaryToken, canaryInjection } from '@/lib/canary';
 
 type PublicJob = {
@@ -266,22 +267,19 @@ export function ApplicationForm() {
         }))
         .filter((a) => a.answer.length > 0);
 
-      const { data, error } = await supabase.functions.invoke('submit-application-form', {
-        body: {
-          applicationId: applicationId ?? undefined,
-          companySlug,
-          jobSlug,
-          candidateInfo: {
-            name: name.trim(),
-            email: email.trim(),
-            phone: phone.trim(),
-            city: city.trim(),
-          },
-          answers: questionAnswers,
+      const { error } = await invokeEdge('submit-application-form', {
+        applicationId: applicationId ?? undefined,
+        companySlug,
+        jobSlug,
+        candidateInfo: {
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          city: city.trim(),
         },
+        answers: questionAnswers,
       });
       if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error ?? 'Falha ao enviar');
       setPhase('done');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao enviar formulário');

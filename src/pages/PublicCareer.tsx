@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
+import { invokeEdge } from '@/lib/functions';
 import { useAuth } from '@/hooks/use-auth';
 import { useCandidate } from '@/hooks/use-candidate';
 
@@ -114,12 +115,13 @@ export function PublicCareer() {
     if (!companySlug || !jobSlug) return;
     setUploadingResume(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-resume-upload', {
-        body: { companySlug, jobSlug },
-      });
+      const { data, error } = await invokeEdge<{ path: string; token: string }>(
+        'create-resume-upload',
+        { companySlug, jobSlug },
+      );
       if (error) throw error;
-      if (!data?.ok || !data.path || !data.token) {
-        throw new Error(data?.error ?? 'Não deu pra preparar o upload');
+      if (!data?.path || !data.token) {
+        throw new Error('Não deu pra preparar o upload');
       }
       const { error: upErr } = await supabase.storage
         .from('resumes')
@@ -139,23 +141,20 @@ export function PublicCareer() {
     if (!companySlug || !jobSlug) return;
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('submit-application', {
-        body: {
-          companySlug,
-          jobSlug,
-          candidateName: name,
-          candidateEmail: email,
-          candidatePhone: phone || undefined,
-          whyInterested: whyInterested || undefined,
-          candidateId: candidate?.id,
-          resumePath: resumePath ?? undefined,
-          linkedinUrl: linkedinUrl.trim() || undefined,
-          website: website || undefined,
-        },
+      const { data, error } = await invokeEdge<{ applicationId?: string }>('submit-application', {
+        companySlug,
+        jobSlug,
+        candidateName: name,
+        candidateEmail: email,
+        candidatePhone: phone || undefined,
+        whyInterested: whyInterested || undefined,
+        candidateId: candidate?.id,
+        resumePath: resumePath ?? undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
+        website: website || undefined,
       });
       if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error ?? 'Falha ao enviar');
-      setApplicationId(data.applicationId ?? null);
+      setApplicationId(data?.applicationId ?? null);
       setSubmitted(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao enviar candidatura');
