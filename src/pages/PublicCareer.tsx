@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, CheckCircle2, Linkedin } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Linkedin, FileText, Upload, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton } from '@/components/brand-cta';
@@ -34,14 +34,22 @@ export function PublicCareer() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [whyInterested, setWhyInterested] = useState('');
+  const [resumePath, setResumePath] = useState<string | null>(null);
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null);
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [linkedinUrl, setLinkedinUrl] = useState('');
   // Honeypot anti-bot: humano nunca vê nem preenche esse campo.
   const [website, setWebsite] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLoggedCandidate = Boolean(user && candidate);
-  const TOTAL_STEPS = isLoggedCandidate ? 2 : 3;
+  // Passos: identidade (só deslogado), telefone, currículo+linkedin, motivação.
+  const TOTAL_STEPS = isLoggedCandidate ? 3 : 4;
+  const phoneStepIndex = isLoggedCandidate ? 1 : 2;
+  const resumeStepIndex = isLoggedCandidate ? 2 : 3;
 
   // Pre-fill from candidate
   useEffect(() => {
@@ -90,6 +98,43 @@ export function PublicCareer() {
     void load();
   }, [companySlug, jobSlug]);
 
+  async function handleResumeFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset pra permitir re-selecionar o mesmo arquivo depois.
+    e.target.value = '';
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Por enquanto só aceitamos PDF. Converta e tente de novo.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('O arquivo passa de 10MB. Envie um PDF mais leve.');
+      return;
+    }
+    if (!companySlug || !jobSlug) return;
+    setUploadingResume(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-resume-upload', {
+        body: { companySlug, jobSlug },
+      });
+      if (error) throw error;
+      if (!data?.ok || !data.path || !data.token) {
+        throw new Error(data?.error ?? 'Não deu pra preparar o upload');
+      }
+      const { error: upErr } = await supabase.storage
+        .from('resumes')
+        .uploadToSignedUrl(data.path, data.token, file);
+      if (upErr) throw upErr;
+      setResumePath(data.path);
+      setResumeFileName(file.name);
+      toast.success('Currículo enviado.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra enviar o currículo. Tente de novo.');
+    } finally {
+      setUploadingResume(false);
+    }
+  }
+
   async function submit() {
     if (!companySlug || !jobSlug) return;
     setSubmitting(true);
@@ -103,6 +148,8 @@ export function PublicCareer() {
           candidatePhone: phone || undefined,
           whyInterested: whyInterested || undefined,
           candidateId: candidate?.id,
+          resumePath: resumePath ?? undefined,
+          linkedinUrl: linkedinUrl.trim() || undefined,
           website: website || undefined,
         },
       });
@@ -119,6 +166,7 @@ export function PublicCareer() {
 
   const identityValid = name.trim().length >= 2 && /\S+@\S+\.\S+/.test(email);
   const phoneValid = phone.trim().length >= 8;
+  const resumeValid = Boolean(resumePath);
   const whyValid = whyInterested.trim().length >= 30;
 
   if (loading) {
@@ -157,29 +205,42 @@ export function PublicCareer() {
           </h1>
           <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto mb-8">
             Recebemos sua aplicação pra <strong className="text-[#1d1d1f]">{job.title}</strong> na{' '}
-            <strong className="text-[#1d1d1f]">{job.company?.name}</strong>. A IA vai analisar seu
-            fit e a equipe entra em contato se houver match.
+            <strong className="text-[#1d1d1f]">{job.company?.name}</strong>. A IA já vai começar a
+            avaliar seu fit e a equipe entra em contato se houver match.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <BrandCtaButton
-              size="default"
-              onClick={() =>
-                navigate(
-                  `/careers/${companySlug}/${jobSlug}/form${
-                    applicationId ? `?app=${applicationId}` : ''
-                  }`,
-                  { state: { name, email, phone } },
-                )
-              }
-            >
-              Adiantar meu processo
-            </BrandCtaButton>
-            <Link
-              to="/candidato"
-              className="inline-flex items-center justify-center h-11 px-6 rounded-full border border-gray-200 bg-white text-[14px] font-semibold text-[#1d1d1f] hover:bg-gray-50 transition-colors"
-            >
-              Ver meu perfil
-            </Link>
+
+          <div className="max-w-md mx-auto rounded-[20px] border border-sky-100 bg-sky-50/50 p-5 text-left mb-6">
+            <p className="font-satoshi font-bold text-[16px] text-[#1d1d1f] mb-1.5">
+              Quer sair na frente?
+            </p>
+            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+              Responder agora umas perguntas rápidas sobre você e a vaga dá muito mais contexto pra
+              IA. Sua avaliação fica mais completa e mais justa, e você não fica esperando a equipe
+              pedir isso depois. Leva poucos minutos.
+            </p>
+            <div className="mt-4">
+              <BrandCtaButton
+                size="default"
+                onClick={() =>
+                  navigate(
+                    `/careers/${companySlug}/${jobSlug}/form${
+                      applicationId ? `?app=${applicationId}` : ''
+                    }`,
+                    { state: { name, email, phone } },
+                  )
+                }
+              >
+                Adiantar meu processo
+              </BrandCtaButton>
+            </div>
+          </div>
+
+          <div className="text-[13px] text-[#8a8a8f]">
+            Ou{' '}
+            <Link to="/candidato" className="font-semibold text-[#1d1d1f] underline hover:no-underline">
+              acesse seu perfil
+            </Link>{' '}
+            pra acompanhar em que etapa você está.
           </div>
         </div>
       </main>
@@ -254,7 +315,6 @@ export function PublicCareer() {
     }
 
     // Phone step
-    const phoneStepIndex = isLoggedCandidate ? 1 : 2;
     if (step === phoneStepIndex) {
       return (
         <div>
@@ -297,6 +357,79 @@ export function PublicCareer() {
       );
     }
 
+    // Currículo + LinkedIn step (obrigatório o currículo)
+    if (step === resumeStepIndex) {
+      return (
+        <div>
+          <h2 className="font-satoshi font-bold text-[26px] md:text-[30px] tracking-[-0.5px] leading-tight text-[#1d1d1f] mb-2">
+            Manda seu currículo
+          </h2>
+          <p className="text-[15px] text-[#6b6b70] leading-relaxed mb-6">
+            É o currículo que a IA lê pra avaliar seu fit contra essa vaga, por isso ele é
+            obrigatório. PDF de até 10MB.
+          </p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            onChange={handleResumeFile}
+            className="hidden"
+          />
+
+          {resumePath ? (
+            <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+              <FileText className="h-5 w-5 flex-shrink-0 text-emerald-600" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-semibold text-[#1d1d1f]">{resumeFileName}</p>
+                <p className="text-[12px] text-emerald-700">Currículo enviado</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingResume}
+                className="flex-shrink-0 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
+              >
+                Trocar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingResume}
+              className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-4 py-6 text-[14px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 hover:bg-gray-50 disabled:opacity-60"
+            >
+              {uploadingResume ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Escolher PDF
+                </>
+              )}
+            </button>
+          )}
+
+          <div className="mt-6">
+            <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">LinkedIn</label>
+            <Input
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="https://linkedin.com/in/voce"
+              className="h-11 rounded-xl border-gray-200 text-[15px]"
+            />
+            <p className="mt-1.5 text-[12px] text-[#8a8a8f]">
+              Opcional. Ajuda a equipe a te conhecer melhor.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     // Why interested step (always last)
     return (
       <div>
@@ -330,7 +463,8 @@ export function PublicCareer() {
   const isLastStep = step === TOTAL_STEPS;
   const canAdvance = (() => {
     if (!isLoggedCandidate && step === 1) return identityValid;
-    if (step === (isLoggedCandidate ? 1 : 2)) return phoneValid; // phone obrigatório
+    if (step === phoneStepIndex) return phoneValid; // phone obrigatório
+    if (step === resumeStepIndex) return resumeValid; // currículo obrigatório
     return whyValid;
   })();
 

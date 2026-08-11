@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   RefreshCw,
   XCircle,
+  FileText,
+  Linkedin,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -372,6 +374,23 @@ function CandidateDetail({
   const [busy, setBusy] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
+  const [loadingResume, setLoadingResume] = useState(false);
+
+  async function openResume() {
+    setLoadingResume(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resume-url', {
+        body: { applicationId: app.id },
+      });
+      if (error) throw error;
+      if (!data?.ok || !data.url) throw new Error(data?.error ?? 'Falha ao gerar link');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error('Não deu pra abrir o currículo. Tente de novo.');
+    } finally {
+      setLoadingResume(false);
+    }
+  }
 
   const loadEvents = useCallback(async () => {
     const { data } = await supabase
@@ -567,6 +586,37 @@ function CandidateDetail({
             {stageLabels[app.status]}
           </span>
         </div>
+
+        {(app.resume_path || app.linkedin_url) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {app.resume_path && (
+              <button
+                type="button"
+                onClick={() => void openResume()}
+                disabled={loadingResume}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+              >
+                {loadingResume ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <FileText className="h-3.5 w-3.5" />
+                )}
+                Ver currículo
+              </button>
+            )}
+            {app.linkedin_url && (
+              <a
+                href={app.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-[#0A66C2] transition-colors hover:border-gray-400"
+              >
+                <Linkedin className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} />
+                LinkedIn
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Ações de etapa */}

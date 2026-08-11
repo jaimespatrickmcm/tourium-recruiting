@@ -2,6 +2,20 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.3.0] - 2026-08-11
+
+Currículo anexado como base da análise por IA, LinkedIn opcional e copy de venda no fim da candidatura.
+
+### Added
+- Upload de currículo (PDF, até 10MB) obrigatório na candidatura, para bucket privado `resumes`. A IA extrai o texto do PDF e avalia o candidato cruzando com as exigências da vaga (não mais só o campo de motivação).
+- Campo de LinkedIn opcional na candidatura, como referência para o recrutador.
+- Botão "Ver currículo" no detalhe da vaga (link assinado de 5 minutos) e link do LinkedIn quando informado.
+- Edge functions `create-resume-upload` (signed upload URL) e `resume-url` (link assinado para o recrutador). Colunas `applications.resume_path` e `linkedin_url`.
+
+### Changed
+- Tela de "candidatura enviada" agora explica o benefício de adiantar o application form (mais contexto para a IA, avaliação mais completa), sem número inventado.
+- Prompt de análise reescrito para usar o currículo como base principal, com fallback conservador quando não há CV.
+
 ## [0.2.0] - 2026-08-11
 
 Application form completo, acesso do candidato por token, gerador de perguntas e detecção anti-IA. Provedor de IA migrado para OpenAI GPT-5.

@@ -14,6 +14,8 @@ type Payload = {
   candidatePhone?: string;
   whyInterested?: string;
   candidateId?: string;
+  resumePath?: string;
+  linkedinUrl?: string;
   // Honeypot: campo invisível no form. Humano não preenche; bot preenche.
   website?: string;
 };
@@ -141,6 +143,16 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Currículo: só aceita um path do bucket que pertença a essa empresa (pasta = company.id).
+  const resumePath =
+    typeof payload.resumePath === 'string' && payload.resumePath.startsWith(`${company.id}/`)
+      ? payload.resumePath
+      : null;
+  const linkedinUrl =
+    typeof payload.linkedinUrl === 'string' && payload.linkedinUrl.trim().length > 0
+      ? payload.linkedinUrl.trim().slice(0, 300)
+      : null;
+
   // Create application
   const { data: app, error: appError } = await admin
     .from('applications')
@@ -152,6 +164,8 @@ Deno.serve(async (req) => {
       candidate_phone: candidatePhone || null,
       why_interested: whyInterested || null,
       candidate_id: candidateId,
+      resume_path: resumePath,
+      linkedin_url: linkedinUrl,
     })
     .select('id')
     .single();
