@@ -1,16 +1,19 @@
 // Edge Function: generate-questions
-// Recebe { kind: 'culture' | 'reasoning', notes? } e usa o JWT do HR pra resolver company_id.
-// Lê dados da empresa (nome, descrição, cultura do DNA) e gera 5-8 perguntas
-// padronizadas via Claude. NÃO persiste: a UI grava depois da aprovação.
+// Gera a seção de CULTURA + RACIOCÍNIO do formulário (unificada) via OpenAI.
+// kind: 'culture' | 'reasoning' | 'mixed'. mode: 'noren' (adapta o método Noren
+// ao cliente) | 'scratch' (gera do zero). NÃO persiste: a UI grava após aprovar.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { callOpenAI } from '../_shared/openai.ts';
 
 type Kind = 'culture' | 'reasoning';
-type Payload = { kind: Kind; notes?: string };
+type GenKind = Kind | 'mixed';
+type Mode = 'noren' | 'scratch';
+type Payload = { kind: GenKind; mode?: Mode; notes?: string };
 
 type GeneratedQuestion = {
+  kind: Kind;
   question: string;
   guidance: string;
   scoring_rubric: string;
@@ -18,14 +21,18 @@ type GeneratedQuestion = {
 
 const MODEL = 'gpt-5';
 
-// Perguntas-base do método Noren pra seção de cultura: pessoais, universais,
-// de caráter e soft skill. O texto é fixo; a rubrica é calibrada pelo DNA.
+// Método Noren: perguntas de cultura já aplicadas, pessoais e universais.
+// O texto é fixo; a rubrica é sempre calibrada pelo DNA do cliente.
 const NOREN_CULTURE_BASE = [
   'Conte um pouco da sua história. Como você chegou até aqui?',
   'Cite uma conquista da qual você tem orgulho e o motivo.',
   'Conte sobre uma vez em que você assumiu um risco e falhou. O que aprendeu?',
   'Onde você quer estar daqui a 3 anos?',
 ];
+
+// Cenário comportamental do método Noren: revela autonomia, comunicação e ownership.
+const NOREN_BEHAVIORAL =
+  'O que você faria se seu gestor te pedisse uma tarefa de um jeito com o qual você não concorda?';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -35,71 +42,71 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function buildPrompt(args: {
-  kind: Kind;
+  kind: GenKind;
+  mode: Mode;
   companyName: string;
-  companyDescription: string | null;
   companyCulture: string | null;
   notes: string | null;
 }): string {
+  const wantCulture = args.kind === 'culture' || args.kind === 'mixed';
+  const wantReasoning = args.kind === 'reasoning' || args.kind === 'mixed';
+
   const regrasEscrita = `REGRAS DE ESCRITA (valem pra question, guidance e scoring_rubric):
 - Português direto. Sem clichê de RH ("trabalha bem em equipe", "é proativo", "veste a camisa").
 - Sem travessão de nenhum tipo. Use só vírgula, ponto, dois-pontos, hífen simples ou parênteses.
 - Sem "basicamente", "simplesmente", "definitivamente", "literalmente".
 - Concreto vence genérico. Pergunta que puxa exemplo real vence pergunta abstrata.
-- Não repita a mesma pergunta com outras palavras. Cada uma cobre um ângulo diferente.`;
+- Não repita a mesma pergunta com outras palavras.`;
 
   const schema = `OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
 {
   "questions": [
-    { "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>" }
+    { "kind": "culture" | "reasoning", "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>" }
   ]
-}`;
+}
+Cada item traz o "kind" correto (culture ou reasoning).`;
 
-  if (args.kind === 'culture') {
-    return `Você monta a seção de CULTURA do formulário de candidatura de uma empresa. Todo candidato responde as mesmas perguntas.
+  const blocoCultura = wantCulture
+    ? args.mode === 'noren'
+      ? `SEÇÃO CULTURA (método Noren, kind "culture"):
+Cultura NÃO é sobre segmento, produto ou experiência no ramo. É soft skill, caráter, valores e ética de trabalho: como a pessoa pensa, lida com fracasso, o que a move, o quanto assume responsabilidade. Perguntas pessoais e abertas.
+Comece com estas perguntas-base do método Noren, MANTENDO O TEXTO:
+${NOREN_CULTURE_BASE.map((q, i) => `   ${i + 1}. ${q}`).join('\n')}
+Inclua também este cenário comportamental, MANTENDO O TEXTO:
+   ${NOREN_CULTURE_BASE.length + 1}. ${NOREN_BEHAVIORAL}
+Depois gere 1 pergunta de cultura extra, no mesmo estilo pessoal, que revele o que ESTA cultura valoriza.
+`
+      : `SEÇÃO CULTURA (gerada do zero, kind "culture"):
+Cultura é soft skill, caráter, valores e ética de trabalho, não segmento nem hard skill. Gere 4 perguntas pessoais e abertas (história, conquista, fracasso e aprendizado, aspiração, cenários de comportamento como discordar do gestor ou receber feedback duro), calibradas ao que ESTA cultura valoriza e reprova. Continuam genéricas quanto ao negócio: são sobre a pessoa.
+`
+    : '';
 
-CONCEITO (leia com atenção): cultura NÃO é sobre o segmento, o produto ou a experiência da pessoa no ramo. Cultura é sobre SOFT SKILLS, caráter, valores e ética de trabalho: como a pessoa pensa, como lida com fracasso, o que a move, o quanto assume responsabilidade, como se projeta. As perguntas são PESSOAIS e ABERTAS, no estilo "conte sua história", "cite uma conquista e por quê", "conte uma vez que você falhou e o que aprendeu", "onde você quer estar daqui a 3 anos". Nada de perguntas técnicas ou sobre o mercado da empresa.
+  const blocoRaciocinio = wantReasoning
+    ? `SEÇÃO RACIOCÍNIO (kind "reasoning"):
+Neutras, comparáveis, não dependem da cultura nem do segmento. Medem clareza de pensamento e estruturação, não acertar um número. Gere 2 perguntas variando os tipos: estimativa de Fermi (ex "quantos passageiros chegam em Guarulhos numa quinta à tarde, explique como chegou"), matemática com pegadinha (desconto composto, proporção, velocidade) e senso de negócio (ex "como conseguir mais clientes numa barraca de limonada na sua rua"). Peça pra pessoa explicar o raciocínio.
+`
+    : '';
 
-EMPRESA (só pra calibrar a PONTUAÇÃO, não o enunciado das perguntas):
+  return `Você monta o formulário de candidatura de uma empresa. Todo candidato responde as mesmas perguntas. Sem exagerar na quantidade: o formulário também tem perguntas técnicas, então cultura e raciocínio juntos ficam enxutos.
+
+EMPRESA (serve pra calibrar a PONTUAÇÃO, não o enunciado):
 Nome: ${args.companyName}
 Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
 Notas de quem está montando: ${args.notes ?? '(nenhuma)'}
 
-Monte a lista assim:
-1) Comece com estas perguntas-base do método Noren, MANTENDO O TEXTO delas (elas são universais e pessoais):
-${NOREN_CULTURE_BASE.map((q, i) => `   ${i + 1}. ${q}`).join('\n')}
-2) Depois, gere mais 2 perguntas de cultura NO MESMO ESTILO (pessoais, abertas, de caráter e valores), que ajudem a revelar o que ESTA cultura em específico valoriza e reprova. Continuam genéricas quanto ao segmento: são sobre a pessoa, não sobre o negócio.
-
-Para CADA pergunta (as base e as novas), escreva:
-- "question": o enunciado que o candidato lê (para as base, repita o texto acima).
+${blocoCultura}${blocoRaciocinio}
+Para CADA pergunta entregue:
+- "kind": "culture" ou "reasoning".
+- "question": o enunciado que o candidato lê.
 - "guidance": o que uma boa resposta demonstra (uso interno). Concreto.
-- "scoring_rubric": como pontuar de 0 a 100 (uso interno), CALIBRADO PELA CULTURA DESTA EMPRESA. A mesma pergunta pontua diferente conforme o que esta empresa valoriza. Diga o que aprova, o que reprova e onde fica a média. Ex numa cultura que preza ownership: "0-40 terceiriza a culpa do fracasso; 41-70 assume mas sem tirar lição; 71-100 assume com clareza e mostra o que mudou depois".
-
-${regrasEscrita}
-
-${schema}`;
-  }
-
-  return `Você monta a seção de RACIOCÍNIO LÓGICO do formulário de candidatura. Iguais pra todo candidato, neutras, comparáveis. NÃO dependem da cultura nem do segmento da empresa.
-
-O que medem: clareza de pensamento, estruturação de problema, consistência e senso prático. O que importa é o RACIOCÍNIO até a resposta, não acertar um número exato.
-
-Gere 4 a 6 perguntas variando os tipos:
-- Estimativa (Fermi): ex "quantos passageiros chegam em Guarulhos numa quinta à tarde? Explique como chegou no número".
-- Matemática com pegadinha: ex desconto composto, proporção, velocidade.
-- Senso de negócio: ex "como você conseguiria mais clientes numa barraca de limonada na sua rua?".
-
-Para cada pergunta, entregue:
-- "question": o enunciado. Direto, em português. Quando fizer sentido, peça pra pessoa explicar o raciocínio.
-- "guidance": o que uma boa resposta demonstra (uso interno). Concreto: que estrutura de raciocínio você espera ver.
-- "scoring_rubric": como pontuar de 0 a 100 (uso interno). O que aprova, o que reprova, onde fica a média. Ex: "0-40 chuta sem explicar; 41-70 estrutura mas com furo lógico; 71-100 quebra o problema em partes e justifica cada passo".
+- "scoring_rubric": como pontuar de 0 a 100 (uso interno). Em cultura, CALIBRE PELA CULTURA DESTA EMPRESA (a mesma pergunta pontua diferente conforme o que a empresa valoriza). Diga o que aprova, o que reprova e onde fica a média.
 
 ${regrasEscrita}
 
 ${schema}`;
 }
 
-function parseQuestions(text: string): GeneratedQuestion[] | null {
+function parseQuestions(text: string, fallbackKind: Kind): GeneratedQuestion[] | null {
   const cleaned = text.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
   try {
     const parsed = JSON.parse(cleaned);
@@ -107,6 +114,7 @@ function parseQuestions(text: string): GeneratedQuestion[] | null {
     const questions: GeneratedQuestion[] = raw
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((q: any) => ({
+        kind: q?.kind === 'reasoning' || q?.kind === 'culture' ? q.kind : fallbackKind,
         question: String(q?.question ?? '').trim(),
         guidance: String(q?.guidance ?? '').trim(),
         scoring_rubric: String(q?.scoring_rubric ?? '').trim(),
@@ -132,9 +140,11 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'JSON inválido' }, 400);
   }
 
-  if (payload.kind !== 'culture' && payload.kind !== 'reasoning') {
-    return jsonResponse({ error: "kind obrigatório ('culture' | 'reasoning')" }, 400);
+  const kind: GenKind = payload.kind;
+  if (kind !== 'culture' && kind !== 'reasoning' && kind !== 'mixed') {
+    return jsonResponse({ error: "kind obrigatório ('culture' | 'reasoning' | 'mixed')" }, 400);
   }
+  const mode: Mode = payload.mode === 'scratch' ? 'scratch' : 'noren';
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -173,7 +183,7 @@ Deno.serve(async (req) => {
 
   const { data: company } = await admin
     .from('companies')
-    .select('name, description, dna_document')
+    .select('name, dna_document')
     .eq('id', companyId)
     .single();
 
@@ -185,9 +195,9 @@ Deno.serve(async (req) => {
 
   const notes = typeof payload.notes === 'string' ? payload.notes.trim() : '';
   const prompt = buildPrompt({
-    kind: payload.kind,
+    kind,
+    mode,
     companyName: company.name ?? '',
-    companyDescription: company.description ?? null,
     companyCulture: cultureText,
     notes: notes.length > 0 ? notes : null,
   });
@@ -197,11 +207,12 @@ Deno.serve(async (req) => {
       apiKey: openaiKey,
       model: MODEL,
       prompt,
-      maxTokens: 5000,
+      maxTokens: 6000,
       jsonMode: true,
       reasoningEffort: 'medium',
     });
-    const questions = parseQuestions(text);
+    const fallbackKind: Kind = kind === 'reasoning' ? 'reasoning' : 'culture';
+    const questions = parseQuestions(text, fallbackKind);
     if (!questions) return jsonResponse({ error: 'IA retornou formato inválido' }, 500);
 
     return jsonResponse({ ok: true, questions });

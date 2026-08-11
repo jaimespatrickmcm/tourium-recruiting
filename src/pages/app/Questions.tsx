@@ -29,8 +29,10 @@ import {
 } from '@/hooks/use-questions';
 import {
   QuestionGeneratorModal,
+  KindChip,
   type GeneratorMode,
 } from '@/components/modals/question-generator-modal';
+import type { QuestionKind } from '@/types/database';
 
 type JobLite = { id: string; title: string };
 
@@ -103,33 +105,19 @@ export function Questions() {
           </p>
         </div>
 
-        <Tabs defaultValue="culture">
+        <Tabs defaultValue="company">
           <TabsList className="mb-6">
-            <TabsTrigger value="culture">Cultura</TabsTrigger>
-            <TabsTrigger value="reasoning">Raciocínio</TabsTrigger>
+            <TabsTrigger value="company">Cultura e raciocínio</TabsTrigger>
             <TabsTrigger value="job">Por vaga</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="culture">
-            <CompanyKindPanel
-              kindLabel="cultura"
-              description="Perguntas abertas que medem ética de trabalho e fit com a cultura descrita no DNA."
-              questions={cultureQuestions}
+          <TabsContent value="company">
+            <UnifiedCompanyPanel
+              cultureQuestions={cultureQuestions}
+              reasoningQuestions={reasoningQuestions}
               loading={loadingCompany}
-              onGerar={() => openGenerator({ kind: 'culture' })}
-              onManual={() => openGenerator({ kind: 'culture' }, true)}
-              onChanged={refetchCompany}
-            />
-          </TabsContent>
-
-          <TabsContent value="reasoning">
-            <CompanyKindPanel
-              kindLabel="raciocínio"
-              description="Perguntas de raciocínio lógico, padronizadas e comparáveis entre todos os candidatos."
-              questions={reasoningQuestions}
-              loading={loadingCompany}
-              onGerar={() => openGenerator({ kind: 'reasoning' })}
-              onManual={() => openGenerator({ kind: 'reasoning' }, true)}
+              onGerar={() => openGenerator({ type: 'company' })}
+              onManual={() => openGenerator({ type: 'company' }, true)}
               onChanged={refetchCompany}
             />
           </TabsContent>
@@ -138,8 +126,8 @@ export function Questions() {
             <JobPanel
               jobs={jobs}
               jobQuestions={jobQuestions}
-              onGerar={(jobId) => openGenerator({ kind: 'job', jobId })}
-              onManual={(jobId) => openGenerator({ kind: 'job', jobId }, true)}
+              onGerar={(jobId) => openGenerator({ type: 'job', jobId })}
+              onManual={(jobId) => openGenerator({ type: 'job', jobId }, true)}
               onChanged={refetchJobs}
             />
           </TabsContent>
@@ -160,27 +148,30 @@ export function Questions() {
   );
 }
 
-function CompanyKindPanel({
-  kindLabel,
-  description,
-  questions,
+function UnifiedCompanyPanel({
+  cultureQuestions,
+  reasoningQuestions,
   loading,
   onGerar,
   onManual,
   onChanged,
 }: {
-  kindLabel: string;
-  description: string;
-  questions: CompanyQuestion[];
+  cultureQuestions: CompanyQuestion[];
+  reasoningQuestions: CompanyQuestion[];
   loading: boolean;
   onGerar: () => void;
   onManual: () => void;
   onChanged: () => void | Promise<void>;
 }) {
+  const total = cultureQuestions.length + reasoningQuestions.length;
+
   return (
     <div>
       <div className="flex items-start justify-between gap-4 mb-5">
-        <p className="text-[14px] text-[#6b6b70] leading-relaxed max-w-md">{description}</p>
+        <p className="text-[14px] text-[#6b6b70] leading-relaxed max-w-md">
+          Perguntas de cultura (ética de trabalho e fit com o DNA) e de raciocínio lógico, geradas
+          juntas e padronizadas pra todo candidato.
+        </p>
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
@@ -199,16 +190,16 @@ function CompanyKindPanel({
 
       {loading ? (
         <div className="text-[#8a8a8f] text-sm">Carregando...</div>
-      ) : questions.length === 0 ? (
+      ) : total === 0 ? (
         <div className="bg-white rounded-[28px] border border-gray-200 p-10 text-center">
           <div className="inline-flex h-14 w-14 rounded-2xl bg-gray-100 items-center justify-center mb-4">
             <ListChecks className="h-6 w-6 text-[#6b6b70]" strokeWidth={1.5} />
           </div>
           <p className="text-[18px] font-semibold text-[#1d1d1f] mb-2">
-            Nenhuma pergunta de {kindLabel} ainda
+            Nenhuma pergunta de cultura ou raciocínio ainda
           </p>
           <p className="text-[14px] text-[#6b6b70] mb-6 max-w-md mx-auto leading-relaxed">
-            Gere com IA a partir do DNA da empresa ou escreva na mão. Elas ficam padronizadas pra
+            Use o método Noren, gere do zero com IA ou escreva na mão. Elas ficam padronizadas pra
             todo candidato.
           </p>
           <BrandCtaButton onClick={onGerar}>
@@ -216,6 +207,46 @@ function CompanyKindPanel({
             Gerar perguntas
           </BrandCtaButton>
         </div>
+      ) : (
+        <div className="space-y-8">
+          <KindGroup
+            kind="culture"
+            questions={cultureQuestions}
+            onChanged={onChanged}
+          />
+          <KindGroup
+            kind="reasoning"
+            questions={reasoningQuestions}
+            onChanged={onChanged}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KindGroup({
+  kind,
+  questions,
+  onChanged,
+}: {
+  kind: QuestionKind;
+  questions: CompanyQuestion[];
+  onChanged: () => void | Promise<void>;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <KindChip kind={kind} />
+        <span className="text-[13px] text-[#8a8a8f] font-medium">
+          {questions.length} pergunta{questions.length === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      {questions.length === 0 ? (
+        <p className="text-[13px] text-[#a8a8ad] italic">
+          Nenhuma pergunta de {kind === 'culture' ? 'cultura' : 'raciocínio'} ainda.
+        </p>
       ) : (
         <div className="space-y-3">
           {questions.map((q, i) => (
