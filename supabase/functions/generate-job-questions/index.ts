@@ -31,26 +31,34 @@ function buildPrompt(args: {
   jobTitle: string;
   jobDescription: string | null;
 }): string {
-  return `Você monta as perguntas técnicas específicas de UMA vaga. Todo candidato dessa vaga responde as mesmas perguntas, então elas precisam separar quem tem repertório real de quem tem só palavra bonita.
+  return `Você monta as perguntas técnicas de UMA vaga. Todo candidato dessa vaga responde as mesmas perguntas.
 
 EMPRESA: ${args.companyName}
-Cultura: ${args.companyCulture ?? '(não informado)'}
+Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
 
 VAGA: ${args.jobTitle}
-Descrição: ${args.jobDescription ?? '(não informado)'}
+Descrição e exigências: ${args.jobDescription ?? '(não informado)'}
 
-Gere 4 a 6 perguntas técnicas específicas dessa vaga. Cubra experiência prática, metodologias, ferramentas e decisões técnicas que essa função exige de verdade. Nada de trivia decorada: pergunta que puxa como a pessoa resolveu algo concreto.
+PASSO 1, CALIBRE A SENIORIDADE. Antes de escrever, deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, lead). Isso mude TUDO:
+- Estágio / júnior: a pessoa está começando ou na faculdade. NÃO peça anos de experiência profissional, portfólio de campanhas pagas, biblioteca de assets pro time, decks de venda do zero ou liderança. Foque em fundamentos, curiosidade, projetos pequenos ou acadêmicos, familiaridade básica com as ferramentas, vontade de aprender e como a pessoa pensa. Perguntas que um bom estagiário consegue responder com o que já viveu.
+- Pleno: experiência prática real, autonomia em tarefas, decisões do dia a dia.
+- Sênior / lead: arquitetura, trade-offs difíceis, mentoria, impacto amplo.
+Uma pergunta boa pra sênior costuma ser injusta pra estagiário. Ajuste a profundidade ao nível.
+
+PASSO 2, GERE 3 a 5 perguntas (menos é melhor: o formulário todo já tem perguntas de cultura também, então não pese a mão). Misture:
+- Perguntas técnicas calibradas ao nível da vaga (ferramentas, decisões, como resolveu algo concreto no nível dela).
+- Pelo menos 1 cenário comportamental que também revela cultura, no estilo "o que você faria se seu gestor te pedisse uma tarefa do jeito que você discorda?" ou "conte uma vez que recebeu um feedback duro, o que fez". Esses medem autonomia, comunicação, humildade e ownership, além do lado técnico.
 
 Para cada pergunta, entregue:
-- "question": a pergunta que o candidato lê. Direta, em português, técnica sem ser rebuscada.
-- "guidance": o que uma boa resposta demonstra (uso interno, o candidato não vê). Concreto: que ferramenta, que raciocínio, que trade-off você espera ver.
-- "scoring_rubric": como pontuar de 0 a 100 (uso interno). Diga o que aprova, o que reprova, e onde fica a média. Ex: "0-40 responde no genérico sem projeto real; 41-70 cita stack certa mas não explica decisão; 71-100 explica decisão técnica com contexto e resultado".
+- "question": o enunciado que o candidato lê. Direto, português, no nível certo da vaga.
+- "guidance": o que uma boa resposta demonstra (uso interno). Concreto: ferramenta, raciocínio ou trade-off no nível da vaga.
+- "scoring_rubric": como pontuar de 0 a 100 (uso interno). Avalie DOIS eixos juntos: (a) fit técnico com a exigência da vaga no nível certo e (b) o sinal cultural/soft-skill que a resposta revela (calibrado pela cultura desta empresa). Diga o que aprova, o que reprova e onde fica a média.
 
 REGRAS DE ESCRITA (valem pra question, guidance e scoring_rubric):
 - Português direto. Sem clichê de RH.
 - Sem travessão de nenhum tipo. Use só vírgula, ponto, dois-pontos, hífen simples ou parênteses.
 - Sem "basicamente", "simplesmente", "definitivamente", "literalmente".
-- Específico da vaga, não pergunta que serve pra qualquer cargo.
+- Específico da vaga e do nível, não pergunta que serve pra qualquer cargo.
 - Não repita a mesma pergunta com outras palavras.
 
 OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
