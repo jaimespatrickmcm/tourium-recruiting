@@ -114,6 +114,8 @@ export type Database = {
           status: ApplicationStatus;
           city: string | null;
           form_completed_at: string | null;
+          resume_path: string | null;
+          linkedin_url: string | null;
           ai_suspected: boolean;
           ai_flags: Json | null;
           created_at: string;
