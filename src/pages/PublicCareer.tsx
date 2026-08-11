@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, CheckCircle2, Linkedin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -20,11 +20,13 @@ type PublicJob = {
 
 export function PublicCareer() {
   const { companySlug, jobSlug } = useParams<{ companySlug: string; jobSlug: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { candidate } = useCandidate();
   const [job, setJob] = useState<PublicJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -106,6 +108,7 @@ export function PublicCareer() {
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? 'Falha ao enviar');
+      setApplicationId(data.applicationId ?? null);
       setSubmitted(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao enviar candidatura');
@@ -115,6 +118,7 @@ export function PublicCareer() {
   }
 
   const identityValid = name.trim().length >= 2 && /\S+@\S+\.\S+/.test(email);
+  const phoneValid = phone.trim().length >= 8;
   const whyValid = whyInterested.trim().length >= 30;
 
   if (loading) {
@@ -151,11 +155,32 @@ export function PublicCareer() {
           <h1 className="font-satoshi font-bold text-[36px] tracking-[-0.6px] text-[#1d1d1f] mb-3">
             Candidatura enviada
           </h1>
-          <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto">
+          <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto mb-8">
             Recebemos sua aplicação pra <strong className="text-[#1d1d1f]">{job.title}</strong> na{' '}
             <strong className="text-[#1d1d1f]">{job.company?.name}</strong>. A IA vai analisar seu
             fit e a equipe entra em contato se houver match.
           </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <BrandCtaButton
+              size="default"
+              onClick={() =>
+                navigate(
+                  `/careers/${companySlug}/${jobSlug}/form${
+                    applicationId ? `?app=${applicationId}` : ''
+                  }`,
+                  { state: { name, email, phone } },
+                )
+              }
+            >
+              Adiantar meu processo
+            </BrandCtaButton>
+            <Link
+              to="/candidato"
+              className="inline-flex items-center justify-center h-11 px-6 rounded-full border border-gray-200 bg-white text-[14px] font-semibold text-[#1d1d1f] hover:bg-gray-50 transition-colors"
+            >
+              Ver meu perfil
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -234,10 +259,11 @@ export function PublicCareer() {
       return (
         <div>
           <h2 className="font-satoshi font-bold text-[26px] md:text-[30px] tracking-[-0.5px] leading-tight text-[#1d1d1f] mb-2">
-            Tem um telefone que a gente pode usar?
+            Qual telefone a gente pode usar?
           </h2>
           <p className="text-[15px] text-[#6b6b70] leading-relaxed mb-6">
-            Opcional. Se a equipe quiser marcar uma conversa rápida, é mais ágil que email.
+            Precisamos do seu telefone pra marcar uma conversa rápida quando avançar. É mais ágil que
+            email.
           </p>
           {isLoggedCandidate && candidate && (
             <div className="mb-6 inline-flex items-center gap-2.5 bg-sky-50 border border-sky-100 rounded-full px-3 py-1.5 text-[12px] text-sky-900">
@@ -260,7 +286,7 @@ export function PublicCareer() {
             onChange={(e) => setPhone(e.target.value)}
             placeholder="(11) 99999-9999"
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && phoneValid) {
                 e.preventDefault();
                 setStep(phoneStepIndex + 1);
               }
@@ -304,7 +330,7 @@ export function PublicCareer() {
   const isLastStep = step === TOTAL_STEPS;
   const canAdvance = (() => {
     if (!isLoggedCandidate && step === 1) return identityValid;
-    if (step === (isLoggedCandidate ? 1 : 2)) return true; // phone optional
+    if (step === (isLoggedCandidate ? 1 : 2)) return phoneValid; // phone obrigatório
     return whyValid;
   })();
 

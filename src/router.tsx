@@ -4,26 +4,26 @@ import { Signup } from '@/pages/Signup';
 import { Login } from '@/pages/Login';
 import { VerifyOtp } from '@/pages/VerifyOtp';
 import { PublicCareer } from '@/pages/PublicCareer';
+import { ApplicationForm } from '@/pages/ApplicationForm';
 import { AppLayout } from '@/components/app-layout';
 import { Dashboard } from '@/pages/app/Dashboard';
 import { Empresa } from '@/pages/app/Empresa';
 import { Dna } from '@/pages/app/Dna';
+import { Questions } from '@/pages/app/Questions';
 import { Jobs } from '@/pages/app/Jobs';
 import { JobDetail } from '@/pages/app/JobDetail';
 import { Team } from '@/pages/app/Team';
 import { TeamDetail } from '@/pages/app/TeamDetail';
 import { CandidateLogin } from '@/pages/candidate/Login';
-import { CandidateProfile } from '@/pages/candidate/Profile';
-import { CandidateApplications } from '@/pages/candidate/Applications';
-import { CandidateJourney } from '@/pages/candidate/Journey';
-import { CandidateLayout } from '@/components/candidate-layout';
-import { CandidateProtectedRoute } from '@/components/candidate-protected-route';
+import { CandidateAccess } from '@/pages/candidate/Access';
+import { CandidateTokenArea } from '@/pages/candidate/TokenArea';
 import { ProtectedRoute } from '@/components/protected-route';
 import { PublicOnlyRoute } from '@/components/public-only-route';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Landing /> },
   { path: '/careers/:companySlug/:jobSlug', element: <PublicCareer /> },
+  { path: '/careers/:companySlug/:jobSlug/form', element: <ApplicationForm /> },
   {
     path: '/signup',
     element: (
@@ -49,22 +49,11 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Candidate area
+  // Candidate area — acesso por token (magic link), não OAuth.
+  // LinkedIn segue como identificação opcional na candidatura.
   { path: '/candidato/login', element: <CandidateLogin /> },
-  {
-    path: '/candidato',
-    element: (
-      <CandidateProtectedRoute>
-        <CandidateLayout />
-      </CandidateProtectedRoute>
-    ),
-    children: [
-      { index: true, element: <Navigate to="/candidato/candidaturas" replace /> },
-      { path: 'perfil', element: <CandidateProfile /> },
-      { path: 'candidaturas', element: <CandidateApplications /> },
-      { path: 'jornada', element: <CandidateJourney /> },
-    ],
-  },
+  { path: '/candidato/acesso', element: <CandidateAccess /> },
+  { path: '/candidato', element: <CandidateTokenArea /> },
 
   // Company/HR area
   {
@@ -78,6 +67,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: 'empresa', element: <Empresa /> },
       { path: 'dna', element: <Dna /> },
+      { path: 'perguntas', element: <Questions /> },
       { path: 'jobs', element: <Jobs /> },
       { path: 'jobs/:id', element: <JobDetail /> },
       { path: 'time', element: <Team /> },

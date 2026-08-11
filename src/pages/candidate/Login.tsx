@@ -1,18 +1,26 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Linkedin } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
 export function CandidateLogin() {
   const [loading, setLoading] = useState(false);
+  const [params] = useSearchParams();
+
+  // returnTo permite voltar pra página de origem (ex.: a vaga na página de
+  // carreiras) em vez de cair numa tela de perfil. O LinkedIn aqui só serve pra
+  // pré-preencher a identidade na candidatura, é opcional.
+  const returnTo = params.get('returnTo');
 
   async function signInWithLinkedIn() {
     setLoading(true);
+    const origin = window.location.origin;
+    const safeReturn = returnTo && returnTo.startsWith('/') ? returnTo : '/candidato';
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'linkedin_oidc',
       options: {
-        redirectTo: `${window.location.origin}/candidato/perfil`,
+        redirectTo: `${origin}${safeReturn}`,
       },
     });
     if (error) {
@@ -32,9 +40,10 @@ export function CandidateLogin() {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-md p-8">
-          <h1 className="text-2xl font-bold mb-2">Entrar como candidato</h1>
+          <h1 className="text-2xl font-bold mb-2">Identificar com LinkedIn</h1>
           <p className="text-sm text-gray-600 mb-6">
-            Acesse com sua conta do LinkedIn pra ver suas aplicações e candidatar-se a vagas.
+            Usar o LinkedIn é opcional. Ele só serve pra já preencher seus dados na candidatura. Pra
+            ver suas candidaturas depois, você entra pelo seu e-mail.
           </p>
 
           <button
@@ -48,6 +57,13 @@ export function CandidateLogin() {
           </button>
 
           <p className="text-xs text-gray-500 mt-6 text-center">
+            Já se candidatou e quer ver o andamento?{' '}
+            <Link to="/candidato/acesso" className="text-gray-900 font-semibold hover:underline">
+              Acessar pelo e-mail
+            </Link>
+          </p>
+
+          <p className="text-xs text-gray-500 mt-3 text-center">
             Você é uma empresa contratando?{' '}
             <Link to="/login" className="text-gray-900 font-semibold hover:underline">
               Entrar como empresa
