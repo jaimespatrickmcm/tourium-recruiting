@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Sparkles, Plus, Pencil, Trash2, Check, X, ListChecks, Briefcase } from 'lucide-react';
+import {
+  Sparkles,
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  ListChecks,
+  Briefcase,
+  ChevronDown,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
@@ -357,6 +367,7 @@ function QuestionCard({
   onSave: (patch: QuestionPatch) => Promise<boolean>;
   onDelete: () => Promise<void>;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [question, setQuestion] = useState(data.question);
@@ -367,6 +378,7 @@ function QuestionCard({
     setQuestion(data.question);
     setGuidance(data.guidance ?? '');
     setRubric(data.scoring_rubric ?? '');
+    setExpanded(true);
     setEditing(true);
   }
 
@@ -394,119 +406,146 @@ function QuestionCard({
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4">
       <div className="flex items-start gap-3">
-        <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0">
+        <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0 mt-1">
           {index + 1}
         </span>
 
-        {editing ? (
-          <div className="flex-1 space-y-3">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
-                Pergunta
-              </label>
-              <Textarea
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                rows={2}
-                className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
-                Resposta esperada (interno)
-              </label>
-              <Textarea
-                value={guidance}
-                onChange={(e) => setGuidance(e.target.value)}
-                rows={2}
-                className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
-                Como pontuar (interno)
-              </label>
-              <Textarea
-                value={rubric}
-                onChange={(e) => setRubric(e.target.value)}
-                rows={2}
-                className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
-              />
-            </div>
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-600 text-white text-[12px] font-semibold hover:bg-sky-700 transition-colors disabled:opacity-50"
-              >
-                <Check className="h-3.5 w-3.5" />
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white text-[12px] font-semibold text-[#6b6b70] hover:text-[#1d1d1f] transition-colors"
-              >
-                <X className="h-3.5 w-3.5" />
-                Cancelar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          {editing ? (
+            <Textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              rows={2}
+              className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="block w-full text-left"
+              aria-expanded={expanded}
+            >
               <p className="text-[15px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
                 {data.question}
               </p>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={startEdit}
-                  className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-white hover:text-[#1d1d1f] transition-colors"
-                  aria-label="Editar"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-red-50 hover:text-red-600 transition-colors"
-                  aria-label="Remover"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+            </button>
+          )}
+        </div>
 
-            {(data.guidance || data.scoring_rubric) && (
-              <div className="mt-3 space-y-2 border-t border-gray-200/70 pt-3">
-                {data.guidance && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-0.5">
-                      Resposta esperada
-                    </p>
-                    <p className="text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
-                      {data.guidance}
-                    </p>
-                  </div>
-                )}
-                {data.scoring_rubric && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-0.5">
-                      Como pontuar
-                    </p>
-                    <p className="text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
-                      {data.scoring_rubric}
-                    </p>
-                  </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {editing ? null : (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-white hover:text-[#1d1d1f] transition-colors"
+              aria-label={expanded ? 'Recolher critérios' : 'Ver critérios internos'}
+              aria-expanded={expanded}
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+              />
+            </button>
+          )}
+          {!editing && (
+            <>
+              <button
+                type="button"
+                onClick={startEdit}
+                className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-white hover:text-[#1d1d1f] transition-colors"
+                aria-label="Editar"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-red-50 hover:text-red-600 transition-colors"
+                aria-label="Remover"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 space-y-3 border-t border-gray-200/70 pt-3 pl-9">
+          {editing ? (
+            <>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                  Resposta esperada (interno)
+                </label>
+                <Textarea
+                  value={guidance}
+                  onChange={(e) => setGuidance(e.target.value)}
+                  rows={2}
+                  className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                  Como pontuar (interno)
+                </label>
+                <Textarea
+                  value={rubric}
+                  onChange={(e) => setRubric(e.target.value)}
+                  rows={2}
+                  className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-600 text-white text-[12px] font-semibold hover:bg-sky-700 transition-colors disabled:opacity-50"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white text-[12px] font-semibold text-[#6b6b70] hover:text-[#1d1d1f] transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Cancelar
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-0.5">
+                  Resposta esperada
+                </p>
+                {data.guidance ? (
+                  <p className="text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
+                    {data.guidance}
+                  </p>
+                ) : (
+                  <p className="text-[13px] text-[#a8a8ad] italic">Ainda não preenchida.</p>
                 )}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-0.5">
+                  Como pontuar
+                </p>
+                {data.scoring_rubric ? (
+                  <p className="text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
+                    {data.scoring_rubric}
+                  </p>
+                ) : (
+                  <p className="text-[13px] text-[#a8a8ad] italic">Ainda não preenchida.</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
