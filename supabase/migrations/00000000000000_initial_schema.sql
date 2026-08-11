@@ -7,11 +7,12 @@
 -- -----------------------------------------------------------------------------
 -- Extensions
 -- -----------------------------------------------------------------------------
+-- gen_random_uuid() vem do pgcrypto (já ativada por default no Supabase).
+-- pgvector ativada aqui pra preparar pra embeddings (sprint 1+).
+-- pg_cron habilitado manualmente no dashboard (Database → Extensions).
 
-create extension if not exists "uuid-ossp";
 create extension if not exists "pgcrypto";
 create extension if not exists "vector";
--- pg_cron habilitado no dashboard Supabase (Database → Extensions)
 
 -- -----------------------------------------------------------------------------
 -- Enums
@@ -25,7 +26,7 @@ create type public.company_plan as enum ('trial', 'starter', 'growth');
 -- -----------------------------------------------------------------------------
 
 create table public.companies (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   slug text not null unique check (slug ~ '^[a-z0-9-]{3,40}$'),
   name text not null check (length(name) between 1 and 120),
   plan company_plan not null default 'trial',
@@ -74,7 +75,7 @@ comment on table public.users is 'Usuários da aplicação (HR/admin). 1 user = 
 -- -----------------------------------------------------------------------------
 
 create table public.audit_log (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   company_id uuid references public.companies(id) on delete set null,
   actor_id uuid references auth.users(id) on delete set null,
   action text not null,
