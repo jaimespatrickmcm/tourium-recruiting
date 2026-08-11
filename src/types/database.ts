@@ -13,6 +13,9 @@ export type ApplicationEventType = 'stage_change' | 'note' | 'hired';
 export type CollaboratorStatus = 'ativo' | 'desligado';
 export type ScoreSource = 'analise_inicial' | 'avaliacao';
 export type GoalStatus = 'em_andamento' | 'concluida' | 'pausada';
+export type QuestionKind = 'culture' | 'reasoning';
+export type JobVisibility = 'public' | 'private';
+export type AnswerSource = 'candidate_info' | 'job_question' | 'culture' | 'reasoning';
 
 export type Database = {
   public: {
@@ -86,6 +89,7 @@ export type Database = {
           title: string;
           description: string | null;
           status: string;
+          visibility: JobVisibility;
           created_at: string;
           updated_at: string;
         };
@@ -108,6 +112,10 @@ export type Database = {
           candidate_phone: string | null;
           why_interested: string | null;
           status: ApplicationStatus;
+          city: string | null;
+          form_completed_at: string | null;
+          ai_suspected: boolean;
+          ai_flags: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -244,6 +252,82 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['development_goals']['Row']>;
         Relationships: [];
       };
+      company_questions: {
+        Row: {
+          id: string;
+          company_id: string;
+          kind: QuestionKind;
+          position: number;
+          question: string;
+          guidance: string | null;
+          scoring_rubric: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['company_questions']['Row']> & {
+          company_id: string;
+          kind: QuestionKind;
+          question: string;
+        };
+        Update: Partial<Database['public']['Tables']['company_questions']['Row']>;
+        Relationships: [];
+      };
+      job_questions: {
+        Row: {
+          id: string;
+          job_id: string;
+          company_id: string;
+          position: number;
+          question: string;
+          guidance: string | null;
+          scoring_rubric: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['job_questions']['Row']> & {
+          job_id: string;
+          company_id: string;
+          question: string;
+        };
+        Update: Partial<Database['public']['Tables']['job_questions']['Row']>;
+        Relationships: [];
+      };
+      application_answers: {
+        Row: {
+          id: string;
+          application_id: string;
+          company_id: string;
+          source: AnswerSource;
+          ref_id: string | null;
+          question_snapshot: string;
+          answer: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['application_answers']['Row']> & {
+          application_id: string;
+          company_id: string;
+          source: AnswerSource;
+          question_snapshot: string;
+        };
+        Update: Partial<Database['public']['Tables']['application_answers']['Row']>;
+        Relationships: [];
+      };
+      applicant_profiles: {
+        Row: {
+          email: string;
+          full_name: string | null;
+          phone: string | null;
+          city: string | null;
+          linkedin_url: string | null;
+          picture_url: string | null;
+          about: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['applicant_profiles']['Row']> & { email: string };
+        Update: Partial<Database['public']['Tables']['applicant_profiles']['Row']>;
+        Relationships: [];
+      };
     };
     Views: {
       company_public_profiles: {
@@ -252,6 +336,25 @@ export type Database = {
           slug: string;
           name: string;
           description: string | null;
+        };
+        Relationships: [];
+      };
+      company_questions_public: {
+        Row: {
+          id: string;
+          company_id: string;
+          kind: QuestionKind;
+          position: number;
+          question: string;
+        };
+        Relationships: [];
+      };
+      job_questions_public: {
+        Row: {
+          id: string;
+          job_id: string;
+          position: number;
+          question: string;
         };
         Relationships: [];
       };
