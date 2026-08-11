@@ -9,31 +9,36 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { BrandCtaButton } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
 
-const loginSchema = z.object({
+const signupSchema = z.object({
+  fullName: z.string().min(2, 'Mínimo 2 caracteres').max(80),
+  companyName: z.string().min(2, 'Mínimo 2 caracteres').max(120),
   email: z.string().email('Email inválido'),
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type SignupForm = z.infer<typeof signupSchema>;
 
-export function Login() {
+export function Signup() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
-  const form = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: '' },
+  const form = useForm<SignupForm>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { fullName: '', companyName: '', email: '' },
   });
 
-  async function onSubmit(values: LoginForm) {
+  async function onSubmit(values: SignupForm) {
     setSubmitting(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: values.email,
-        options: { shouldCreateUser: false },
+        options: {
+          shouldCreateUser: true,
+          data: { full_name: values.fullName, company_name: values.companyName },
+        },
       });
       if (error) throw error;
       toast.success('Código enviado pro seu email.');
-      navigate('/verify-otp', { state: { email: values.email, flow: 'login' } });
+      navigate('/verify-otp', { state: { email: values.email, flow: 'signup' } });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar código.';
       toast.error(message);
@@ -59,10 +64,10 @@ export function Login() {
         <div className="bg-white rounded-[28px] border border-gray-200 shadow-[0_20px_60px_-20px_rgba(15,15,30,0.12)] p-8 md:p-10">
           <div className="mb-7">
             <h1 className="font-satoshi font-bold text-[26px] tracking-[-0.4px] text-[#1d1d1f] leading-tight mb-2">
-              Entrar
+              Criar conta
             </h1>
             <p className="text-[15px] text-[#6b6b70] leading-relaxed">
-              A gente manda um código de 6 dígitos pro seu email. Sem senha pra decorar.
+              Sem senha. A gente manda um código de 6 dígitos pro seu email. Toda vez.
             </p>
           </div>
 
@@ -70,15 +75,54 @@ export function Login() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[13px] font-semibold text-[#1d1d1f]">Seu nome</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Maria Silva"
+                        autoComplete="name"
+                        className="h-11 rounded-xl border-gray-200 text-[15px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="companyName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[13px] font-semibold text-[#1d1d1f]">
+                      Nome da empresa
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Acme Inc"
+                        className="h-11 rounded-xl border-gray-200 text-[15px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[13px] font-semibold text-[#1d1d1f]">Email</FormLabel>
+                    <FormLabel className="text-[13px] font-semibold text-[#1d1d1f]">
+                      Email de trabalho
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="email"
-                        autoComplete="email"
                         placeholder="voce@empresa.com"
+                        autoComplete="email"
                         className="h-11 rounded-xl border-gray-200 text-[15px]"
                         {...field}
                       />
@@ -93,9 +137,9 @@ export function Login() {
                   {submitting ? 'Enviando código...' : 'Receber código de acesso'}
                 </BrandCtaButton>
                 <p className="text-[14px] text-[#8a8a8f] text-center">
-                  Não tem conta?{' '}
-                  <Link to="/signup" className="text-[#1d1d1f] font-semibold hover:underline">
-                    Criar conta
+                  Já tem conta?{' '}
+                  <Link to="/login" className="text-[#1d1d1f] font-semibold hover:underline">
+                    Entrar
                   </Link>
                 </p>
               </div>

@@ -1,14 +1,14 @@
-# Nuren — Project Context
+# Noren — Project Context
 
 ## Product
 
-Nuren é um Recruiting OS contextual orientado por IA. Cada empresa configura seu DNA (cultura, valores, perfil ideal, anti-fit, estilo de liderança) e a IA usa esse contexto pra gerar perguntas, analisar candidatos, ranquear e gerar reasoning.
+Noren é um Recruiting OS contextual orientado por IA. Cada empresa configura seu DNA (cultura, valores, perfil ideal, anti-fit, estilo de liderança) e a IA usa esse contexto pra gerar perguntas, analisar candidatos, ranquear e gerar reasoning.
 
-**Repo folder:** `tourium-recruiting` (legacy working name). Produto: **Nuren**. Artefatos novos (package.json, deploys, domínio, marca) usam Nuren.
+**Repo folder:** `tourium-recruiting` (legacy working name). Produto: **Noren**. Artefatos novos (package.json, deploys, domínio, marca) usam Noren.
 
 **ICP v1:** tech startups/scale-ups BR (50-300 funcionários). Decisor: founder ou head of people.
 
-**Strategy:** dogfood-first. MCM usa Nuren internamente antes de vender externamente. Deadline pra 1º cliente pagante externo: 90 dias após launch v1.
+**Strategy:** dogfood-first. MCM usa Noren internamente antes de vender externamente. Deadline pra 1º cliente pagante externo: 90 dias após launch v1.
 
 ---
 
