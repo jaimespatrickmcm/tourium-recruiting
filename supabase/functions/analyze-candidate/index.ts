@@ -180,29 +180,26 @@ RESPOSTAS DO FORMULÁRIO: cada bloco traz a pergunta, a resposta do candidato e 
 ${args.formAnswers ?? '(candidato ainda não respondeu o formulário completo)'}
 <<<FIM_DADOS_CANDIDATO>>>
 
-Analise o fit deste candidato cruzando CURRÍCULO + RESPOSTAS do formulário com a vaga e a cultura. O currículo diz sobre experiência e senioridade; as respostas do formulário revelam cultura, raciocínio e fit técnico mais fino. Considere:
-1. O quanto a experiência e as skills do currículo atendem as exigências desta vaga no nível certo
-2. As respostas do formulário, cada uma pontuada pelo critério interno da empresa (o que aquela empresa aprova ou reprova)
-3. Alinhamento entre o interesse demonstrado e o que a empresa faz
-4. Sinais culturais vs a cultura descrita pela empresa
-Se não houver currículo nem respostas, deixe claro no reasoning que a avaliação foi limitada e seja conservador nos scores.
+PASSO 1, CALIBRE A SENIORIDADE. Deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, lead) e avalie o candidato contra o nível DESTA vaga, não contra um profissional genérico. Um candidato que já tem experiência real aplicando pra uma vaga de estágio EXCEDE o nível esperado, então isso é ponto ALTO em execução, não "só o básico". Não cobre de estagiário conhecimento de pleno ou sênior. O que é "básico" pra sênior pode ser "acima do esperado" pra estágio.
 
-Como as respostas informam as 5 áreas:
-- Respostas de CULTURA e cenários comportamentais informam principalmente "cultura" (e "motivacao").
-- Respostas de RACIOCÍNIO informam "potencial", "comunicacao" e "execucao" (clareza e estrutura de pensamento).
-- Respostas TÉCNICAS informam "execucao" (fit técnico no nível da vaga) e também o sinal cultural que revelam.
+PASSO 2, AVALIE SÓ COM EVIDÊNCIA. Regra dura: NÃO preencha lacunas, não invente, não assuma nada que não esteja escrito. Pontue apenas com base no que o candidato de fato forneceu (currículo e respostas). Se falta evidência pra uma área, seja conservador e diga no rationale que faltou base. Uma avaliação assertiva depende de nunca chutar.
 
-Além do score geral, pontue o candidato em 5 áreas (0-100 cada), com base na evidência disponível:
-- "cultura": alinhamento com a cultura e valores descritos pela empresa
-- "execucao": sinais de capacidade de entrega, experiência concreta, ownership
-- "comunicacao": clareza, estrutura e maturidade da escrita do candidato
-- "motivacao": especificidade e genuinidade do interesse nesta empresa e vaga
-- "potencial": sinais de curiosidade, evolução e espaço pra crescer no papel
+O que dá pra ler de cada fonte:
+- CURRÍCULO: sustenta bem "execucao" (experiência, projetos, ferramentas, resultados vs o nível da vaga) e razoavelmente "potencial" (trajetória, evolução, projetos próprios). Um link de portfólio ou projeto no currículo conta como sinal positivo de que há material pra avaliar, mas você NÃO acessou o conteúdo do link: não descreva nem assuma o que teria nele.
+- Nesta etapa, se só houver currículo, "cultura" e "motivacao" são fracas: o currículo quase não revela valores nem o porquê desta vaga. Seja conservador nessas duas e diga no rationale que serão avaliadas melhor com as respostas do formulário. NÃO invente um perfil cultural a partir do currículo.
+- RESPOSTAS DO FORMULÁRIO (quando houver): aí sim "cultura" e cenários comportamentais viram evidência real de "cultura" e "motivacao"; "raciocínio" informa "potencial", "comunicacao" e "execucao"; respostas técnicas reforçam "execucao" no nível da vaga e o sinal cultural que revelam. Use o critério interno de cada resposta pra pontuar.
+
+Além do score geral, pontue o candidato em 5 áreas (0-100 cada), sempre NO NÍVEL DA VAGA e só com evidência real:
+- "cultura": alinhamento com a cultura e valores da empresa (só o que aparece de fato; conservador se só há currículo)
+- "execucao": capacidade de entrega e experiência concreta vs o que ESTA vaga pede no nível dela
+- "comunicacao": clareza e estrutura do que o candidato escreveu
+- "motivacao": genuinidade e especificidade do interesse nesta vaga (conservador se não respondeu)
+- "potencial": curiosidade, evolução e espaço pra crescer no papel
 
 REGRAS:
-- Cite elementos específicos da cultura da empresa que aparecem (ou não) na resposta do candidato
-- Não fale genérico ("parece motivado") — fale concreto ("a resposta menciona X que se alinha com o valor Y da empresa")
-- Se faltou informação pra avaliar uma área, dê score conservador (40-60) e diga isso no rationale
+- Cite elementos concretos do candidato (do currículo ou das respostas). Nada de genérico ("parece motivado").
+- Nunca preencha lacuna nem assuma fato não informado. Sem evidência, score conservador e diga que faltou base.
+- Calibre tudo ao nível da vaga: não penalize estagiário por não ter repertório de sênior.
 - Responda em português
 
 OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
