@@ -18,6 +18,15 @@ type GeneratedQuestion = {
 
 const MODEL = 'gpt-5';
 
+// Perguntas-base do método Noren pra seção de cultura: pessoais, universais,
+// de caráter e soft skill. O texto é fixo; a rubrica é calibrada pelo DNA.
+const NOREN_CULTURE_BASE = [
+  'Conte um pouco da sua história. Como você chegou até aqui?',
+  'Cite uma conquista da qual você tem orgulho e o motivo.',
+  'Conte sobre uma vez em que você assumiu um risco e falhou. O que aprendeu?',
+  'Onde você quer estar daqui a 3 anos?',
+];
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -32,41 +41,62 @@ function buildPrompt(args: {
   companyCulture: string | null;
   notes: string | null;
 }): string {
-  const foco =
-    args.kind === 'culture'
-      ? `Perguntas abertas que medem ética de trabalho e fit cultural com ESTA empresa. Cada pergunta deve puxar uma resposta que revela como a pessoa trabalha de verdade, não o que ela acha bonito dizer. Evite perguntas que qualquer candidato responde igual. Ancore no que a cultura descrita valoriza (e no que reprova).`
-      : `Perguntas de raciocínio lógico, padronizadas, iguais pra todo candidato. Medem clareza de pensamento, estruturação de problema e consistência. Não dependem da cultura da empresa: são neutras e comparáveis entre candidatos. Podem incluir situações práticas com trade-offs, priorização, ou lógica.`;
-
-  const quantidade = args.kind === 'culture' ? '5 a 8' : '5 a 8';
-
-  return `Você monta o banco de perguntas padrão que uma empresa vai usar no formulário de candidatura. Todo candidato responde as mesmas perguntas, então elas precisam ser boas e comparáveis.
-
-EMPRESA: ${args.companyName}
-O que fazem: ${args.companyDescription ?? '(não informado)'}
-Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
-Notas de quem está montando: ${args.notes ?? '(nenhuma)'}
-
-TIPO DE PERGUNTA: ${args.kind === 'culture' ? 'cultura e ética de trabalho' : 'raciocínio lógico'}
-${foco}
-
-Gere ${quantidade} perguntas. Para cada uma, entregue:
-- "question": a pergunta que o candidato lê. Direta, em português, sem enrolação.
-- "guidance": o que uma boa resposta demonstra (uso interno, o candidato não vê). Concreto.
-- "scoring_rubric": como pontuar de 0 a 100 (uso interno). Diga o que aprova, o que reprova, e onde fica a média. Ex: "0-40 resposta genérica sem exemplo; 41-70 tem exemplo mas raso; 71-100 exemplo concreto com resultado e reflexão".
-
-REGRAS DE ESCRITA (valem pra question, guidance e scoring_rubric):
+  const regrasEscrita = `REGRAS DE ESCRITA (valem pra question, guidance e scoring_rubric):
 - Português direto. Sem clichê de RH ("trabalha bem em equipe", "é proativo", "veste a camisa").
 - Sem travessão de nenhum tipo. Use só vírgula, ponto, dois-pontos, hífen simples ou parênteses.
 - Sem "basicamente", "simplesmente", "definitivamente", "literalmente".
 - Concreto vence genérico. Pergunta que puxa exemplo real vence pergunta abstrata.
-- Não repita a mesma pergunta com outras palavras. Cada uma cobre um ângulo diferente.
+- Não repita a mesma pergunta com outras palavras. Cada uma cobre um ângulo diferente.`;
 
-OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
+  const schema = `OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
 {
   "questions": [
     { "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>" }
   ]
 }`;
+
+  if (args.kind === 'culture') {
+    return `Você monta a seção de CULTURA do formulário de candidatura de uma empresa. Todo candidato responde as mesmas perguntas.
+
+CONCEITO (leia com atenção): cultura NÃO é sobre o segmento, o produto ou a experiência da pessoa no ramo. Cultura é sobre SOFT SKILLS, caráter, valores e ética de trabalho: como a pessoa pensa, como lida com fracasso, o que a move, o quanto assume responsabilidade, como se projeta. As perguntas são PESSOAIS e ABERTAS, no estilo "conte sua história", "cite uma conquista e por quê", "conte uma vez que você falhou e o que aprendeu", "onde você quer estar daqui a 3 anos". Nada de perguntas técnicas ou sobre o mercado da empresa.
+
+EMPRESA (só pra calibrar a PONTUAÇÃO, não o enunciado das perguntas):
+Nome: ${args.companyName}
+Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
+Notas de quem está montando: ${args.notes ?? '(nenhuma)'}
+
+Monte a lista assim:
+1) Comece com estas perguntas-base do método Noren, MANTENDO O TEXTO delas (elas são universais e pessoais):
+${NOREN_CULTURE_BASE.map((q, i) => `   ${i + 1}. ${q}`).join('\n')}
+2) Depois, gere mais 2 perguntas de cultura NO MESMO ESTILO (pessoais, abertas, de caráter e valores), que ajudem a revelar o que ESTA cultura em específico valoriza e reprova. Continuam genéricas quanto ao segmento: são sobre a pessoa, não sobre o negócio.
+
+Para CADA pergunta (as base e as novas), escreva:
+- "question": o enunciado que o candidato lê (para as base, repita o texto acima).
+- "guidance": o que uma boa resposta demonstra (uso interno). Concreto.
+- "scoring_rubric": como pontuar de 0 a 100 (uso interno), CALIBRADO PELA CULTURA DESTA EMPRESA. A mesma pergunta pontua diferente conforme o que esta empresa valoriza. Diga o que aprova, o que reprova e onde fica a média. Ex numa cultura que preza ownership: "0-40 terceiriza a culpa do fracasso; 41-70 assume mas sem tirar lição; 71-100 assume com clareza e mostra o que mudou depois".
+
+${regrasEscrita}
+
+${schema}`;
+  }
+
+  return `Você monta a seção de RACIOCÍNIO LÓGICO do formulário de candidatura. Iguais pra todo candidato, neutras, comparáveis. NÃO dependem da cultura nem do segmento da empresa.
+
+O que medem: clareza de pensamento, estruturação de problema, consistência e senso prático. O que importa é o RACIOCÍNIO até a resposta, não acertar um número exato.
+
+Gere 4 a 6 perguntas variando os tipos:
+- Estimativa (Fermi): ex "quantos passageiros chegam em Guarulhos numa quinta à tarde? Explique como chegou no número".
+- Matemática com pegadinha: ex desconto composto, proporção, velocidade.
+- Senso de negócio: ex "como você conseguiria mais clientes numa barraca de limonada na sua rua?".
+
+Para cada pergunta, entregue:
+- "question": o enunciado. Direto, em português. Quando fizer sentido, peça pra pessoa explicar o raciocínio.
+- "guidance": o que uma boa resposta demonstra (uso interno). Concreto: que estrutura de raciocínio você espera ver.
+- "scoring_rubric": como pontuar de 0 a 100 (uso interno). O que aprova, o que reprova, onde fica a média. Ex: "0-40 chuta sem explicar; 41-70 estrutura mas com furo lógico; 71-100 quebra o problema em partes e justifica cada passo".
+
+${regrasEscrita}
+
+${schema}`;
 }
 
 function parseQuestions(text: string): GeneratedQuestion[] | null {
