@@ -4,13 +4,9 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { callOpenAI } from '../_shared/openai.ts';
 
 type Payload = { jobTitle: string };
-
-type ClaudeResponse = {
-  content: Array<{ type: string; text: string }>;
-  usage?: { input_tokens: number; output_tokens: number };
-};
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -78,13 +74,13 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
 
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return jsonResponse({ error: 'Server misconfigured' }, 500);
   }
-  if (!anthropicKey) {
-    return jsonResponse({ error: 'ANTHROPIC_API_KEY não configurada' }, 500);
+  if (!openaiKey) {
+    return jsonResponse({ error: 'OPENAI_API_KEY não configurada' }, 500);
   }
 
   // Resolve company_id from JWT via public.users
@@ -130,29 +126,15 @@ Deno.serve(async (req) => {
     jobTitle: payload.jobTitle.trim(),
   });
 
-  const model = 'claude-sonnet-4-6';
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const { text } = await callOpenAI({
+      apiKey: openaiKey,
+      model: 'gpt-5',
+      prompt,
+      maxTokens: 3000,
+      reasoningEffort: 'low',
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return jsonResponse({ error: `Anthropic ${response.status}: ${errText.slice(0, 300)}` }, 500);
-    }
-
-    const claudeData = (await response.json()) as ClaudeResponse;
-    const description = claudeData.content?.[0]?.text?.trim() ?? '';
+    const description = text.trim();
     if (!description) return jsonResponse({ error: 'IA retornou vazio' }, 500);
 
     return jsonResponse({ ok: true, description });

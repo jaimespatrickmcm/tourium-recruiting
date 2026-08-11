@@ -10,13 +10,9 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { callOpenAI, openaiCostCents } from '../_shared/openai.ts';
 
 type Payload = { applicationId: string };
-
-type ClaudeResponse = {
-  content: Array<{ type: string; text: string }>;
-  usage?: { input_tokens: number; output_tokens: number };
-};
 
 const SCOUT_AREAS = ['cultura', 'execucao', 'comunicacao', 'motivacao', 'potencial'] as const;
 type ScoutArea = (typeof SCOUT_AREAS)[number];
@@ -30,7 +26,7 @@ type AnalysisResult = {
   dimensions: DimensionScore[];
 };
 
-const MODEL = 'claude-sonnet-4-6';
+const MODEL = 'gpt-5';
 
 const RECOMMENDATIONS = ['strong_hire', 'hire', 'maybe', 'no_hire'] as const;
 type Recommendation = (typeof RECOMMENDATIONS)[number];
@@ -161,7 +157,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
 
   if (!supabaseUrl || !serviceRoleKey) return jsonResponse({ error: 'Server misconfigured' }, 500);
 
@@ -192,7 +188,7 @@ Deno.serve(async (req) => {
 
   if (!authorized) return jsonResponse({ error: 'Não autorizado' }, 401);
 
-  if (!anthropicKey) {
+  if (!openaiKey) {
     await admin.from('ai_analyses').upsert(
       {
         application_id: payload.applicationId,
@@ -201,12 +197,12 @@ Deno.serve(async (req) => {
         reasoning: null,
         dimensions: null,
         recommendation: null,
-        error_message: 'ANTHROPIC_API_KEY não configurada nos secrets do Supabase',
+        error_message: 'OPENAI_API_KEY não configurada nos secrets do Supabase',
         ran_at: new Date().toISOString(),
       },
       { onConflict: 'application_id' },
     );
-    return jsonResponse({ error: 'ANTHROPIC_API_KEY não configurada' }, 500);
+    return jsonResponse({ error: 'OPENAI_API_KEY não configurada' }, 500);
   }
 
   // Load application + job + company
@@ -245,37 +241,15 @@ Deno.serve(async (req) => {
   });
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const { text, usage } = await callOpenAI({
+      apiKey: openaiKey,
+      model: MODEL,
+      prompt,
+      maxTokens: 5000,
+      jsonMode: true,
+      reasoningEffort: 'medium',
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      await admin.from('ai_analyses').upsert(
-        {
-          application_id: payload.applicationId,
-          status: 'error',
-          error_message: `Anthropic ${response.status}: ${errText.slice(0, 500)}`,
-          model_used: MODEL,
-          ran_at: new Date().toISOString(),
-        },
-        { onConflict: 'application_id' },
-      );
-      return jsonResponse({ error: `Anthropic API error ${response.status}` }, 500);
-    }
-
-    const claudeData = (await response.json()) as ClaudeResponse;
-    const text = claudeData.content?.[0]?.text ?? '';
     const result = parseAnalysisJson(text);
 
     if (!result) {
@@ -283,7 +257,7 @@ Deno.serve(async (req) => {
         {
           application_id: payload.applicationId,
           status: 'error',
-          error_message: `Claude retornou JSON inválido: ${text.slice(0, 500)}`,
+          error_message: `IA retornou JSON inválido: ${text.slice(0, 500)}`,
           model_used: MODEL,
           ran_at: new Date().toISOString(),
         },
@@ -292,10 +266,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'IA retornou formato inválido' }, 500);
     }
 
-    // Custo em centavos de dólar (Sonnet: $3/M input, $15/M output).
-    const inputTokens = claudeData.usage?.input_tokens ?? 0;
-    const outputTokens = claudeData.usage?.output_tokens ?? 0;
-    const costCents = Math.round(((inputTokens * 3 + outputTokens * 15) / 1_000_000) * 100);
+    const costCents = openaiCostCents(usage);
 
     await admin.from('ai_analyses').upsert(
       {
