@@ -11,9 +11,11 @@ import {
   XCircle,
   FileText,
   Linkedin,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { invokeEdge } from '@/lib/functions';
 import { useCompany } from '@/hooks/use-company';
 import { useAuth } from '@/hooks/use-auth';
 import {
@@ -310,6 +312,10 @@ export function JobDetail() {
                     highlightType={job.highlight_type}
                     refetch={refetch}
                     patchApplication={patchApplication}
+                    onDeleted={() => {
+                      setSelectedId(null);
+                      void refetch();
+                    }}
                   />
                 ) : (
                   <div className="bg-white rounded-[28px] border border-gray-200 p-12 text-center">
@@ -368,6 +374,7 @@ function CandidateDetail({
   highlightType,
   refetch,
   patchApplication,
+  onDeleted,
 }: {
   app: ApplicationWithAnalysis;
   jobTitle: string;
@@ -375,6 +382,7 @@ function CandidateDetail({
   highlightType: HighlightType | null;
   refetch: () => Promise<void>;
   patchApplication: (id: string, patch: Partial<ApplicationWithAnalysis>) => void;
+  onDeleted: () => void;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -383,6 +391,21 @@ function CandidateDetail({
   const [rejecting, setRejecting] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
   const [loadingResume, setLoadingResume] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteApplication() {
+    setDeleting(true);
+    try {
+      const { error } = await invokeEdge('delete-application', { applicationId: app.id });
+      if (error) throw error;
+      toast.success('Candidato excluído. Pode reenviar a candidatura do zero.');
+      onDeleted();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra excluir o candidato.');
+      setDeleting(false);
+    }
+  }
 
   async function openResume() {
     setLoadingResume(true);
@@ -747,6 +770,18 @@ function CandidateDetail({
         </div>
       )}
 
+      {analysis?.cv_observations && (
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2 flex items-center gap-2">
+            <FileText className="h-3.5 w-3.5" />
+            O que o currículo mostra
+          </p>
+          <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+            {analysis.cv_observations}
+          </p>
+        </div>
+      )}
+
       <div className="border-t border-gray-100 pt-6">
         <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-3 flex items-center gap-2">
           Análise IA
@@ -858,6 +893,49 @@ function CandidateDetail({
             </li>
           ))}
         </ol>
+      </div>
+
+      {/* Zona de exclusão: reprocessar do zero nos testes */}
+      <div className="border-t border-gray-100 pt-6 mt-6">
+        {confirmDelete ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4">
+            <p className="text-[13px] font-semibold text-[#1d1d1f] mb-1">
+              Excluir esse candidato de vez?
+            </p>
+            <p className="text-[12px] text-[#6b6b70] mb-3">
+              Apaga a candidatura, as respostas, a análise e o currículo. Não dá pra desfazer.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void deleteApplication()}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {deleting ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Excluir de vez
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#8a8a8f] transition-colors hover:text-rose-600"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Excluir candidato
+          </button>
+        )}
       </div>
     </div>
   );

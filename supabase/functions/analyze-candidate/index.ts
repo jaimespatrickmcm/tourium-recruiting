@@ -47,6 +47,7 @@ type AnalysisResult = {
   score: number;
   recommendation: 'strong_hire' | 'hire' | 'maybe' | 'no_hire';
   reasoning: string;
+  cv_observations: string | null;
   dimensions: DimensionScore[];
 };
 
@@ -196,6 +197,8 @@ Além do score geral, pontue o candidato em 5 áreas (0-100 cada), sempre NO NÍ
 - "motivacao": genuinidade e especificidade do interesse nesta vaga (conservador se não respondeu)
 - "potencial": curiosidade, evolução e espaço pra crescer no papel
 
+OBSERVAÇÕES DO CURRÍCULO (para o recrutador ler): em "cv_observations", escreva um resumo factual em português do que o CURRÍCULO de fato mostra, para o recrutador bater o olho e entender o candidato rápido. 3 a 6 frases curtas (ou um parágrafo curto): anos e tipo de experiência, background relevante, empresas/áreas, fatos notáveis e link de portfólio/projeto se aparecer no texto. Regra dura, a mesma de sempre: SÓ evidência real do texto do currículo, nada de inventar, preencher lacuna ou assumir. Se houver um link, apenas registre que existe (você não acessou o conteúdo). Se NÃO houver texto de currículo, retorne cv_observations como null. Não use as respostas do formulário aqui, só o currículo.
+
 REGRAS:
 - Cite elementos concretos do candidato (do currículo ou das respostas). Nada de genérico ("parece motivado").
 - Nunca preencha lacuna nem assuma fato não informado. Sem evidência, score conservador e diga que faltou base.
@@ -207,6 +210,7 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
   "score": <inteiro 0-100>,
   "recommendation": <"strong_hire" | "hire" | "maybe" | "no_hire">,
   "reasoning": "<2-3 parágrafos>",
+  "cv_observations": <"resumo factual do currículo em 3-6 frases" | null se não houver currículo>,
   "dimensions": [
     { "area": "cultura", "score": <0-100>, "rationale": "<1-2 frases>" },
     { "area": "execucao", "score": <0-100>, "rationale": "<1-2 frases>" },
@@ -241,10 +245,15 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       };
     });
 
+    const cvRaw = parsed.cv_observations;
+    const cvObservations =
+      typeof cvRaw === 'string' && cvRaw.trim().length > 0 ? cvRaw.trim() : null;
+
     return {
       score: clampScore(parsed.score),
       recommendation: normalizeRecommendation(parsed.recommendation),
       reasoning: String(parsed.reasoning),
+      cv_observations: cvObservations,
       dimensions,
     };
   } catch {
@@ -391,6 +400,7 @@ Deno.serve(async (req) => {
         score: result.score,
         recommendation: result.recommendation,
         reasoning: result.reasoning,
+        cv_observations: resumeText ? result.cv_observations : null,
         dimensions: result.dimensions,
         dna_version_used: dnaVersion,
         model_used: MODEL,

@@ -164,6 +164,7 @@ export type Database = {
           score: number | null;
           recommendation: string | null;
           reasoning: string | null;
+          cv_observations: string | null;
           dimensions: Json | null;
           dna_version_used: number | null;
           model_used: string | null;
