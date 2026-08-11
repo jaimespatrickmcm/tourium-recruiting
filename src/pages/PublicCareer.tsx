@@ -205,8 +205,8 @@ export function PublicCareer() {
           </h1>
           <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto mb-8">
             Recebemos sua aplicação pra <strong className="text-[#1d1d1f]">{job.title}</strong> na{' '}
-            <strong className="text-[#1d1d1f]">{job.company?.name}</strong>. A IA já vai começar a
-            avaliar seu fit e a equipe entra em contato se houver match.
+            <strong className="text-[#1d1d1f]">{job.company?.name}</strong>. O time já vai começar a
+            avaliar seu fit e entra em contato se houver match.
           </p>
 
           <div className="max-w-md mx-auto rounded-[20px] border border-sky-100 bg-sky-50/50 p-5 text-left mb-6">
@@ -214,8 +214,8 @@ export function PublicCareer() {
               Quer sair na frente?
             </p>
             <p className="text-[14px] text-[#6b6b70] leading-relaxed">
-              Responder agora umas perguntas rápidas sobre você e a vaga dá muito mais contexto pra
-              IA. Sua avaliação fica mais completa e mais justa, e você não fica esperando a equipe
+              Responder agora umas perguntas rápidas sobre você e a vaga dá muito mais contexto pro
+              time. Sua avaliação fica mais completa e mais justa, e você não fica esperando a equipe
               pedir isso depois. Leva poucos minutos.
             </p>
             <div className="mt-4">
@@ -365,7 +365,7 @@ export function PublicCareer() {
             Manda seu currículo
           </h2>
           <p className="text-[15px] text-[#6b6b70] leading-relaxed mb-6">
-            É o currículo que a IA lê pra avaliar seu fit contra essa vaga, por isso ele é
+            É o currículo que o time lê pra avaliar seu fit pra essa vaga, por isso ele é
             obrigatório. PDF de até 10MB.
           </p>
 

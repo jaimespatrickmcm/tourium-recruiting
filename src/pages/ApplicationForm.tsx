@@ -325,7 +325,7 @@ export function ApplicationForm() {
           </h1>
           <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto mb-8">
             Suas respostas chegaram na <strong className="text-[#1d1d1f]">{job.companyName}</strong>.
-            A IA agora tem bem mais contexto pra avaliar seu fit pra{' '}
+            O time agora tem bem mais contexto pra avaliar seu fit pra{' '}
             <strong className="text-[#1d1d1f]">{job.title}</strong>.
           </p>
           <div className="flex justify-center">
@@ -366,7 +366,7 @@ export function ApplicationForm() {
               Vamos adiantar seu processo pra {job.title}
             </h1>
             <p className="text-[16px] md:text-[17px] text-[#6b6b70] leading-relaxed mb-8 max-w-md mx-auto">
-              Umas perguntas rápidas, uma por vez. Suas respostas dão à IA o contexto pra avaliar seu
+              Umas perguntas rápidas, uma por vez. Suas respostas dão ao time o contexto pra avaliar seu
               fit de verdade. Leva poucos minutos.
             </p>
             <div className="flex justify-center">
