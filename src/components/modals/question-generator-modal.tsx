@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ArrowLeft, CheckCircle2, Sparkles, RefreshCw, Loader2, Plus, Trash2 } from 'lucide-react';
+import {
+  X,
+  ArrowLeft,
+  CheckCircle2,
+  Sparkles,
+  RefreshCw,
+  Loader2,
+  Plus,
+  Trash2,
+  ChevronDown,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -335,62 +345,15 @@ export function QuestionGeneratorModal({
                 Só salva ao aprovar.
               </p>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {questions.map((q, i) => (
-                  <div
+                  <DraftQuestionRow
                     key={i}
-                    className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4 space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0">
-                        {i + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeQuestion(i)}
-                        className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
-                        aria-label="Remover pergunta"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
-                        Pergunta
-                      </label>
-                      <Textarea
-                        value={q.question}
-                        onChange={(e) => updateQuestion(i, { question: e.target.value })}
-                        rows={2}
-                        placeholder="O que o candidato lê..."
-                        className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
-                        Resposta esperada (interno)
-                      </label>
-                      <Textarea
-                        value={q.guidance}
-                        onChange={(e) => updateQuestion(i, { guidance: e.target.value })}
-                        rows={2}
-                        placeholder="O que uma boa resposta demonstra..."
-                        className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
-                        Como pontuar (interno)
-                      </label>
-                      <Textarea
-                        value={q.scoring_rubric}
-                        onChange={(e) => updateQuestion(i, { scoring_rubric: e.target.value })}
-                        rows={2}
-                        placeholder="Como dar nota de 0 a 100..."
-                        className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
-                      />
-                    </div>
-                  </div>
+                    index={i}
+                    draft={q}
+                    onChange={(patch) => updateQuestion(i, patch)}
+                    onRemove={() => removeQuestion(i)}
+                  />
                 ))}
               </div>
 
@@ -434,6 +397,89 @@ export function QuestionGeneratorModal({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DraftQuestionRow({
+  index,
+  draft,
+  onChange,
+  onRemove,
+}: {
+  index: number;
+  draft: DraftQuestion;
+  onChange: (patch: Partial<DraftQuestion>) => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0 mt-1">
+          {index + 1}
+        </span>
+        <div className="flex-1 min-w-0">
+          <Textarea
+            value={draft.question}
+            onChange={(e) => onChange({ question: e.target.value })}
+            rows={2}
+            placeholder="O que o candidato lê..."
+            className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
+          />
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-white hover:text-[#1d1d1f] transition-colors"
+            aria-label={expanded ? 'Recolher critérios' : 'Ver critérios internos'}
+            aria-expanded={expanded}
+          >
+            <ChevronDown
+              className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-red-50 hover:text-red-600 transition-colors"
+            aria-label="Remover pergunta"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 space-y-3 border-t border-gray-200/70 pt-3">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+              Resposta esperada (interno)
+            </label>
+            <Textarea
+              value={draft.guidance}
+              onChange={(e) => onChange({ guidance: e.target.value })}
+              rows={2}
+              placeholder="O que uma boa resposta demonstra..."
+              className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+              Como pontuar (interno)
+            </label>
+            <Textarea
+              value={draft.scoring_rubric}
+              onChange={(e) => onChange({ scoring_rubric: e.target.value })}
+              rows={2}
+              placeholder="Como dar nota de 0 a 100..."
+              className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
