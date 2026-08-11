@@ -40,6 +40,9 @@ const MAX_QUESTION = 2000;
 
 const ALLOWED_SOURCES: AnswerSource[] = ['candidate_info', 'job_question', 'culture', 'reasoning'];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const runtime = (globalThis as any).EdgeRuntime;
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -215,6 +218,26 @@ Deno.serve(async (req) => {
     if (answersError) {
       return jsonResponse({ error: answersError.message ?? 'Falha ao salvar respostas' }, 500);
     }
+  }
+
+  // Re-análise com o formulário completo: marca pending (a UI mostra reanalisando)
+  // e dispara analyze-candidate, que agora usa CV + respostas + rubricas pro Scout.
+  await admin.from('ai_analyses').upsert(
+    { application_id: applicationId, status: 'pending' },
+    { onConflict: 'application_id' },
+  );
+  const trigger = fetch(`${supabaseUrl}/functions/v1/analyze-candidate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({ applicationId }),
+  }).catch((err) => console.error('[submit-application-form] failed to trigger re-analyze:', err));
+  if (runtime?.waitUntil) {
+    runtime.waitUntil(trigger);
+  } else {
+    await trigger;
   }
 
   return jsonResponse({ ok: true, applicationId });
