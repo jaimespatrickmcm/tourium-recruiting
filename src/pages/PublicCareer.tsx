@@ -3,12 +3,12 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, CheckCircle2, Linkedin, FileText, Upload, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
 import { invokeEdge } from '@/lib/functions';
 import { useAuth } from '@/hooks/use-auth';
 import { useCandidate } from '@/hooks/use-candidate';
+import type { HighlightType } from '@/types/database';
 
 type PublicJob = {
   id: string;
@@ -16,6 +16,8 @@ type PublicJob = {
   title: string;
   description: string | null;
   status: string;
+  highlight_question: string | null;
+  highlight_type: HighlightType | null;
   company: { slug: string; name: string; description: string | null } | null;
 };
 
@@ -34,7 +36,7 @@ export function PublicCareer() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [whyInterested, setWhyInterested] = useState('');
+  const [highlightAnswer, setHighlightAnswer] = useState('');
   const [resumePath, setResumePath] = useState<string | null>(null);
   const [resumeFileName, setResumeFileName] = useState<string | null>(null);
   const [uploadingResume, setUploadingResume] = useState(false);
@@ -43,14 +45,16 @@ export function PublicCareer() {
   const [website, setWebsite] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLoggedCandidate = Boolean(user && candidate);
-  // Passos: identidade (só deslogado), telefone, currículo+linkedin, motivação.
-  const TOTAL_STEPS = isLoggedCandidate ? 3 : 4;
+  const hasHighlight = Boolean(job?.highlight_question);
+  // Passos: identidade (só deslogado), telefone, currículo+linkedin e, se a vaga
+  // tiver, a pergunta de destaque como último passo.
   const phoneStepIndex = isLoggedCandidate ? 1 : 2;
   const resumeStepIndex = isLoggedCandidate ? 2 : 3;
+  const highlightStepIndex = resumeStepIndex + 1;
+  const TOTAL_STEPS = resumeStepIndex + (hasHighlight ? 1 : 0);
 
   // Pre-fill from candidate
   useEffect(() => {
@@ -62,12 +66,9 @@ export function PublicCareer() {
 
   // Focus on step change
   useEffect(() => {
-    const t = setTimeout(() => {
-      if (step === TOTAL_STEPS) textareaRef.current?.focus();
-      else inputRef.current?.focus();
-    }, 100);
+    const t = setTimeout(() => inputRef.current?.focus(), 100);
     return () => clearTimeout(t);
-  }, [step, TOTAL_STEPS]);
+  }, [step]);
 
   useEffect(() => {
     async function load() {
@@ -84,7 +85,7 @@ export function PublicCareer() {
       }
       const { data: jobData } = await supabase
         .from('jobs')
-        .select('id, slug, title, description, status')
+        .select('id, slug, title, description, status, highlight_question, highlight_type')
         .eq('company_id', company.id)
         .eq('slug', jobSlug)
         .maybeSingle();
@@ -147,10 +148,10 @@ export function PublicCareer() {
         candidateName: name,
         candidateEmail: email,
         candidatePhone: phone || undefined,
-        whyInterested: whyInterested || undefined,
         candidateId: candidate?.id,
         resumePath: resumePath ?? undefined,
         linkedinUrl: linkedinUrl.trim() || undefined,
+        highlightAnswer: highlightAnswer.trim() || undefined,
         website: website || undefined,
       });
       if (error) throw error;
@@ -166,7 +167,7 @@ export function PublicCareer() {
   const identityValid = name.trim().length >= 2 && /\S+@\S+\.\S+/.test(email);
   const phoneValid = phone.trim().length >= 8;
   const resumeValid = Boolean(resumePath);
-  const whyValid = whyInterested.trim().length >= 30;
+  const highlightValid = highlightAnswer.trim().length > 0;
 
   if (loading) {
     return (
@@ -429,34 +430,58 @@ export function PublicCareer() {
       );
     }
 
-    // Why interested step (always last)
-    return (
-      <div>
-        <h2 className="font-satoshi font-bold text-[26px] md:text-[30px] tracking-[-0.5px] leading-tight text-[#1d1d1f] mb-2">
-          Por que essa vaga te interessa?
-        </h2>
-        <p className="text-[15px] text-[#6b6b70] leading-relaxed mb-6">
-          Especificamente sobre essa empresa e essa posição. A IA usa essa resposta + a cultura da{' '}
-          {job.company?.name} pra avaliar fit. Concreto vence genérico.
-        </p>
-        <Textarea
-          ref={textareaRef}
-          value={whyInterested}
-          onChange={(e) => setWhyInterested(e.target.value)}
-          placeholder="O que te chama atenção nessa empresa, o que você acha que pode contribuir, exemplos do que você já fez que se aplica aqui."
-          rows={8}
-          className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
-        />
-        <p
-          className={
-            'text-[12px] mt-1.5 ' +
-            (whyInterested.length >= 30 ? 'text-emerald-600' : 'text-[#8a8a8f]')
-          }
-        >
-          {whyInterested.length} chars · mínimo 30
-        </p>
-      </div>
-    );
+    // Highlight step (só existe se a vaga tiver pergunta de destaque; sempre o último)
+    if (hasHighlight && job.highlight_question) {
+      return (
+        <div>
+          <h2 className="font-satoshi font-bold text-[26px] md:text-[30px] tracking-[-0.5px] leading-tight text-[#1d1d1f] mb-2">
+            Uma última pergunta
+          </h2>
+          <p className="text-[15px] text-[#1d1d1f] leading-relaxed mb-6 font-semibold">
+            {job.highlight_question}
+          </p>
+
+          {job.highlight_type === 'yes_no' ? (
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setHighlightAnswer('sim')}
+                className={
+                  'rounded-xl border px-4 py-3 text-[15px] font-semibold transition-colors ' +
+                  (highlightAnswer === 'sim'
+                    ? 'border-sky-500 bg-sky-50/60 text-[#1d1d1f]'
+                    : 'border-gray-200 text-[#6b6b70] hover:border-gray-300')
+                }
+              >
+                Sim
+              </button>
+              <button
+                type="button"
+                onClick={() => setHighlightAnswer('nao')}
+                className={
+                  'rounded-xl border px-4 py-3 text-[15px] font-semibold transition-colors ' +
+                  (highlightAnswer === 'nao'
+                    ? 'border-sky-500 bg-sky-50/60 text-[#1d1d1f]'
+                    : 'border-gray-200 text-[#6b6b70] hover:border-gray-300')
+                }
+              >
+                Não
+              </button>
+            </div>
+          ) : (
+            <Input
+              ref={inputRef}
+              value={highlightAnswer}
+              onChange={(e) => setHighlightAnswer(e.target.value)}
+              placeholder="Sua resposta"
+              className="h-12 rounded-xl border-gray-200 text-[16px]"
+            />
+          )}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   const isLastStep = step === TOTAL_STEPS;
@@ -464,7 +489,8 @@ export function PublicCareer() {
     if (!isLoggedCandidate && step === 1) return identityValid;
     if (step === phoneStepIndex) return phoneValid; // phone obrigatório
     if (step === resumeStepIndex) return resumeValid; // currículo obrigatório
-    return whyValid;
+    if (step === highlightStepIndex) return highlightValid; // resposta obrigatória
+    return true;
   })();
 
   return (

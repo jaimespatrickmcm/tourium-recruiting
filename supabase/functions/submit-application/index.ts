@@ -16,6 +16,7 @@ type Payload = {
   candidateId?: string;
   resumePath?: string;
   linkedinUrl?: string;
+  highlightAnswer?: string;
   // Honeypot: campo invisível no form. Humano não preenche; bot preenche.
   website?: string;
 };
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
 
   const { data: job, error: jobError } = await admin
     .from('jobs')
-    .select('id, status')
+    .select('id, status, highlight_type, highlight_expected')
     .eq('company_id', company.id)
     .eq('slug', payload.jobSlug)
     .maybeSingle();
@@ -153,6 +154,18 @@ Deno.serve(async (req) => {
       ? payload.linkedinUrl.trim().slice(0, 300)
       : null;
 
+  // Pergunta de destaque: guarda a resposta e, se for Sim/Não com resposta ideal,
+  // marca se bateu (só pra sinalizar pro recrutador, nunca reprova sozinho).
+  const highlightAnswer =
+    typeof payload.highlightAnswer === 'string' && payload.highlightAnswer.trim().length > 0
+      ? payload.highlightAnswer.trim().slice(0, 500)
+      : null;
+  let highlightMatched: boolean | null = null;
+  if (highlightAnswer && job.highlight_type === 'yes_no' && job.highlight_expected) {
+    highlightMatched =
+      highlightAnswer.trim().toLowerCase() === String(job.highlight_expected).trim().toLowerCase();
+  }
+
   // Create application
   const { data: app, error: appError } = await admin
     .from('applications')
@@ -166,6 +179,8 @@ Deno.serve(async (req) => {
       candidate_id: candidateId,
       resume_path: resumePath,
       linkedin_url: linkedinUrl,
+      highlight_answer: highlightAnswer,
+      highlight_matched: highlightMatched,
     })
     .select('id')
     .single();
