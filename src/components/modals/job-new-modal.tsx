@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, ArrowLeft, CheckCircle2, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { X, ArrowLeft, CheckCircle2, Sparkles, RefreshCw, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,9 @@ import { useCompany } from '@/hooks/use-company';
 import { supabase } from '@/lib/supabase';
 import type { HighlightType } from '@/types/database';
 
-const TOTAL_STEPS = 2;
+const TOTAL_STEPS = 3;
+
+type JobQuestionDraft = { question: string; guidance: string; scoring_rubric: string };
 
 function slugify(s: string): string {
   return s
@@ -36,6 +38,12 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Passo 3: perguntas da vaga
+  const [newJobId, setNewJobId] = useState<string | null>(null);
+  const [qDrafts, setQDrafts] = useState<JobQuestionDraft[]>([]);
+  const [qGenerating, setQGenerating] = useState(false);
+  const [qError, setQError] = useState<string | null>(null);
+  const [qSaving, setQSaving] = useState(false);
   const firstInputRef = useRef<HTMLInputElement>(null);
   const hasGeneratedRef = useRef(false);
 
@@ -51,6 +59,11 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       setHighlightExpected('sim');
       setGenerationError(null);
       setGenerating(false);
+      setNewJobId(null);
+      setQDrafts([]);
+      setQGenerating(false);
+      setQError(null);
+      setQSaving(false);
       hasGeneratedRef.current = false;
     }
   }, [open]);
@@ -58,6 +71,12 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
   const dirty = title.length > 0 || description.length > 0;
 
   function handleClose() {
+    // No passo 3 a vaga já foi criada. Fechar leva pra ela (as perguntas são opcionais).
+    if (step === 3) {
+      onClose();
+      if (newJobId) navigate(`/app/jobs/${newJobId}`);
+      return;
+    }
     if (dirty && !saving) {
       const ok = window.confirm('Você tem alterações não salvas. Fechar e perder?');
       if (!ok) return;
@@ -95,7 +114,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
     }
   }
 
-  async function save() {
+  async function createJob() {
     if (!company) return;
     setSaving(true);
 
@@ -137,9 +156,80 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       toast.error(error?.message ?? 'Erro ao criar vaga');
       return;
     }
-    toast.success('Vaga criada.');
+    // Vaga criada. Segue pro passo 3 e já dispara a geração das perguntas dela.
+    setNewJobId(data.id);
+    setStep(3);
+    void generateJobQuestions(data.id);
+  }
+
+  async function generateJobQuestions(jobId: string) {
+    setQGenerating(true);
+    setQError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-job-questions', {
+        body: { jobId },
+      });
+      if (error) throw error;
+      if (!data?.ok || !Array.isArray(data.questions)) {
+        throw new Error(data?.error ?? 'IA não retornou perguntas');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setQDrafts(
+        (data.questions as any[]).map((q) => ({
+          question: String(q?.question ?? ''),
+          guidance: String(q?.guidance ?? ''),
+          scoring_rubric: String(q?.scoring_rubric ?? ''),
+        })),
+      );
+    } catch (err) {
+      setQError(err instanceof Error ? err.message : 'Erro ao gerar perguntas');
+    } finally {
+      setQGenerating(false);
+    }
+  }
+
+  function updateDraft(index: number, question: string) {
+    setQDrafts((prev) => prev.map((q, i) => (i === index ? { ...q, question } : q)));
+  }
+
+  function removeDraft(index: number) {
+    setQDrafts((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function addDraft() {
+    setQDrafts((prev) => [...prev, { question: '', guidance: '', scoring_rubric: '' }]);
+  }
+
+  function goToJob() {
     onClose();
-    navigate(`/app/jobs/${data.id}`);
+    if (newJobId) navigate(`/app/jobs/${newJobId}`);
+  }
+
+  async function finishWithQuestions() {
+    if (!company || !newJobId) return;
+    const valid = qDrafts.filter((q) => q.question.trim().length > 0);
+    setQSaving(true);
+    try {
+      if (valid.length > 0) {
+        const rows = valid.map((q, i) => ({
+          job_id: newJobId,
+          company_id: company.id,
+          position: i,
+          question: q.question.trim(),
+          guidance: q.guidance.trim() || null,
+          scoring_rubric: q.scoring_rubric.trim() || null,
+        }));
+        const { error } = await supabase.from('job_questions').insert(rows);
+        if (error) throw error;
+      }
+      toast.success(
+        valid.length > 0 ? 'Vaga criada com as perguntas.' : 'Vaga criada.',
+      );
+      goToJob();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar perguntas');
+      setQSaving(false);
+    }
   }
 
   const step1Valid = title.trim().length >= 3;
@@ -432,27 +522,128 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
               </div>
             </div>
           )}
+
+          {step === 3 && (
+            <div>
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f]">
+                  Perguntas da vaga
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => newJobId && void generateJobQuestions(newJobId)}
+                  disabled={qGenerating}
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 mt-2"
+                >
+                  {qGenerating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  Gerar de novo
+                </button>
+              </div>
+              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+                Perguntas técnicas específicas desta vaga, calibradas ao nível dela. Todo candidato
+                responde as mesmas, junto com as de cultura da empresa. Edite ou remova o que quiser.
+              </p>
+
+              {qGenerating && qDrafts.length === 0 ? (
+                <div className="min-h-[220px] rounded-xl border border-gray-200 bg-gray-50/40 p-5 flex items-center justify-center">
+                  <div className="flex items-center gap-3 text-[#6b6b70]">
+                    <div className="relative">
+                      <Sparkles className="h-5 w-5 text-sky-500" />
+                      <div className="absolute inset-0 animate-ping">
+                        <Sparkles className="h-5 w-5 text-sky-400 opacity-40" />
+                      </div>
+                    </div>
+                    <p className="text-[14px]">Gerando perguntas com base na vaga...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {qDrafts.map((q, i) => (
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4 flex items-start gap-3"
+                    >
+                      <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0 mt-1">
+                        {i + 1}
+                      </span>
+                      <Textarea
+                        value={q.question}
+                        onChange={(e) => updateDraft(i, e.target.value)}
+                        rows={2}
+                        placeholder="O que o candidato lê..."
+                        className="flex-1 rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeDraft(i)}
+                        className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-red-50 hover:text-red-600 transition-colors shrink-0 mt-1"
+                        aria-label="Remover pergunta"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addDraft}
+                    className="inline-flex items-center gap-2 text-[13px] font-semibold text-sky-700 hover:text-sky-900 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar manual
+                  </button>
+                </div>
+              )}
+
+              {qError && (
+                <div className="mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[12px] text-red-800">
+                  {qError}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="px-8 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-          <button
-            onClick={() => step > 1 && setStep(step - 1)}
-            disabled={step === 1 || saving}
-            className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
-          </button>
+          {step === 3 ? (
+            <button
+              onClick={goToJob}
+              disabled={qSaving}
+              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
+            >
+              Pular por enquanto
+            </button>
+          ) : (
+            <button
+              onClick={() => step > 1 && setStep(step - 1)}
+              disabled={step === 1 || saving}
+              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
+          )}
 
-          {step === 1 ? (
+          {step === 1 && (
             <BrandCtaButton size="sm" onClick={goToStep2} disabled={!step1Valid}>
               <Sparkles className="h-4 w-4 mr-1" />
               Gerar com IA
             </BrandCtaButton>
-          ) : (
-            <BrandCtaButton size="sm" onClick={save} disabled={!step2Valid || saving}>
+          )}
+          {step === 2 && (
+            <BrandCtaButton size="sm" onClick={createJob} disabled={!step2Valid || saving}>
               {saving ? 'Criando...' : 'Criar vaga'}
+              <CheckCircle2 className="h-4 w-4 ml-1" />
+            </BrandCtaButton>
+          )}
+          {step === 3 && (
+            <BrandCtaButton size="sm" onClick={finishWithQuestions} disabled={qSaving || qGenerating}>
+              {qSaving ? 'Salvando...' : 'Concluir'}
               <CheckCircle2 className="h-4 w-4 ml-1" />
             </BrandCtaButton>
           )}
