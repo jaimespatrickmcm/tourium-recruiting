@@ -29,19 +29,28 @@ Cultura: ${args.companyCulture ?? '(não informado)'}
 
 VAGA: ${args.jobTitle}
 
-Escreva uma descrição de vaga curta e direta (250-400 palavras) com esta estrutura, usando markdown leve:
+Escreva uma descrição de vaga curta e direta (250-450 palavras) em seções. Cada seção começa com um título markdown de nível 2 (duas cerquilhas e um espaço, exatamente como abaixo). O candidato lê cada seção separada, então cada uma tem que fazer sentido sozinha.
 
-**Sobre a posição**
+## Sobre a vaga
 2-3 frases sobre o que a pessoa vai fazer e o impacto que terá.
 
-**O que você vai entregar**
-- 4-6 bullets concretos. Resultado esperado, não atividade.
+## O que você vai fazer
+- 4-6 bullets concretos, começando com hífen. Resultado esperado, não atividade.
 
-**O que esperamos de você**
-- 4-5 bullets. Skills e experiência. Específico, não "ser proativo".
+## O que esperamos de você
+- 4-5 bullets, começando com hífen. Skills e experiência. Específico, não "ser proativo".
 
-**Por que aqui**
-2-3 frases honestas sobre a cultura e o momento da empresa. Use as palavras da cultura acima quando fizer sentido.
+## Sobre a empresa
+2-3 frases honestas sobre o que a empresa faz, a cultura e o momento dela. Use as palavras da cultura acima quando fizer sentido.
+
+## Benefícios
+Inclua esta seção SOMENTE se as informações da empresa acima citarem benefícios reais (vale, plano, horário, remoto, auxílio). Liste em bullets apenas o que estiver escrito ali. Se não houver nada concreto, OMITA a seção inteira. Nunca invente benefício: prometer algo que a empresa não oferece queima a confiança do candidato.
+
+REGRAS DE FORMATO:
+- Título de seção: sempre "## Título", nunca com asteriscos.
+- Bullets: sempre "- item" no começo da linha.
+- Negrito só dentro de frase, com dois asteriscos de cada lado, e com moderação.
+- Uma linha em branco entre seções.
 
 REGRAS:
 - Português direto. Sem clichê de RH ("oportunidade única", "ambiente dinâmico", "queremos pessoas apaixonadas").

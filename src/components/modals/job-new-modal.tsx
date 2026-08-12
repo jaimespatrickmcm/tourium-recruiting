@@ -405,7 +405,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={12}
-                    className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none font-mono"
+                    className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
                   />
                   <p
                     className={

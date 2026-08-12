@@ -1,13 +1,22 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, CheckCircle2, Linkedin, FileText, Upload, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Linkedin,
+  FileText,
+  Upload,
+  Loader2,
+  ChevronDown,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
 import { invokeEdge } from '@/lib/functions';
 import { useAuth } from '@/hooks/use-auth';
 import { useCandidate } from '@/hooks/use-candidate';
+import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import type { HighlightType } from '@/types/database';
 
 type PublicJob = {
@@ -521,13 +530,7 @@ export function PublicCareer() {
               {job.company.description}
             </p>
           )}
-          {job.description && (
-            <div className="prose prose-sm max-w-none">
-              <p className="text-[15px] text-[#1d1d1f] leading-[1.7] whitespace-pre-wrap">
-                {job.description}
-              </p>
-            </div>
-          )}
+          {job.description && <JobDescription description={job.description} />}
         </div>
 
         {/* Wizard */}
@@ -603,6 +606,69 @@ export function PublicCareer() {
         </div>
       </div>
     </main>
+  );
+}
+
+// Descrição da vaga em seções expansíveis. A primeira abre por padrão (o
+// candidato precisa entender a vaga sem clicar em nada); as outras ficam
+// recolhidas pra ele abrir o que interessa.
+function JobDescription({ description }: { description: string }) {
+  const sections = parseDescriptionSections(description);
+  const [openIndexes, setOpenIndexes] = useState<number[]>([0]);
+
+  // Descrição sem seções (texto corrido): renderiza direto, sem dropdown.
+  if (sections.length <= 1) {
+    return (
+      <div className="max-w-none">
+        <DescriptionBody body={sections[0]?.body ?? description} />
+      </div>
+    );
+  }
+
+  function toggle(index: number) {
+    setOpenIndexes((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
+    );
+  }
+
+  return (
+    <div className="divide-y divide-gray-200 border-y border-gray-200">
+      {sections.map((section, i) => {
+        const open = openIndexes.includes(i);
+        if (!section.title) {
+          return (
+            <div key={i} className="py-4">
+              <DescriptionBody body={section.body} />
+            </div>
+          );
+        }
+        return (
+          <div key={i}>
+            <button
+              type="button"
+              onClick={() => toggle(i)}
+              aria-expanded={open}
+              className="flex w-full items-center justify-between gap-4 py-4 text-left group"
+            >
+              <span className="font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
+                {section.title}
+              </span>
+              <ChevronDown
+                className={
+                  'h-4 w-4 flex-shrink-0 text-[#8a8a8f] transition-transform duration-200 group-hover:text-[#1d1d1f] ' +
+                  (open ? 'rotate-180' : '')
+                }
+              />
+            </button>
+            {open && (
+              <div className="pb-5 -mt-1">
+                <DescriptionBody body={section.body} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
