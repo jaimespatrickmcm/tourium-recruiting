@@ -539,7 +539,8 @@ function RequirementsPanel({
   onUpdate: (requirements: JobRequirements) => void;
 }) {
   const requirements = job.requirements;
-  const [open, setOpen] = useState(true);
+  // Nasce recolhido: é referência interna, o recrutador expande quando quer.
+  const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
