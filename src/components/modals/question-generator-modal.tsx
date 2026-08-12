@@ -344,14 +344,14 @@ export function QuestionGeneratorModal({
         if (!v) handleClose();
       }}
     >
-      <DialogContent className="max-w-2xl p-0 rounded-[24px] border-gray-200 shadow-[0_30px_80px_-20px_rgba(15,15,30,0.25)] overflow-hidden gap-0 [&>button]:hidden">
+      <DialogContent className="max-w-2xl p-0 rounded-[24px] border-gray-200 shadow-[0_30px_80px_-20px_rgba(15,15,30,0.25)] overflow-hidden gap-0 flex flex-col [&>button]:hidden">
         <DialogTitle className="sr-only">{headerLabel}</DialogTitle>
         <DialogDescription className="sr-only">
           Escolha um método, gere e revise perguntas padrão em até {totalSteps} passos.
         </DialogDescription>
 
         {/* Header */}
-        <div className="px-8 pt-6 pb-4 border-b border-gray-100">
+        <div className="shrink-0 px-8 pt-6 pb-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
               {headerLabel}
@@ -385,7 +385,7 @@ export function QuestionGeneratorModal({
         </div>
 
         {/* Content */}
-        <div className="px-8 py-7 max-h-[62vh] overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto px-8 py-7">
           {phase === 'method' && (
             <div>
               <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f] mb-2">
@@ -542,7 +542,7 @@ export function QuestionGeneratorModal({
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+        <div className="shrink-0 px-8 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
           <button
             onClick={() => {
               if (phase === 'notes') {

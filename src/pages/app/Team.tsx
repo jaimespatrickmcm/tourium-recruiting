@@ -230,7 +230,7 @@ function AddCollaboratorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-[24px] bg-white sm:rounded-[24px]">
+      <DialogContent className="rounded-[24px] bg-white sm:rounded-[24px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-satoshi font-bold text-[22px] tracking-[-0.3px] text-[#1d1d1f]">
             Adicionar colaborador
