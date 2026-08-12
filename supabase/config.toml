@@ -82,6 +82,10 @@ verify_jwt = false
 [functions.generate-job-description]
 verify_jwt = true
 
+# generate-job-requirements: gabarito interno da vaga. Valida JWT + ownership.
+[functions.generate-job-requirements]
+verify_jwt = true
+
 # delete-application: recrutador logado apaga candidatura da própria empresa.
 # Valida JWT + ownership internamente e usa service_role pros deletes.
 [functions.delete-application]
