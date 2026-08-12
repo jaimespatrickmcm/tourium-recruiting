@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
-import type { QuestionKind } from '@/types/database';
+import type { QuestionFormat, QuestionKind } from '@/types/database';
 
 /**
  * Alvo da geração:
@@ -40,6 +40,9 @@ type DraftQuestion = {
   /** Só usado quando o alvo é `company`. */
   kind: QuestionKind;
   required: boolean;
+  format: QuestionFormat;
+  /** Opções dos formatos de seleção. Editadas uma por linha. */
+  options: string[];
 };
 
 type Props = {
@@ -56,8 +59,31 @@ function normalizeKind(value: unknown): QuestionKind {
   return value === 'reasoning' ? 'reasoning' : 'culture';
 }
 
+const FORMATS: QuestionFormat[] = ['text', 'number', 'single_select', 'multi_select'];
+
+function normalizeFormat(value: unknown): QuestionFormat {
+  return FORMATS.includes(value as QuestionFormat) ? (value as QuestionFormat) : 'text';
+}
+
+function normalizeOptions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((o) => String(o ?? '').trim()).filter((o) => o.length > 0);
+}
+
+function isSelectFormat(format: QuestionFormat): boolean {
+  return format === 'single_select' || format === 'multi_select';
+}
+
 function emptyQuestion(): DraftQuestion {
-  return { question: '', guidance: '', scoring_rubric: '', kind: 'culture', required: false };
+  return {
+    question: '',
+    guidance: '',
+    scoring_rubric: '',
+    kind: 'culture',
+    required: false,
+    format: 'text',
+    options: [],
+  };
 }
 
 function KindChip({ kind }: { kind: QuestionKind }) {
@@ -157,13 +183,20 @@ export function QuestionGeneratorModal({
         throw new Error(data?.error ?? 'IA não retornou perguntas');
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const drafts: DraftQuestion[] = (data.questions as any[]).map((q) => ({
-        question: String(q?.question ?? ''),
-        guidance: String(q?.guidance ?? ''),
-        scoring_rubric: String(q?.scoring_rubric ?? ''),
-        kind: normalizeKind(q?.kind),
-        required: (q as any)?.required === true,
-      }));
+      const drafts: DraftQuestion[] = (data.questions as any[]).map((q) => {
+        const format = normalizeFormat(q?.format);
+        const options = normalizeOptions(q?.options);
+        return {
+          question: String(q?.question ?? ''),
+          guidance: String(q?.guidance ?? ''),
+          scoring_rubric: String(q?.scoring_rubric ?? ''),
+          kind: normalizeKind(q?.kind),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          required: (q as any)?.required === true,
+          format: isSelectFormat(format) && options.length < 2 ? 'text' : format,
+          options,
+        };
+      });
       setQuestions(drafts.length > 0 ? drafts : [emptyQuestion()]);
       setPhase('review');
     } catch (err) {
@@ -200,6 +233,13 @@ export function QuestionGeneratorModal({
       toast.error('Escreva pelo menos uma pergunta.');
       return;
     }
+    const selectSemOpcoes = valid.find(
+      (q) => isSelectFormat(q.format) && q.options.filter((o) => o.trim().length > 0).length < 2,
+    );
+    if (selectSemOpcoes) {
+      toast.error('Pergunta de seleção precisa de pelo menos 2 opções.');
+      return;
+    }
     setSaving(true);
 
     try {
@@ -222,6 +262,10 @@ export function QuestionGeneratorModal({
           guidance: q.guidance.trim() || null,
           scoring_rubric: q.scoring_rubric.trim() || null,
           required: q.required,
+          format: q.format,
+          options: isSelectFormat(q.format)
+            ? q.options.map((o) => o.trim()).filter((o) => o.length > 0)
+            : null,
         }));
         const { error } = await supabase.from('job_questions').insert(rows);
         if (error) throw error;
@@ -250,6 +294,10 @@ export function QuestionGeneratorModal({
             guidance: q.guidance.trim() || null,
             scoring_rubric: q.scoring_rubric.trim() || null,
             required: q.required,
+            format: q.format,
+            options: isSelectFormat(q.format)
+              ? q.options.map((o) => o.trim()).filter((o) => o.length > 0)
+              : null,
           };
         });
         const { error } = await supabase.from('company_questions').insert(rows);
@@ -570,13 +618,17 @@ function DraftQuestionRow({
           {index + 1}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             {showKind && (
               <KindToggle
                 value={draft.kind}
                 onChange={(kind) => onChange({ kind })}
               />
             )}
+            <FormatSelect
+              value={draft.format}
+              onChange={(format) => onChange({ format })}
+            />
             <button
               type="button"
               onClick={() => onChange({ required: !draft.required })}
@@ -597,6 +649,25 @@ function DraftQuestionRow({
             placeholder="O que o candidato lê..."
             className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
           />
+          {isSelectFormat(draft.format) && (
+            <div className="mt-2">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                Opções (uma por linha)
+              </label>
+              <Textarea
+                value={draft.options.join('\n')}
+                onChange={(e) => onChange({ options: e.target.value.split('\n') })}
+                rows={Math.min(Math.max(draft.options.length + 1, 3), 8)}
+                placeholder={'Figma\nCanva\nPhotoshop'}
+                className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+              />
+              <p className="text-[11px] text-[#8a8a8f] mt-1">
+                {draft.format === 'multi_select'
+                  ? 'O candidato pode marcar mais de uma.'
+                  : 'O candidato escolhe uma.'}
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -650,6 +721,36 @@ function DraftQuestionRow({
         </div>
       )}
     </div>
+  );
+}
+
+const FORMAT_LABEL: Record<QuestionFormat, string> = {
+  text: 'Aberta',
+  number: 'Número',
+  single_select: 'Escolha única',
+  multi_select: 'Múltipla escolha',
+};
+
+function FormatSelect({
+  value,
+  onChange,
+}: {
+  value: QuestionFormat;
+  onChange: (format: QuestionFormat) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(normalizeFormat(e.target.value))}
+      aria-label="Formato da resposta"
+      className="rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#6b6b70] hover:text-[#1d1d1f] transition-colors cursor-pointer"
+    >
+      {FORMATS.map((f) => (
+        <option key={f} value={f}>
+          {FORMAT_LABEL[f]}
+        </option>
+      ))}
+    </select>
   );
 }
 

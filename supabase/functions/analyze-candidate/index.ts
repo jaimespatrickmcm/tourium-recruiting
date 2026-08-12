@@ -94,6 +94,10 @@ const SOURCE_LABEL: Record<string, string> = {
 
 // Carrega as respostas do formulário + o critério interno (rubrica) de cada
 // pergunta, e monta um bloco de texto pro prompt. Null se não houver respostas.
+// O critério vem preferencialmente do snapshot congelado no submit
+// (guidance_snapshot / rubric_snapshot): é o texto que valia quando o candidato
+// respondeu, imune a regeneração ou edição posterior das perguntas. Respostas
+// antigas (pré-snapshot) caem no lookup ao vivo por ref_id.
 async function loadFormAnswers(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any,
@@ -101,7 +105,7 @@ async function loadFormAnswers(
 ): Promise<string | null> {
   const { data: answers } = await admin
     .from('application_answers')
-    .select('source, ref_id, question_snapshot, answer')
+    .select('source, ref_id, question_snapshot, answer, guidance_snapshot, rubric_snapshot')
     .eq('application_id', applicationId);
   if (!answers || answers.length === 0) return null;
 
@@ -113,13 +117,15 @@ async function loadFormAnswers(
   );
   if (scored.length === 0) return null;
 
-  const companyIds = scored
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const missingSnapshot = scored.filter((a: any) => !a.guidance_snapshot && !a.rubric_snapshot);
+  const companyIds = missingSnapshot
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter((a: any) => a.source !== 'job_question')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((a: any) => a.ref_id)
     .filter(Boolean);
-  const jobIds = scored
+  const jobIds = missingSnapshot
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter((a: any) => a.source === 'job_question')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -147,7 +153,12 @@ async function loadFormAnswers(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks = scored.map((a: any) => {
     const label = SOURCE_LABEL[a.source] ?? a.source;
-    const rub = a.ref_id ? rubricById.get(a.ref_id) : undefined;
+    const hasSnapshot = Boolean(a.guidance_snapshot || a.rubric_snapshot);
+    const rub = hasSnapshot
+      ? { guidance: a.guidance_snapshot, scoring_rubric: a.rubric_snapshot }
+      : a.ref_id
+        ? rubricById.get(a.ref_id)
+        : undefined;
     const criterio =
       [rub?.guidance, rub?.scoring_rubric].filter(Boolean).join(' | ').slice(0, MAX_RUBRIC_CHARS) ||
       '(sem critério cadastrado)';

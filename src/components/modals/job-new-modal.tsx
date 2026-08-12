@@ -9,7 +9,7 @@ import { BrandCtaButton } from '@/components/brand-cta';
 import { useCompany } from '@/hooks/use-company';
 import { supabase } from '@/lib/supabase';
 import { invokeEdge } from '@/lib/functions';
-import type { HighlightType, JobRequirements } from '@/types/database';
+import type { HighlightType, JobRequirements, QuestionFormat } from '@/types/database';
 
 const TOTAL_STEPS = 3;
 
@@ -18,7 +18,15 @@ type JobQuestionDraft = {
   guidance: string;
   scoring_rubric: string;
   required: boolean;
+  format: QuestionFormat;
+  options: string[];
 };
+
+const QUESTION_FORMATS: QuestionFormat[] = ['text', 'number', 'single_select', 'multi_select'];
+
+function normalizeQuestionFormat(value: unknown): QuestionFormat {
+  return QUESTION_FORMATS.includes(value as QuestionFormat) ? (value as QuestionFormat) : 'text';
+}
 
 function slugify(s: string): string {
   return s
@@ -210,12 +218,23 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setQDrafts(
-        (data.questions as any[]).map((q) => ({
-          question: String(q?.question ?? ''),
-          guidance: String(q?.guidance ?? ''),
-          scoring_rubric: String(q?.scoring_rubric ?? ''),
-          required: (q as any)?.required === true,
-        })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (data.questions as any[]).map((q) => {
+          const format = normalizeQuestionFormat(q?.format);
+          const options = Array.isArray(q?.options)
+            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (q.options as any[]).map((o) => String(o ?? '').trim()).filter((o) => o.length > 0)
+            : [];
+          return {
+            question: String(q?.question ?? ''),
+            guidance: String(q?.guidance ?? ''),
+            scoring_rubric: String(q?.scoring_rubric ?? ''),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            required: (q as any)?.required === true,
+            format: (format === 'single_select' || format === 'multi_select') && options.length < 2 ? 'text' : format,
+            options,
+          };
+        }),
       );
     } catch (err) {
       setQError(err instanceof Error ? err.message : 'Erro ao gerar perguntas');
@@ -241,7 +260,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
   function addDraft() {
     setQDrafts((prev) => [
       ...prev,
-      { question: '', guidance: '', scoring_rubric: '', required: false },
+      { question: '', guidance: '', scoring_rubric: '', required: false, format: 'text', options: [] },
     ]);
   }
 
@@ -264,6 +283,11 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
           guidance: q.guidance.trim() || null,
           scoring_rubric: q.scoring_rubric.trim() || null,
           required: q.required,
+          format: q.format,
+          options:
+            (q.format === 'single_select' || q.format === 'multi_select') && q.options.length >= 2
+              ? q.options
+              : null,
         }));
         const { error } = await supabase.from('job_questions').insert(rows);
         if (error) throw error;

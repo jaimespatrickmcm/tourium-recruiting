@@ -10,11 +10,15 @@ import { callOpenAI } from '../_shared/openai.ts';
 
 type Payload = { jobId: string };
 
+type QuestionFormat = 'text' | 'number' | 'single_select' | 'multi_select';
+
 type GeneratedQuestion = {
   question: string;
   guidance: string;
   scoring_rubric: string;
   required: boolean;
+  format: QuestionFormat;
+  options: string[] | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,27 +80,46 @@ Uma pergunta boa pra sênior costuma ser injusta pra estagiário. Ajuste a profu
 
 PASSO 2, GERE 3 a 5 perguntas (menos é melhor: o formulário todo já tem perguntas de cultura também, então não pese a mão). Misture:
 - Perguntas técnicas calibradas ao nível da vaga (ferramentas, decisões, como resolveu algo concreto no nível dela).
-- Pelo menos 1 cenário comportamental que também revela cultura, no estilo "o que você faria se seu gestor te pedisse uma tarefa do jeito que você discorda?" ou "conte uma vez que recebeu um feedback duro, o que fez". Esses medem autonomia, comunicação, humildade e ownership, além do lado técnico.
+- 1 pergunta de seleção quando a vaga tiver um conjunto claro de ferramentas ou stack: multi_select "com quais dessas você trabalha no dia a dia" listando as ferramentas relevantes da vaga como opções (ex numa vaga de design: Canva, Figma, Illustrator, Photoshop, IA generativa). Resposta rápida pro candidato e sinal objetivo pra triagem. Só faça se as opções forem óbvias pela descrição ou pelo gabarito; senão, todas abertas.
+- Pelo menos 1 cenário comportamental ABERTO que também revela cultura, no estilo "o que você faria se seu gestor te pedisse uma tarefa do jeito que você discorda?" ou "conte uma vez que recebeu um feedback duro, o que fez". Esses medem autonomia, comunicação, humildade e ownership, além do lado técnico.
 
 Para cada pergunta, entregue:
 - "question": o enunciado que o candidato lê. Direto, português, no nível certo da vaga.
 - "guidance": o que uma boa resposta demonstra (uso interno). Concreto: ferramenta, raciocínio ou trade-off no nível da vaga.
-- "scoring_rubric": como pontuar de 0 a 100 (uso interno). Avalie DOIS eixos juntos: (a) fit técnico com a exigência da vaga no nível certo e (b) o sinal cultural/soft-skill que a resposta revela (calibrado pela cultura desta empresa). Diga o que aprova, o que reprova e onde fica a média.
+- "scoring_rubric": como pontuar de 0 a 100 (uso interno). Avalie DOIS eixos juntos: (a) fit técnico com a exigência da vaga no nível certo e (b) o sinal cultural/soft-skill que a resposta revela (calibrado pela cultura desta empresa). Diga o que aprova, o que reprova e onde fica a média. Em pergunta de seleção, diga quais opções pesam mais pra vaga (ex: Figma vale mais que Canva numa vaga de product design se o gabarito pedir Figma).
 - "required": true se a pergunta cobre um must-have da vaga (o candidato não pode pular). false se cobre um nice-to-have ou é secundária. Marque como required só as que medem algo que a vaga EXIGE de fato. Se não houver gabarito, use true nas 1 a 2 mais decisivas e false no resto.
+- "format": "text" (aberta), "number" (numérica), "single_select" ou "multi_select".
+- "options": array com 2 a 12 opções curtas quando o format é de seleção; null nos outros.
 
-REGRAS DE ESCRITA (valem pra question, guidance e scoring_rubric):
+REGRAS DE ESCRITA (valem pra question, guidance, scoring_rubric e options):
 - Português direto. Sem clichê de RH.
 - Sem travessão de nenhum tipo. Use só vírgula, ponto, dois-pontos, hífen simples ou parênteses.
 - Sem "basicamente", "simplesmente", "definitivamente", "literalmente".
 - Específico da vaga e do nível, não pergunta que serve pra qualquer cargo.
 - Não repita a mesma pergunta com outras palavras.
+- Opções de seleção curtas, sem frase inteira.
 
 OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
 {
   "questions": [
-    { "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>", "required": true }
+    { "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>", "required": true, "format": "text" | "number" | "single_select" | "multi_select", "options": ["<opção>", "..."] | null }
   ]
 }`;
+}
+
+const FORMATS: QuestionFormat[] = ['text', 'number', 'single_select', 'multi_select'];
+
+function normalizeFormat(value: unknown): QuestionFormat {
+  return FORMATS.includes(value as QuestionFormat) ? (value as QuestionFormat) : 'text';
+}
+
+function normalizeOptions(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const opts = value
+    .map((o) => String(o ?? '').trim())
+    .filter((o) => o.length > 0)
+    .slice(0, 12);
+  return opts.length >= 2 ? opts : null;
 }
 
 function parseQuestions(text: string): GeneratedQuestion[] | null {
@@ -106,12 +129,22 @@ function parseQuestions(text: string): GeneratedQuestion[] | null {
     const raw = Array.isArray(parsed?.questions) ? parsed.questions : [];
     const questions: GeneratedQuestion[] = raw
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((q: any) => ({
-        question: String(q?.question ?? '').trim(),
-        guidance: String(q?.guidance ?? '').trim(),
-        scoring_rubric: String(q?.scoring_rubric ?? '').trim(),
-        required: q?.required === true,
-      }))
+      .map((q: any) => {
+        let format = normalizeFormat(q?.format);
+        const options = normalizeOptions(q?.options);
+        // Seleção sem opções válidas vira pergunta aberta em vez de quebrar o form.
+        if ((format === 'single_select' || format === 'multi_select') && !options) {
+          format = 'text';
+        }
+        return {
+          question: String(q?.question ?? '').trim(),
+          guidance: String(q?.guidance ?? '').trim(),
+          scoring_rubric: String(q?.scoring_rubric ?? '').trim(),
+          required: q?.required === true,
+          format,
+          options: format === 'single_select' || format === 'multi_select' ? options : null,
+        };
+      })
       .filter((q: GeneratedQuestion) => q.question.length > 0);
     return questions.length > 0 ? questions : null;
   } catch {

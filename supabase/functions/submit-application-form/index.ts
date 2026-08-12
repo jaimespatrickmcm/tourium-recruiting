@@ -3,6 +3,11 @@
 // apply simplificado. Atualiza a application com city + phone + form_completed_at
 // e grava as respostas em application_answers. Service role: única via de escrita
 // em application_answers.
+//
+// Histórico imutável: além do question_snapshot, congela guidance + rubrica
+// (guidance_snapshot / rubric_snapshot) no momento do submit. Assim, regenerar
+// ou editar perguntas depois nunca muda o critério que vale pras respostas já
+// enviadas.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -37,6 +42,7 @@ const MAX_CITY = 120;
 const MAX_ANSWER = 5000;
 const MAX_ANSWERS = 100;
 const MAX_QUESTION = 2000;
+const MAX_SNAPSHOT = 2000;
 
 const ALLOWED_SOURCES: AnswerSource[] = ['candidate_info', 'job_question', 'culture', 'reasoning'];
 
@@ -201,17 +207,39 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Congela o critério interno (guidance + rubrica) de cada pergunta junto com
+  // a resposta. O lookup é feito agora, com o texto vigente no momento do
+  // submit; depois disso o histórico não depende mais das tabelas de perguntas.
+  const refIds = answers.map((a) => a.refId).filter((id): id is string => Boolean(id));
+  const criteriaById = new Map<string, { guidance: string | null; scoring_rubric: string | null }>();
+  if (refIds.length > 0) {
+    const [companyQ, jobQ] = await Promise.all([
+      admin.from('company_questions').select('id, guidance, scoring_rubric').in('id', refIds),
+      admin.from('job_questions').select('id, guidance, scoring_rubric').in('id', refIds),
+    ]);
+    for (const q of [...(companyQ.data ?? []), ...(jobQ.data ?? [])]) {
+      criteriaById.set(q.id, { guidance: q.guidance, scoring_rubric: q.scoring_rubric });
+    }
+  }
+
   // Grava respostas não vazias.
   const rows = answers
     .filter((a) => (a.answer ?? '').trim().length > 0)
-    .map((a) => ({
-      application_id: applicationId,
-      company_id: company.id,
-      source: a.source,
-      ref_id: a.refId ?? null,
-      question_snapshot: (a.question ?? '').slice(0, MAX_QUESTION),
-      answer: (a.answer ?? '').trim(),
-    }));
+    .map((a) => {
+      const criteria = a.refId ? criteriaById.get(a.refId) : undefined;
+      return {
+        application_id: applicationId,
+        company_id: company.id,
+        source: a.source,
+        ref_id: a.refId ?? null,
+        question_snapshot: (a.question ?? '').slice(0, MAX_QUESTION),
+        answer: (a.answer ?? '').trim(),
+        guidance_snapshot: criteria?.guidance ? criteria.guidance.slice(0, MAX_SNAPSHOT) : null,
+        rubric_snapshot: criteria?.scoring_rubric
+          ? criteria.scoring_rubric.slice(0, MAX_SNAPSHOT)
+          : null,
+      };
+    });
 
   if (rows.length > 0) {
     const { error: answersError } = await admin.from('application_answers').insert(rows);

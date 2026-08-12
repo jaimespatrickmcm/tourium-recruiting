@@ -20,6 +20,7 @@ export type CollaboratorStatus = 'ativo' | 'desligado';
 export type ScoreSource = 'analise_inicial' | 'avaliacao';
 export type GoalStatus = 'em_andamento' | 'concluida' | 'pausada';
 export type QuestionKind = 'culture' | 'reasoning';
+export type QuestionFormat = 'text' | 'number' | 'single_select' | 'multi_select';
 export type JobVisibility = 'public' | 'private';
 export type HighlightType = 'yes_no' | 'short_text';
 
@@ -293,6 +294,8 @@ export type Database = {
           guidance: string | null;
           scoring_rubric: string | null;
           required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -314,6 +317,8 @@ export type Database = {
           guidance: string | null;
           scoring_rubric: string | null;
           required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -334,6 +339,8 @@ export type Database = {
           ref_id: string | null;
           question_snapshot: string;
           answer: string | null;
+          guidance_snapshot: string | null;
+          rubric_snapshot: string | null;
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['application_answers']['Row']> & {
@@ -380,6 +387,8 @@ export type Database = {
           position: number;
           question: string;
           required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
         };
         Relationships: [];
       };
@@ -390,6 +399,8 @@ export type Database = {
           position: number;
           question: string;
           required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
         };
         Relationships: [];
       };
