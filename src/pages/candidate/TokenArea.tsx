@@ -21,6 +21,7 @@ type TabKey = 'candidaturas' | 'jornada' | 'perfil';
 
 const STAGES = [
   { key: 'triagem', label: 'Triagem' },
+  { key: 'fit_cultural', label: 'Fit cultural' },
   { key: 'entrevista', label: 'Entrevista' },
   { key: 'proposta', label: 'Proposta' },
   { key: 'contratado', label: 'Contratado' },

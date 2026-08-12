@@ -8,7 +8,13 @@ export type Json =
 
 export type UserRole = 'owner' | 'recruiter' | 'viewer';
 export type CompanyPlan = 'trial' | 'starter' | 'growth';
-export type ApplicationStatus = 'triagem' | 'entrevista' | 'proposta' | 'contratado' | 'reprovado';
+export type ApplicationStatus =
+  | 'triagem'
+  | 'fit_cultural'
+  | 'entrevista'
+  | 'proposta'
+  | 'contratado'
+  | 'reprovado';
 export type ApplicationEventType = 'stage_change' | 'note' | 'hired';
 export type CollaboratorStatus = 'ativo' | 'desligado';
 export type ScoreSource = 'analise_inicial' | 'avaliacao';
