@@ -78,6 +78,13 @@ PASSO 1, CALIBRE A SENIORIDADE. Antes de escrever, deduza o nível da vaga pelo 
 - Sênior / lead: arquitetura, trade-offs difíceis, mentoria, impacto amplo.
 Uma pergunta boa pra sênior costuma ser injusta pra estagiário. Ajuste a profundidade ao nível.
 
+PASSO 1B, ENTENDA DE QUEM É A VAGA. A vaga é da EMPRESA, pra atuar DENTRO dela. O que a empresa vende é contexto, não é a tarefa do candidato. Um gerente de planejamento estratégico planeja a estratégia DA EMPRESA, ele não é key account cuidando da entrega pro cliente. Só escreva pergunta sobre entrega ao cliente final se a descrição disser explicitamente que o papel é de atendimento ou de entrega pra clientes. Errar isso gera pergunta sobre o trabalho errado.
+
+PASSO 1C, NÃO EXIJA O MESMO MERCADO. Boa parte dos melhores candidatos vem de outro setor, e um bom profissional traz a competência junto. Pergunte pela COMPETÊNCIA de um jeito que alguém de qualquer setor consiga responder com a experiência que tem:
+- Ruim: "Conte de um dashboard executivo da jornada digital do tráfego ao booking que mudou uma decisão." Só quem já é do turismo responde.
+- Bom: "Conte de um indicador ou painel que você montou e que mudou uma decisão. Qual era a decisão, o que o dado mostrou e o que aconteceu depois?" Serve pra quem veio de serviços, varejo, indústria ou turismo.
+Nada de jargão do setor da empresa dentro do enunciado. Se o contexto importa, deixe o candidato trazer o dele ("no seu contexto", "na sua área", "no seu último trabalho"). A ferramenta ou o método podem ser específicos; o SETOR não.
+
 PASSO 2, GERE 3 a 5 perguntas (menos é melhor: o formulário todo já tem perguntas de cultura também, então não pese a mão). Misture:
 - Perguntas técnicas calibradas ao nível da vaga (ferramentas, decisões, como resolveu algo concreto no nível dela).
 - 1 pergunta de seleção quando a vaga tiver um conjunto claro de ferramentas ou stack: multi_select "com quais dessas você trabalha no dia a dia" listando as ferramentas relevantes da vaga como opções (ex numa vaga de design: Canva, Figma, Illustrator, Photoshop, IA generativa). Resposta rápida pro candidato e sinal objetivo pra triagem. Só faça se as opções forem óbvias pela descrição ou pelo gabarito; senão, todas abertas.
@@ -96,6 +103,8 @@ REGRAS DE ESCRITA (valem pra question, guidance, scoring_rubric e options):
 - Sem travessão de nenhum tipo. Use só vírgula, ponto, dois-pontos, hífen simples ou parênteses.
 - Sem "basicamente", "simplesmente", "definitivamente", "literalmente".
 - Específico da vaga e do nível, não pergunta que serve pra qualquer cargo.
+- Específico da FUNÇÃO, nunca do setor da empresa. Sem jargão de mercado no enunciado (o candidato pode vir de outro setor).
+- A vaga é pra atuar dentro da empresa, não pra atender os clientes dela, salvo se a descrição disser o contrário.
 - Não repita a mesma pergunta com outras palavras.
 - Opções de seleção curtas, sem frase inteira.
 

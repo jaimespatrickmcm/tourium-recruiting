@@ -50,6 +50,11 @@ PASSO 1, CALIBRE A SENIORIDADE pelo título e pela descrição (estágio, júnio
 
 PASSO 2, EXTRAIA os requisitos REAIS da vaga a partir do que a descrição sustenta. Não invente exigência que a descrição não dá base. Seja específico da vaga, não genérico que serve pra qualquer cargo.
 
+PASSO 3, NÃO TRANSFORME O SETOR EM REQUISITO. A vaga é pra atuar DENTRO da empresa; o que a empresa vende é contexto, não é a função do candidato. E boa parte dos bons candidatos vem de outro mercado, trazendo a competência junto. Então:
+- Escreva os must-have como COMPETÊNCIA, não como setor. "Construir indicador que sustenta decisão" em vez de "experiência com jornada digital de hotelaria".
+- Só coloque experiência no setor específico como must-have se a descrição disser com todas as letras que é obrigatório. Se for só desejável, vai em nice-to-have.
+- Ferramenta e método podem ser específicos. Setor, não.
+
 Entregue JSON com estes campos:
 - "seniority": um de estagio, junior, pleno, senior, lead.
 - "location": local e modelo de trabalho da vaga, extraído do título/descrição (ex.: "Presencial em Belo Horizonte", "Remoto", "Híbrido em São Paulo"). Se a descrição não diz, string vazia. Não invente local.
