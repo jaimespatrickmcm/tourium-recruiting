@@ -16,6 +16,17 @@ export type GoalStatus = 'em_andamento' | 'concluida' | 'pausada';
 export type QuestionKind = 'culture' | 'reasoning';
 export type JobVisibility = 'public' | 'private';
 export type HighlightType = 'yes_no' | 'short_text';
+
+/** Perfil de requisitos interno da vaga (jobs.requirements). Nunca exposto ao candidato. */
+export type JobRequirements = {
+  seniority: string;
+  summary: string;
+  must_have: string[];
+  nice_to_have: string[];
+  responsibilities: string[];
+  evaluation_focus: string[];
+  red_flags: string[];
+};
 export type AnswerSource = 'candidate_info' | 'job_question' | 'culture' | 'reasoning';
 
 export type Database = {
@@ -94,6 +105,7 @@ export type Database = {
           highlight_question: string | null;
           highlight_type: HighlightType | null;
           highlight_expected: string | null;
+          requirements: JobRequirements | null;
           created_at: string;
           updated_at: string;
         };
