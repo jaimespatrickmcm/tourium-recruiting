@@ -53,7 +53,7 @@ const NOREN_BASE: NorenBaseQuestion[] = [
     kind: 'profile',
     question: 'Cite uma conquista da qual você tem orgulho e o motivo.',
     format: 'text',
-    required: true,
+    required: false,
     intent: 'o que a pessoa considera vitória e o papel dela na conquista',
   },
   {
@@ -233,7 +233,9 @@ Nas perguntas informativas de profile (experiência, salário, regime, origem da
 
 Depois da base, gere MAIS DUAS perguntas de kind "culture":
 - Uma multi_select de calibração de mentalidade: "Com qual dessas pessoas você mais se identifica?" com 10 a 12 figuras públicas amplamente conhecidas no Brasil, required true, cobrindo mentalidades bem diferentes entre si: alta performance e execução, criatividade e arte, ciência, ativismo social ou ambiental, disciplina e filosofia, empreendedorismo, esporte, e visões políticas de lados opostos. A rubrica é o coração dessa pergunta: diga quais escolhas indicam fit forte com ESTA cultura, quais são neutras e quais indicam anti-fit, e como pontuar combinações mistas. Escolhas de anti-fit não são "erradas", são sinal de que a pessoa rende mais em outro tipo de empresa.
-- Uma pergunta aberta extra (format text) no mesmo estilo pessoal do método, que revele o que ESTA cultura mais valoriza.
+- Uma pergunta aberta extra (format text, required false) no mesmo estilo pessoal do método, que revele o que ESTA cultura mais valoriza.
+
+DOSAGEM: o formulário precisa ser analisável sem ficar cansativo. Não gere nada além do que foi pedido acima. As obrigatórias já cobrem o sinal essencial; as opcionais aprofundam pra quem quiser responder.
 `
       : `SEÇÕES SOBRE O CANDIDATO + CULTURA + CURIOSIDADE (geradas do zero):
 Gere 3 perguntas de kind "profile" (história, conquista, fracasso e aprendizado, aspiração), 3 de kind "culture" pessoais e abertas (cenários de comportamento como discordar do gestor ou receber feedback duro, referências), e 1 a 2 de kind "curiosity" (aprendizado por conta própria, profundidade de interesse). Calibradas ao que ESTA cultura valoriza e reprova, mas genéricas quanto ao negócio: são sobre a pessoa.
