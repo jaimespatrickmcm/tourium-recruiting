@@ -287,6 +287,7 @@ REGRAS:
 - Nunca preencha lacuna nem assuma fato não informado. Sem evidência, score conservador e diga que faltou base.
 - Calibre tudo ao nível da vaga: não penalize estagiário por não ter repertório de sênior.
 - Se houver GABARITO INTERNO, use como referência do que a vaga exige: priorize os must-have e o foco de avaliação, e deixe as red flags puxarem a nota pra baixo quando aparecerem.
+- Vir de outro mercado NÃO é demérito. Avalie se a competência transfere: quem montou indicador que mudou decisão no varejo sabe fazer isso aqui. Só penalize a falta de experiência no setor se o gabarito exigir o setor de forma explícita. O que conta é a função que a pessoa exerceu, não o ramo da empresa onde ela estava.
 - Esforço conta. Pergunta importante deixada em branco, ou respondida com evidente má vontade (uma palavra solta, texto aleatório, fora do tema, só pra passar), é sinal negativo de motivação e engajamento: pontue baixo nessas e diga no rationale. Não confunda uma resposta curta mas honesta e no tema com má vontade.
 - Responda em português
 

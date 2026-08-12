@@ -310,6 +310,8 @@ function JobPanel({
   onManual: (jobId: string) => void;
   onChanged: () => void | Promise<void>;
 }) {
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
   if (jobs.length === 0) {
     return (
       <div className="bg-white rounded-[28px] border border-gray-200 p-10 text-center">
@@ -325,14 +327,46 @@ function JobPanel({
     );
   }
 
+  // Uma vaga por vez: com todas abertas a tela vira um rolo interminável.
+  const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? jobs[0];
+  const qs = jobQuestions.filter((q) => q.job_id === selectedJob.id);
+
   return (
     <div className="space-y-4">
       <p className="text-[14px] text-[#6b6b70] leading-relaxed max-w-xl">
         Perguntas técnicas específicas de cada vaga. Entram no formulário junto com as perguntas de
         cultura e raciocínio da empresa.
       </p>
-      {jobs.map((job) => {
-        const qs = jobQuestions.filter((q) => q.job_id === job.id);
+
+      <div>
+        <label
+          htmlFor="job-select"
+          className="block text-[12px] font-semibold text-[#1d1d1f] mb-1.5"
+        >
+          Vaga
+        </label>
+        <div className="relative max-w-sm">
+          <select
+            id="job-select"
+            value={selectedJob.id}
+            onChange={(e) => setSelectedJobId(e.target.value)}
+            className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3.5 pr-10 text-[14px] font-medium text-[#1d1d1f] outline-none transition-colors hover:border-gray-400 focus:border-sky-400"
+          >
+            {jobs.map((job) => {
+              const count = jobQuestions.filter((q) => q.job_id === job.id).length;
+              return (
+                <option key={job.id} value={job.id}>
+                  {job.title} ({count})
+                </option>
+              );
+            })}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a8a8f]" />
+        </div>
+      </div>
+
+      {(() => {
+        const job = selectedJob;
         return (
           <div key={job.id} className="bg-white rounded-2xl border border-gray-200 p-5">
             <div className="flex items-start justify-between gap-4 mb-4">
@@ -399,7 +433,7 @@ function JobPanel({
             )}
           </div>
         );
-      })}
+      })()}
     </div>
   );
 }
