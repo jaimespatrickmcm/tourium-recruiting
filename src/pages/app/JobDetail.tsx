@@ -65,6 +65,7 @@ type AppEvent = {
 
 const STAGE_ORDER: ApplicationStatus[] = [
   'triagem',
+  'fit_cultural',
   'entrevista',
   'proposta',
   'contratado',
@@ -73,6 +74,7 @@ const STAGE_ORDER: ApplicationStatus[] = [
 
 const stageLabels: Record<ApplicationStatus, string> = {
   triagem: 'Triagem',
+  fit_cultural: 'Fit cultural',
   entrevista: 'Entrevista',
   proposta: 'Proposta',
   contratado: 'Contratado',
@@ -81,6 +83,7 @@ const stageLabels: Record<ApplicationStatus, string> = {
 
 const stageChipColors: Record<ApplicationStatus, string> = {
   triagem: 'bg-gray-100 text-[#6b6b70] border-gray-200',
+  fit_cultural: 'bg-violet-50 text-violet-700 border-violet-200',
   entrevista: 'bg-sky-50 text-sky-700 border-sky-200',
   proposta: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   contratado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -88,7 +91,8 @@ const stageChipColors: Record<ApplicationStatus, string> = {
 };
 
 const NEXT_STAGE: Partial<Record<ApplicationStatus, ApplicationStatus>> = {
-  triagem: 'entrevista',
+  triagem: 'fit_cultural',
+  fit_cultural: 'entrevista',
   entrevista: 'proposta',
 };
 
