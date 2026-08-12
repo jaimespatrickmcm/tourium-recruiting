@@ -107,6 +107,119 @@ const recLabels: Record<string, string> = {
 
 const STUCK_ANALYSIS_MS = 2 * 60 * 1000;
 
+const AREA_LABELS: Record<string, string> = {
+  cultura: 'Cultura',
+  execucao: 'Execução',
+  comunicacao: 'Comunicação',
+  motivacao: 'Motivação',
+  potencial: 'Potencial',
+};
+
+type ScoreBand = { label: string; chip: string; hint: string };
+
+// Dá referência à nota crua: uma faixa nomeada + o que ela significa no processo.
+function scoreBand(score: number): ScoreBand {
+  if (score >= 80)
+    return {
+      label: 'Forte',
+      chip: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+      hint: 'Entre os mais aderentes ao que a vaga pede.',
+    };
+  if (score >= 65)
+    return {
+      label: 'Bom',
+      chip: 'text-sky-700 bg-sky-50 border-sky-200',
+      hint: 'Fit sólido. Vale levar pra conversa.',
+    };
+  if (score >= 50)
+    return {
+      label: 'Mediano',
+      chip: 'text-amber-700 bg-amber-50 border-amber-200',
+      hint: 'Fit parcial. Tem pontos a checar antes de decidir.',
+    };
+  return {
+    label: 'Abaixo',
+    chip: 'text-rose-700 bg-rose-50 border-rose-200',
+    hint: 'Distante do que a vaga pede neste momento.',
+  };
+}
+
+// Bloco que traduz a nota: recomendação, faixa, ponto forte/fraco e como fica
+// perante os outros candidatos da vaga.
+function ScoreReference({
+  score,
+  recommendation,
+  dims,
+  cohortScores,
+}: {
+  score: number;
+  recommendation: string | null | undefined;
+  dims: { area: string; score: number }[];
+  cohortScores: number[];
+}) {
+  const band = scoreBand(score);
+  const sorted = [...dims].sort((a, b) => b.score - a.score);
+  const strongest = sorted[0];
+  const weakest = sorted[sorted.length - 1];
+  const total = cohortScores.length;
+  const rank = 1 + cohortScores.filter((s) => s > score).length;
+  const average =
+    total > 0 ? Math.round(cohortScores.reduce((sum, s) => sum + s, 0) / total) : score;
+
+  return (
+    <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {recommendation && (
+          <span
+            className={cn(
+              'inline-flex items-center text-[12px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border',
+              recColors[recommendation] ?? '',
+            )}
+          >
+            {recLabels[recommendation] ?? recommendation}
+          </span>
+        )}
+        <span
+          className={cn(
+            'inline-flex items-center text-[12px] font-semibold px-2.5 py-1 rounded-full border',
+            band.chip,
+          )}
+        >
+          Nota {score}: {band.label}
+        </span>
+      </div>
+      <p className="mt-2 text-[13px] text-[#6b6b70] leading-relaxed">{band.hint}</p>
+
+      {(strongest || weakest) && (
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px]">
+          {strongest && (
+            <span className="text-[#6b6b70]">
+              Ponto forte:{' '}
+              <span className="font-semibold text-[#1d1d1f]">
+                {AREA_LABELS[strongest.area] ?? strongest.area} ({strongest.score})
+              </span>
+            </span>
+          )}
+          {weakest && weakest !== strongest && (
+            <span className="text-[#6b6b70]">
+              Atenção:{' '}
+              <span className="font-semibold text-[#1d1d1f]">
+                {AREA_LABELS[weakest.area] ?? weakest.area} ({weakest.score})
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+
+      <p className="mt-2 text-[12px] text-[#8a8a8f]">
+        {total > 1
+          ? `${rank}º de ${total} candidatos analisados nesta vaga · média ${average}`
+          : 'Primeiro candidato analisado nesta vaga. A referência fica mais clara conforme chegam outros.'}
+      </p>
+    </div>
+  );
+}
+
 function formatEventDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -163,6 +276,11 @@ export function JobDetail() {
     stageFilter === 'all' ? applications : applications.filter((a) => a.status === stageFilter);
 
   const selected = applications.find((a) => a.id === selectedId) ?? null;
+
+  // Notas concluídas da vaga, pra dar referência relativa (rank e média).
+  const cohortScores = applications
+    .filter((a) => a.ai_analysis?.status === 'completed' && typeof a.ai_analysis?.score === 'number')
+    .map((a) => a.ai_analysis!.score as number);
 
   return (
     <div className="relative min-h-screen bg-white">
@@ -301,6 +419,17 @@ export function JobDetail() {
                           >
                             {stageLabels[app.status]}
                           </span>
+                          {aStatus === 'completed' && app.ai_analysis?.recommendation && (
+                            <span
+                              className={cn(
+                                'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
+                                recColors[app.ai_analysis.recommendation] ?? '',
+                              )}
+                            >
+                              {recLabels[app.ai_analysis.recommendation] ??
+                                app.ai_analysis.recommendation}
+                            </span>
+                          )}
                           {app.ai_suspected && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-700"
@@ -326,6 +455,7 @@ export function JobDetail() {
                     jobTitle={job.title}
                     highlightQuestion={job.highlight_question}
                     highlightType={job.highlight_type}
+                    cohortScores={cohortScores}
                     refetch={refetch}
                     patchApplication={patchApplication}
                     onDeleted={() => {
@@ -652,6 +782,7 @@ function CandidateDetail({
   jobTitle,
   highlightQuestion,
   highlightType,
+  cohortScores,
   refetch,
   patchApplication,
   onDeleted,
@@ -660,6 +791,7 @@ function CandidateDetail({
   jobTitle: string;
   highlightQuestion: string | null;
   highlightType: HighlightType | null;
+  cohortScores: number[];
   refetch: () => Promise<void>;
   patchApplication: (id: string, patch: Partial<ApplicationWithAnalysis>) => void;
   onDeleted: () => void;
@@ -1063,10 +1195,23 @@ function CandidateDetail({
       )}
 
       <div className="border-t border-gray-100 pt-6">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-3 flex items-center gap-2">
-          Análise IA
-          {aStatus === 'completed' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
-        </p>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] flex items-center gap-2">
+            Análise IA
+            {aStatus === 'completed' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
+          </p>
+          {aStatus === 'completed' && (
+            <button
+              onClick={() => void reanalyze()}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#6b6b70] transition-colors hover:border-gray-400 hover:text-[#1d1d1f] disabled:opacity-50"
+              title="Roda a análise de novo (usa os requisitos atuais da vaga)"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
+              Re-analisar
+            </button>
+          )}
+        </div>
 
         {pendingAnalysis ? (
           <div>
@@ -1100,6 +1245,12 @@ function CandidateDetail({
           </div>
         ) : dims.length > 0 ? (
           <div>
+            <ScoreReference
+              score={analysis?.score ?? overallFromDimensions(dims) ?? 0}
+              recommendation={analysis?.recommendation}
+              dims={dims}
+              cohortScores={cohortScores}
+            />
             <ScoutCard
               name={app.candidate_name}
               subtitle={jobTitle}
@@ -1119,22 +1270,12 @@ function CandidateDetail({
           </div>
         ) : (
           <div>
-            <div className="flex items-baseline gap-3 mb-4">
-              <p className="font-satoshi font-black text-[44px] tracking-[-0.8px] text-[#1d1d1f] leading-none">
-                {analysis?.score}
-              </p>
-              <p className="text-[14px] text-[#8a8a8f]">/ 100</p>
-              {analysis?.recommendation && (
-                <span
-                  className={cn(
-                    'ml-auto inline-flex items-center text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border',
-                    recColors[analysis.recommendation] ?? '',
-                  )}
-                >
-                  {recLabels[analysis.recommendation] ?? analysis.recommendation}
-                </span>
-              )}
-            </div>
+            <ScoreReference
+              score={analysis?.score ?? 0}
+              recommendation={analysis?.recommendation}
+              dims={[]}
+              cohortScores={cohortScores}
+            />
             <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
               {analysis?.reasoning}
             </p>
