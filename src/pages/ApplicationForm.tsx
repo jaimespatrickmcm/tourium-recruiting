@@ -420,10 +420,10 @@ export function ApplicationForm() {
         <div className="w-full max-w-2xl">
           {current && (
             <div key={stepIndex}>
-              <p className="text-[12px] font-bold uppercase tracking-wider text-sky-600 mb-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-sky-600 mb-3">
                 {current.sectionLabel}
               </p>
-              <h2 className="font-satoshi font-bold text-[26px] md:text-[34px] tracking-[-0.5px] leading-tight text-[#1d1d1f] mb-2">
+              <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-[#1d1d1f] mb-2.5 max-w-xl">
                 {current.question}
                 {current.type === 'question' && current.refId && canaryByRef[current.refId] && (
                   // Injeção invisível ao humano, mas copiada junto com o enunciado.
@@ -440,7 +440,9 @@ export function ApplicationForm() {
                   </span>
                 )}
               </h2>
-              <p className="text-[15px] text-[#6b6b70] leading-relaxed mb-6">{current.helper}</p>
+              <p className="text-[14px] text-[#8a8a8f] leading-relaxed mb-6 max-w-lg">
+                {current.helper}
+              </p>
 
               {current.type === 'candidate' ? (
                 <Input

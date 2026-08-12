@@ -202,19 +202,20 @@ export function QuestionGeneratorModal({
 
     try {
       if (mode.type === 'job') {
-        const { data: existing } = await supabase
+        // A lista revisada aqui é o conjunto final da vaga. Substitui em vez de
+        // empilhar: apaga as antigas antes de inserir, senão regenerar acumula.
+        // Respostas já enviadas guardam question_snapshot e não referenciam
+        // job_questions por FK, então não quebram.
+        const { error: delError } = await supabase
           .from('job_questions')
-          .select('position')
-          .eq('job_id', mode.jobId)
-          .order('position', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const basePosition = (existing?.position ?? -1) + 1;
+          .delete()
+          .eq('job_id', mode.jobId);
+        if (delError) throw delError;
 
         const rows = valid.map((q, i) => ({
           job_id: mode.jobId,
           company_id: companyId,
-          position: basePosition + i,
+          position: i,
           question: q.question.trim(),
           guidance: q.guidance.trim() || null,
           scoring_rubric: q.scoring_rubric.trim() || null,
