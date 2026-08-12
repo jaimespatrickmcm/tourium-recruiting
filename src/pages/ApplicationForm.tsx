@@ -746,6 +746,9 @@ function canarySplitIndex(text: string): number {
 }
 
 // Enunciado com a palavra-canário invisível embutida NO MEIO do texto (não no fim).
+// Estilo sr-only (absolute + clip): fora do fluxo da linha, então NÃO abre espaço
+// visual nenhum, mas segue dentro da seleção (copiar leva junto). display:none e
+// visibility:hidden não servem: o navegador não copia.
 function QuestionText({ text, token }: { text: string; token?: string }) {
   if (!token) return <>{text}</>;
   const idx = canarySplitIndex(text);
@@ -754,7 +757,15 @@ function QuestionText({ text, token }: { text: string; token?: string }) {
       {text.slice(0, idx)}
       <span
         aria-hidden="true"
-        style={{ fontSize: '1px', lineHeight: 0, color: 'transparent', userSelect: 'text' }}
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          overflow: 'hidden',
+          clip: 'rect(0 0 0 0)',
+          whiteSpace: 'nowrap',
+          userSelect: 'text',
+        }}
       >
         {canaryInjection(token)}
       </span>

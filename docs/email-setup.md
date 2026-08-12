@@ -24,10 +24,19 @@ RESEND_API_KEY = <a key do Resend>
 EMAIL_FROM     = Noren <recruiting@mail.appnoren.com>
 ```
 
+E o endereço público do app, que é o que vai nos links enviados ao candidato:
+
+```
+APP_URL = https://appnoren.com
+```
+
+Sem `APP_URL`, o link cai no endereço de onde o recrutador estava navegando (em desenvolvimento isso vira `localhost`, que não abre na máquina do candidato).
+
 Opcionais (viram ativos quando setados):
 
 ```
-SCHEDULING_URL = <link da agenda>        # CTA "Agendar conversa" no e-mail de entrevista
+SCHEDULING_URL = <link da agenda>        # CTA "Escolher horário" no e-mail de entrevista
+HIRE_GIF_URL   = <url de um gif>         # troca o gif de comemoração do e-mail de contratação
 SUBMIT_RATE_LIMIT_MAX = 3                 # religa o rate limit do form público
 ```
 
