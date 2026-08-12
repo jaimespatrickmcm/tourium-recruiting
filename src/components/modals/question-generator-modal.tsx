@@ -39,6 +39,7 @@ type DraftQuestion = {
   scoring_rubric: string;
   /** Só usado quando o alvo é `company`. */
   kind: QuestionKind;
+  required: boolean;
 };
 
 type Props = {
@@ -56,7 +57,7 @@ function normalizeKind(value: unknown): QuestionKind {
 }
 
 function emptyQuestion(): DraftQuestion {
-  return { question: '', guidance: '', scoring_rubric: '', kind: 'culture' };
+  return { question: '', guidance: '', scoring_rubric: '', kind: 'culture', required: false };
 }
 
 function KindChip({ kind }: { kind: QuestionKind }) {
@@ -161,6 +162,7 @@ export function QuestionGeneratorModal({
         guidance: String(q?.guidance ?? ''),
         scoring_rubric: String(q?.scoring_rubric ?? ''),
         kind: normalizeKind(q?.kind),
+        required: (q as any)?.required === true,
       }));
       setQuestions(drafts.length > 0 ? drafts : [emptyQuestion()]);
       setPhase('review');
@@ -219,6 +221,7 @@ export function QuestionGeneratorModal({
           question: q.question.trim(),
           guidance: q.guidance.trim() || null,
           scoring_rubric: q.scoring_rubric.trim() || null,
+          required: q.required,
         }));
         const { error } = await supabase.from('job_questions').insert(rows);
         if (error) throw error;
@@ -246,6 +249,7 @@ export function QuestionGeneratorModal({
             question: q.question.trim(),
             guidance: q.guidance.trim() || null,
             scoring_rubric: q.scoring_rubric.trim() || null,
+            required: q.required,
           };
         });
         const { error } = await supabase.from('company_questions').insert(rows);
@@ -566,14 +570,26 @@ function DraftQuestionRow({
           {index + 1}
         </span>
         <div className="flex-1 min-w-0">
-          {showKind && (
-            <div className="flex items-center gap-1.5 mb-2">
+          <div className="flex items-center gap-2 mb-2">
+            {showKind && (
               <KindToggle
                 value={draft.kind}
                 onChange={(kind) => onChange({ kind })}
               />
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={() => onChange({ required: !draft.required })}
+              aria-pressed={draft.required}
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                draft.required
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-gray-200 bg-white text-[#8a8a8f] hover:text-[#1d1d1f]'
+              }`}
+            >
+              Obrigatória
+            </button>
+          </div>
           <Textarea
             value={draft.question}
             onChange={(e) => onChange({ question: e.target.value })}

@@ -36,6 +36,7 @@ type QuestionStep = {
   sectionLabel: string;
   question: string;
   helper: string;
+  required: boolean;
 };
 
 type Step = CandidateStep | QuestionStep;
@@ -136,7 +137,7 @@ export function ApplicationForm() {
 
         const { data: jq } = await supabase
           .from('job_questions_public')
-          .select('id, question, position')
+          .select('id, question, position, required')
           .eq('job_id', jobData.id)
           .order('position', { ascending: true });
         setJobQuestions(
@@ -147,12 +148,13 @@ export function ApplicationForm() {
             sectionLabel: 'Sobre a vaga',
             question: q.question,
             helper: 'Seja concreto. Exemplos do que você já fez valem mais que frases genéricas.',
+            required: q.required,
           })),
         );
 
         const { data: cq } = await supabase
           .from('company_questions_public')
-          .select('id, kind, question, position')
+          .select('id, kind, question, position, required')
           .eq('company_id', company.id)
           .order('kind', { ascending: true })
           .order('position', { ascending: true });
@@ -165,6 +167,7 @@ export function ApplicationForm() {
             sectionLabel: 'Cultura e raciocínio',
             question: q.question,
             helper: 'Não tem resposta certa. A gente quer entender como você pensa.',
+            required: q.required,
           }));
         const reasoning = (cq ?? [])
           .filter((q) => q.kind === 'reasoning')
@@ -175,6 +178,7 @@ export function ApplicationForm() {
             sectionLabel: 'Cultura e raciocínio',
             question: q.question,
             helper: 'Mostre o caminho até a resposta, não só a conclusão.',
+            required: q.required,
           }));
         setCompanyQuestions([...culture, ...reasoning]);
       }
@@ -231,7 +235,8 @@ export function ApplicationForm() {
       if (current.field === 'phone') return phone.trim().length >= 8;
       return true; // city é livre
     }
-    return true; // respostas abertas podem seguir mesmo em branco
+    // Obrigatória bloqueia quando vazia. Opcional segue mesmo em branco.
+    return current.required ? (answers[current.refId ?? ''] ?? '').trim().length > 0 : true;
   })();
 
   const isLastStep = stepIndex === steps.length - 1;
@@ -420,9 +425,16 @@ export function ApplicationForm() {
         <div className="w-full max-w-2xl">
           {current && (
             <div key={stepIndex}>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-sky-600 mb-3">
-                {current.sectionLabel}
-              </p>
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
+                  {current.sectionLabel}
+                </p>
+                {current.type === 'question' && current.required && (
+                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                    Obrigatória
+                  </span>
+                )}
+              </div>
               <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-[#1d1d1f] mb-2.5 max-w-xl">
                 {current.question}
                 {current.type === 'question' && current.refId && canaryByRef[current.refId] && (
@@ -478,11 +490,16 @@ export function ApplicationForm() {
                 />
               )}
 
-              {current.type === 'question' && (
-                <p className="text-[12px] text-[#8a8a8f] mt-2">
-                  Dá pra pular. Mas responder ajuda bastante na sua avaliação.
-                </p>
-              )}
+              {current.type === 'question' &&
+                (current.required ? (
+                  <p className="text-[12px] text-amber-700 mt-2">
+                    Essa é obrigatória pra seguir.
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-[#8a8a8f] mt-2">
+                    Dá pra pular. Mas responder ajuda bastante na sua avaliação.
+                  </p>
+                ))}
             </div>
           )}
         </div>

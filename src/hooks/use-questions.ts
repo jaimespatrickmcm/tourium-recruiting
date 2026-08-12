@@ -9,6 +9,7 @@ export type CompanyQuestion = {
   question: string;
   guidance: string | null;
   scoring_rubric: string | null;
+  required: boolean;
 };
 
 export type JobQuestion = {
@@ -18,12 +19,14 @@ export type JobQuestion = {
   question: string;
   guidance: string | null;
   scoring_rubric: string | null;
+  required: boolean;
 };
 
 export type QuestionPatch = {
   question?: string;
   guidance?: string | null;
   scoring_rubric?: string | null;
+  required?: boolean;
 };
 
 export function useCompanyQuestions() {
@@ -33,7 +36,7 @@ export function useCompanyQuestions() {
   const refetch = useCallback(async () => {
     const { data, error } = await supabase
       .from('company_questions')
-      .select('id, kind, position, question, guidance, scoring_rubric')
+      .select('id, kind, position, question, guidance, scoring_rubric, required')
       .order('kind', { ascending: true })
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
@@ -58,7 +61,7 @@ export function useJobQuestions() {
   const refetch = useCallback(async () => {
     const { data, error } = await supabase
       .from('job_questions')
-      .select('id, job_id, position, question, guidance, scoring_rubric')
+      .select('id, job_id, position, question, guidance, scoring_rubric, required')
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) {
