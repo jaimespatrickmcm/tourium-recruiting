@@ -8,6 +8,8 @@ import { BrandCtaButton, BrandCtaLink } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
 import { invokeEdge } from '@/lib/functions';
 import { makeCanaryToken, canaryInjection } from '@/lib/canary';
+import { parseOptions } from '@/hooks/use-questions';
+import type { QuestionFormat } from '@/types/database';
 
 type PublicJob = {
   id: string;
@@ -37,9 +39,31 @@ type QuestionStep = {
   question: string;
   helper: string;
   required: boolean;
+  format: QuestionFormat;
+  options: string[];
 };
 
 type Step = CandidateStep | QuestionStep;
+
+// Helper visível abaixo do enunciado, por formato. Nas abertas cada seção tem
+// o seu texto; nos outros formatos a instrução do input é mais útil.
+function helperFor(format: QuestionFormat, openHelper: string): string {
+  if (format === 'number') return 'Pode responder só com o número.';
+  if (format === 'single_select') return 'Escolha uma opção.';
+  if (format === 'multi_select') return 'Pode marcar mais de uma opção.';
+  return openHelper;
+}
+
+const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+// Seleção sem pelo menos 2 opções não tem o que clicar: vira pergunta aberta
+// em vez de travar o candidato num passo obrigatório sem saída.
+function effectiveFormat(format: QuestionFormat, options: string[]): QuestionFormat {
+  if ((format === 'single_select' || format === 'multi_select') && options.length < 2) {
+    return 'text';
+  }
+  return format;
+}
 
 type NavState = { name?: string; email?: string; phone?: string } | null;
 
@@ -92,6 +116,7 @@ export function ApplicationForm() {
 
   const [job, setJob] = useState<PublicJob | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [jobQuestions, setJobQuestions] = useState<QuestionStep[]>([]);
   const [companyQuestions, setCompanyQuestions] = useState<QuestionStep[]>([]);
 
@@ -105,6 +130,9 @@ export function ApplicationForm() {
   const [phone, setPhone] = useState(navState?.phone ?? '');
   const [city, setCity] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Respostas das perguntas de seleção, por refId. single_select guarda array
+  // de 1 item; multi_select guarda todas as opções marcadas.
+  const [selections, setSelections] = useState<Record<string, string[]>>({});
   // Campos do candidato que já chegaram preenchidos (via link individual). Esses
   // passos somem do formulário pra encurtar o caminho até as perguntas.
   const [prefilledFields, setPrefilledFields] = useState<Set<CandidateField>>(() => new Set());
@@ -139,51 +167,83 @@ export function ApplicationForm() {
           companyName: company.name,
         });
 
-        const { data: jq } = await supabase
+        const { data: jq, error: jqError } = await supabase
           .from('job_questions_public')
-          .select('id, question, position, required')
+          .select('id, question, position, required, format, options')
           .eq('job_id', jobData.id)
           .order('position', { ascending: true });
         setJobQuestions(
-          (jq ?? []).map((q) => ({
-            type: 'question' as const,
-            source: 'job_question' as const,
-            refId: q.id,
-            sectionLabel: 'Sobre a vaga',
-            question: q.question,
-            helper: 'Seja concreto. Exemplos do que você já fez valem mais que frases genéricas.',
-            required: q.required,
-          })),
+          (jq ?? []).map((q) => {
+            const options = parseOptions(q.options) ?? [];
+            const format = effectiveFormat(q.format, options);
+            return {
+              type: 'question' as const,
+              source: 'job_question' as const,
+              refId: q.id,
+              sectionLabel: 'Sobre a vaga',
+              question: q.question,
+              helper: helperFor(
+                format,
+                'Seja concreto. Exemplos do que você já fez valem mais que frases genéricas.',
+              ),
+              required: q.required,
+              format,
+              options,
+            };
+          }),
         );
 
-        const { data: cq } = await supabase
+        const { data: cq, error: cqError } = await supabase
           .from('company_questions_public')
-          .select('id, kind, question, position, required')
+          .select('id, kind, question, position, required, format, options')
           .eq('company_id', company.id)
           .order('kind', { ascending: true })
           .order('position', { ascending: true });
+        // Sem as perguntas, o form viraria só os dados de contato e a candidatura
+        // chegaria vazia sem ninguém perceber. Melhor travar com erro visível.
+        if (jqError || cqError) {
+          console.error('[ApplicationForm] falha ao carregar perguntas:', jqError ?? cqError);
+          setLoadError(true);
+          setLoading(false);
+          return;
+        }
         const culture = (cq ?? [])
           .filter((q) => q.kind === 'culture')
-          .map((q) => ({
-            type: 'question' as const,
-            source: 'culture' as const,
-            refId: q.id,
-            sectionLabel: 'Cultura e raciocínio',
-            question: q.question,
-            helper: 'Não tem resposta certa. A gente quer entender como você pensa.',
-            required: q.required,
-          }));
+          .map((q) => {
+            const options = parseOptions(q.options) ?? [];
+            const format = effectiveFormat(q.format, options);
+            return {
+              type: 'question' as const,
+              source: 'culture' as const,
+              refId: q.id,
+              sectionLabel: 'Cultura e raciocínio',
+              question: q.question,
+              helper: helperFor(
+                format,
+                'Não tem resposta certa. A gente quer entender como você pensa.',
+              ),
+              required: q.required,
+              format,
+              options,
+            };
+          });
         const reasoning = (cq ?? [])
           .filter((q) => q.kind === 'reasoning')
-          .map((q) => ({
-            type: 'question' as const,
-            source: 'reasoning' as const,
-            refId: q.id,
-            sectionLabel: 'Cultura e raciocínio',
-            question: q.question,
-            helper: 'Mostre o caminho até a resposta, não só a conclusão.',
-            required: q.required,
-          }));
+          .map((q) => {
+            const options = parseOptions(q.options) ?? [];
+            const format = effectiveFormat(q.format, options);
+            return {
+              type: 'question' as const,
+              source: 'reasoning' as const,
+              refId: q.id,
+              sectionLabel: 'Cultura e raciocínio',
+              question: q.question,
+              helper: helperFor(format, 'Mostre o caminho até a resposta, não só a conclusão.'),
+              required: q.required,
+              format,
+              options,
+            };
+          });
         setCompanyQuestions([...culture, ...reasoning]);
       }
       setLoading(false);
@@ -244,26 +304,32 @@ export function ApplicationForm() {
     [candidateSteps, jobQuestions, companyQuestions],
   );
 
-  // Um canary token por pergunta aberta, gerado uma vez quando as perguntas carregam.
+  // Um canary token por pergunta aberta, gerado uma vez quando as perguntas
+  // carregam. Só faz sentido em resposta digitada: seleção e número não têm
+  // texto pra carregar a injeção junto.
   const canaryByRef = useMemo(() => {
     const map: Record<string, string> = {};
     for (const q of [...jobQuestions, ...companyQuestions]) {
-      if (q.refId) map[q.refId] = makeCanaryToken();
+      if (q.refId && q.format === 'text') map[q.refId] = makeCanaryToken();
     }
     return map;
   }, [jobQuestions, companyQuestions]);
 
   const current = steps[stepIndex];
 
-  // Auto-focus a cada passo.
+  // Auto-focus a cada passo. Perguntas de seleção não têm campo pra focar.
   useEffect(() => {
     if (phase !== 'form') return;
     const t = setTimeout(() => {
-      if (current?.type === 'question') textareaRef.current?.focus();
-      else inputRef.current?.focus();
+      if (current?.type === 'question') {
+        if (current.format === 'text') textareaRef.current?.focus();
+        else if (current.format === 'number') inputRef.current?.focus();
+      } else {
+        inputRef.current?.focus();
+      }
     }, 80);
     return () => clearTimeout(t);
-  }, [phase, stepIndex, current?.type]);
+  }, [phase, stepIndex, current]);
 
   function candidateValue(field: CandidateField): string {
     if (field === 'name') return name;
@@ -279,6 +345,20 @@ export function ApplicationForm() {
     else setCity(value);
   }
 
+  function toggleOption(step: QuestionStep, option: string) {
+    const key = step.refId ?? '';
+    setSelections((prev) => {
+      const cur = prev[key] ?? [];
+      if (step.format === 'single_select') {
+        return { ...prev, [key]: cur[0] === option ? [] : [option] };
+      }
+      return {
+        ...prev,
+        [key]: cur.includes(option) ? cur.filter((o) => o !== option) : [...cur, option],
+      };
+    });
+  }
+
   const canAdvance = (() => {
     if (!current) return false;
     if (current.type === 'candidate') {
@@ -288,7 +368,11 @@ export function ApplicationForm() {
       return true; // city é livre
     }
     // Obrigatória bloqueia quando vazia. Opcional segue mesmo em branco.
-    return current.required ? (answers[current.refId ?? ''] ?? '').trim().length > 0 : true;
+    if (!current.required) return true;
+    if (current.format === 'single_select' || current.format === 'multi_select') {
+      return (selections[current.refId ?? ''] ?? []).length > 0;
+    }
+    return (answers[current.refId ?? ''] ?? '').trim().length > 0;
   })();
 
   const isLastStep = stepIndex === steps.length - 1;
@@ -315,13 +399,19 @@ export function ApplicationForm() {
     setSubmitting(true);
     try {
       const questionAnswers = [...jobQuestions, ...companyQuestions]
-        .map((q) => ({
-          source: q.source,
-          refId: q.refId,
-          question: q.question,
-          answer: (answers[q.refId ?? ''] ?? '').trim(),
-          canaryToken: q.refId ? canaryByRef[q.refId] : undefined,
-        }))
+        .map((q) => {
+          const isSelect = q.format === 'single_select' || q.format === 'multi_select';
+          const answer = isSelect
+            ? (selections[q.refId ?? ''] ?? []).join('; ')
+            : (answers[q.refId ?? ''] ?? '').trim();
+          return {
+            source: q.source,
+            refId: q.refId,
+            question: q.question,
+            answer,
+            canaryToken: q.refId ? canaryByRef[q.refId] : undefined,
+          };
+        })
         .filter((a) => a.answer.length > 0);
 
       const { error } = await invokeEdge('submit-application-form', {
@@ -350,6 +440,22 @@ export function ApplicationForm() {
       <div className="min-h-screen flex items-center justify-center text-[#8a8a8f] text-sm">
         Carregando...
       </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-white px-6">
+        <div className="max-w-md text-center">
+          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-[#1d1d1f] mb-3">
+            Não conseguimos carregar o formulário
+          </h1>
+          <p className="text-[15px] text-[#6b6b70]">
+            Deu um problema ao buscar as perguntas. Recarregue a página em instantes. Se continuar,
+            volte pelo link que você recebeu.
+          </p>
+        </div>
+      </main>
     );
   }
 
@@ -516,6 +622,61 @@ export function ApplicationForm() {
                   }}
                   className="h-12 rounded-xl border-gray-200 text-[16px]"
                 />
+              ) : current.format === 'number' ? (
+                // type="text" de propósito: type="number" briga com "5.000",
+                // vírgula decimal e "R$ " colado, e silenciosamente guarda ''.
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={answers[current.refId ?? ''] ?? ''}
+                  onChange={(e) =>
+                    setAnswers((prev) => ({ ...prev, [current.refId ?? '']: e.target.value }))
+                  }
+                  placeholder="0"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && canAdvance) {
+                      e.preventDefault();
+                      goNext();
+                    }
+                  }}
+                  className="h-12 rounded-xl border-gray-200 text-[16px] max-w-xs"
+                />
+              ) : current.format === 'single_select' || current.format === 'multi_select' ? (
+                <div
+                  className="space-y-2 max-w-md"
+                  role={current.format === 'single_select' ? 'radiogroup' : 'group'}
+                >
+                  {current.options.map((option, oi) => {
+                    const selected = (selections[current.refId ?? ''] ?? []).includes(option);
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        role={current.format === 'single_select' ? 'radio' : 'checkbox'}
+                        aria-checked={selected}
+                        onClick={() => toggleOption(current, option)}
+                        className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition-colors ${
+                          selected
+                            ? 'border-sky-400 bg-sky-50 text-[#1d1d1f]'
+                            : 'border-gray-200 bg-white text-[#1d1d1f] hover:border-sky-200 hover:bg-sky-50/40'
+                        }`}
+                      >
+                        <span
+                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold ${
+                            selected
+                              ? 'border-sky-400 bg-sky-600 text-white'
+                              : 'border-gray-300 bg-gray-50 text-[#6b6b70]'
+                          }`}
+                        >
+                          {OPTION_LETTERS[oi] ?? '#'}
+                        </span>
+                        <span className="flex-1">{option}</span>
+                        {selected && <CheckCircle2 className="h-4 w-4 text-sky-600 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               ) : (
                 <Textarea
                   ref={textareaRef}

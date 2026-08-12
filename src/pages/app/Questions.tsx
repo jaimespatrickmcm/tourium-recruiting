@@ -32,7 +32,7 @@ import {
   KindChip,
   type GeneratorMode,
 } from '@/components/modals/question-generator-modal';
-import type { QuestionKind } from '@/types/database';
+import type { QuestionFormat, QuestionKind } from '@/types/database';
 
 type JobLite = { id: string; title: string };
 
@@ -42,7 +42,20 @@ type EditableQuestion = {
   guidance: string | null;
   scoring_rubric: string | null;
   required: boolean;
+  format: QuestionFormat;
+  options: string[] | null;
 };
+
+const FORMAT_LABEL: Record<QuestionFormat, string | null> = {
+  text: null, // formato padrão, não precisa de chip
+  number: 'Número',
+  single_select: 'Escolha única',
+  multi_select: 'Múltipla escolha',
+};
+
+function isSelectFormat(format: QuestionFormat): boolean {
+  return format === 'single_select' || format === 'multi_select';
+}
 
 type ModalState = { mode: GeneratorMode; startManual: boolean } | null;
 
@@ -406,12 +419,14 @@ function QuestionCard({
   const [guidance, setGuidance] = useState(data.guidance ?? '');
   const [rubric, setRubric] = useState(data.scoring_rubric ?? '');
   const [required, setRequired] = useState(data.required);
+  const [optionsText, setOptionsText] = useState((data.options ?? []).join('\n'));
 
   function startEdit() {
     setQuestion(data.question);
     setGuidance(data.guidance ?? '');
     setRubric(data.scoring_rubric ?? '');
     setRequired(data.required);
+    setOptionsText((data.options ?? []).join('\n'));
     setExpanded(true);
     setEditing(true);
   }
@@ -421,13 +436,25 @@ function QuestionCard({
       toast.error('A pergunta não pode ficar vazia.');
       return;
     }
-    setSaving(true);
-    const ok = await onSave({
+    const patch: QuestionPatch = {
       question: question.trim(),
       guidance: guidance.trim() || null,
       scoring_rubric: rubric.trim() || null,
       required,
-    });
+    };
+    if (isSelectFormat(data.format)) {
+      const options = optionsText
+        .split('\n')
+        .map((o) => o.trim())
+        .filter((o) => o.length > 0);
+      if (options.length < 2) {
+        toast.error('Pergunta de seleção precisa de pelo menos 2 opções.');
+        return;
+      }
+      patch.options = options;
+    }
+    setSaving(true);
+    const ok = await onSave(patch);
     setSaving(false);
     if (ok) setEditing(false);
   }
@@ -469,6 +496,19 @@ function QuestionCard({
                 rows={2}
                 className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
               />
+              {isSelectFormat(data.format) && (
+                <div className="mt-2">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                    Opções (uma por linha)
+                  </label>
+                  <Textarea
+                    value={optionsText}
+                    onChange={(e) => setOptionsText(e.target.value)}
+                    rows={4}
+                    className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                  />
+                </div>
+              )}
             </>
           ) : (
             <button
@@ -477,14 +517,35 @@ function QuestionCard({
               className="block w-full text-left"
               aria-expanded={expanded}
             >
-              {data.required && (
-                <span className="mb-1.5 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
-                  Obrigatória
+              {(data.required || FORMAT_LABEL[data.format]) && (
+                <span className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                  {data.required && (
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                      Obrigatória
+                    </span>
+                  )}
+                  {FORMAT_LABEL[data.format] && (
+                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#6b6b70]">
+                      {FORMAT_LABEL[data.format]}
+                    </span>
+                  )}
                 </span>
               )}
               <p className="text-[15px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
                 {data.question}
               </p>
+              {isSelectFormat(data.format) && (data.options ?? []).length > 0 && (
+                <span className="mt-2 flex flex-wrap gap-1.5">
+                  {(data.options ?? []).map((opt) => (
+                    <span
+                      key={opt}
+                      className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-[12px] text-[#6b6b70]"
+                    >
+                      {opt}
+                    </span>
+                  ))}
+                </span>
+              )}
             </button>
           )}
         </div>

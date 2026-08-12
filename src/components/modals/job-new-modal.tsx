@@ -9,7 +9,7 @@ import { BrandCtaButton } from '@/components/brand-cta';
 import { useCompany } from '@/hooks/use-company';
 import { supabase } from '@/lib/supabase';
 import { invokeEdge } from '@/lib/functions';
-import type { HighlightType, JobRequirements } from '@/types/database';
+import type { HighlightType, JobRequirements, QuestionFormat } from '@/types/database';
 
 const TOTAL_STEPS = 3;
 
@@ -18,7 +18,15 @@ type JobQuestionDraft = {
   guidance: string;
   scoring_rubric: string;
   required: boolean;
+  format: QuestionFormat;
+  options: string[];
 };
+
+const QUESTION_FORMATS: QuestionFormat[] = ['text', 'number', 'single_select', 'multi_select'];
+
+function normalizeQuestionFormat(value: unknown): QuestionFormat {
+  return QUESTION_FORMATS.includes(value as QuestionFormat) ? (value as QuestionFormat) : 'text';
+}
 
 function slugify(s: string): string {
   return s
@@ -210,12 +218,23 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setQDrafts(
-        (data.questions as any[]).map((q) => ({
-          question: String(q?.question ?? ''),
-          guidance: String(q?.guidance ?? ''),
-          scoring_rubric: String(q?.scoring_rubric ?? ''),
-          required: (q as any)?.required === true,
-        })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (data.questions as any[]).map((q) => {
+          const format = normalizeQuestionFormat(q?.format);
+          const options = Array.isArray(q?.options)
+            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (q.options as any[]).map((o) => String(o ?? '').trim()).filter((o) => o.length > 0)
+            : [];
+          return {
+            question: String(q?.question ?? ''),
+            guidance: String(q?.guidance ?? ''),
+            scoring_rubric: String(q?.scoring_rubric ?? ''),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            required: (q as any)?.required === true,
+            format: (format === 'single_select' || format === 'multi_select') && options.length < 2 ? 'text' : format,
+            options,
+          };
+        }),
       );
     } catch (err) {
       setQError(err instanceof Error ? err.message : 'Erro ao gerar perguntas');
@@ -226,6 +245,10 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
 
   function updateDraft(index: number, question: string) {
     setQDrafts((prev) => prev.map((q, i) => (i === index ? { ...q, question } : q)));
+  }
+
+  function updateDraftOptions(index: number, options: string[]) {
+    setQDrafts((prev) => prev.map((q, i) => (i === index ? { ...q, options } : q)));
   }
 
   function toggleDraftRequired(index: number) {
@@ -241,7 +264,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
   function addDraft() {
     setQDrafts((prev) => [
       ...prev,
-      { question: '', guidance: '', scoring_rubric: '', required: false },
+      { question: '', guidance: '', scoring_rubric: '', required: false, format: 'text', options: [] },
     ]);
   }
 
@@ -256,15 +279,22 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
     setQSaving(true);
     try {
       if (valid.length > 0) {
-        const rows = valid.map((q, i) => ({
-          job_id: newJobId,
-          company_id: company.id,
-          position: i,
-          question: q.question.trim(),
-          guidance: q.guidance.trim() || null,
-          scoring_rubric: q.scoring_rubric.trim() || null,
-          required: q.required,
-        }));
+        const rows = valid.map((q, i) => {
+          const options = q.options.map((o) => o.trim()).filter((o) => o.length > 0);
+          const isSelect = q.format === 'single_select' || q.format === 'multi_select';
+          return {
+            job_id: newJobId,
+            company_id: company.id,
+            position: i,
+            question: q.question.trim(),
+            guidance: q.guidance.trim() || null,
+            scoring_rubric: q.scoring_rubric.trim() || null,
+            required: q.required,
+            // Seleção sem 2+ opções vira aberta: nunca grava um select vazio.
+            format: isSelect && options.length < 2 ? ('text' as const) : q.format,
+            options: isSelect && options.length >= 2 ? options : null,
+          };
+        });
         const { error } = await supabase.from('job_questions').insert(rows);
         if (error) throw error;
       }
@@ -617,7 +647,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="mb-2">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           <button
                             type="button"
                             onClick={() => toggleDraftRequired(i)}
@@ -631,6 +661,15 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                           >
                             Obrigatória
                           </button>
+                          {q.format !== 'text' && (
+                            <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#6b6b70]">
+                              {q.format === 'number'
+                                ? 'Número'
+                                : q.format === 'single_select'
+                                  ? 'Escolha única'
+                                  : 'Múltipla escolha'}
+                            </span>
+                          )}
                         </div>
                         <Textarea
                           value={q.question}
@@ -639,6 +678,24 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                           placeholder="O que o candidato lê..."
                           className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
                         />
+                        {(q.format === 'single_select' || q.format === 'multi_select') && (
+                          <div className="mt-2">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                              Opções (uma por linha)
+                            </label>
+                            <Textarea
+                              value={q.options.join('\n')}
+                              onChange={(e) => updateDraftOptions(i, e.target.value.split('\n'))}
+                              rows={Math.min(Math.max(q.options.length + 1, 3), 8)}
+                              className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                            />
+                            <p className="text-[11px] text-[#8a8a8f] mt-1">
+                              {q.format === 'multi_select'
+                                ? 'O candidato pode marcar mais de uma.'
+                                : 'O candidato escolhe uma.'}
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <button
                         type="button"

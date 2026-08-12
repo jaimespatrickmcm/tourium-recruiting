@@ -2,6 +2,22 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.4.0] - 2026-08-12
+
+Perguntas de seleção e numéricas no application form, base Noren completa no gerador e histórico de respostas imutável.
+
+### Added
+- Formatos de pergunta no application form: aberta, numérica, escolha única e múltipla escolha. O candidato responde selects clicando nas opções (estilo Typeform, com letras A/B/C) e números num campo dedicado.
+- Colunas `format` e `options` em `job_questions` e `company_questions`, expostas nas views públicas. Modais de geração, criação de vaga e banco de perguntas editam formato e opções (uma por linha).
+- Método Noren completo no gerador de cultura e raciocínio: base fixa de cultura (história, conquista, risco e falha, sonho, 3 anos, cenário do gestor, referências), perguntas de triagem (anos de experiência e último salário numéricos, regime PJ/CLT, onde ficou sabendo da vaga) e raciocínio fixo (estimativa de Guarulhos, desconto composto em escolha única, barraca de limonada).
+- Pergunta de calibração cultural gerada por IA ("Com qual dessas pessoas você mais se identifica?", múltipla escolha com figuras públicas de mentalidades opostas), com rubrica de fit/anti-fit calibrada pelo DNA da empresa.
+- Gerador de perguntas técnicas da vaga pode propor múltipla escolha de ferramentas (ex: Canva, Figma, Illustrator, Photoshop, IA) quando a vaga tem stack claro.
+- Histórico imutável por candidatura: `guidance_snapshot` e `rubric_snapshot` congelados em `application_answers` no submit. Regenerar ou editar perguntas nunca altera as respostas já enviadas nem o critério usado pra avaliá-las.
+
+### Changed
+- Análise de candidato usa o critério congelado no momento da resposta; o lookup ao vivo vira fallback só pra respostas antigas.
+- Canary anti-IA agora só nas perguntas abertas (seleção e número não carregam texto copiável).
+
 ## [0.3.0] - 2026-08-11
 
 Currículo anexado como base da análise por IA, LinkedIn opcional e copy de venda no fim da candidatura.

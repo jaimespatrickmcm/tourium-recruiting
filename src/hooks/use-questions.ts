@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { QuestionKind } from '@/types/database';
+import type { QuestionFormat, QuestionKind } from '@/types/database';
 
 export type CompanyQuestion = {
   id: string;
@@ -10,6 +10,8 @@ export type CompanyQuestion = {
   guidance: string | null;
   scoring_rubric: string | null;
   required: boolean;
+  format: QuestionFormat;
+  options: string[] | null;
 };
 
 export type JobQuestion = {
@@ -20,6 +22,8 @@ export type JobQuestion = {
   guidance: string | null;
   scoring_rubric: string | null;
   required: boolean;
+  format: QuestionFormat;
+  options: string[] | null;
 };
 
 export type QuestionPatch = {
@@ -27,7 +31,18 @@ export type QuestionPatch = {
   guidance?: string | null;
   scoring_rubric?: string | null;
   required?: boolean;
+  format?: QuestionFormat;
+  options?: string[] | null;
 };
+
+/** Normaliza o jsonb `options` vindo do banco pra string[] limpa, sem duplicata. */
+export function parseOptions(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const opts = Array.from(
+    new Set(value.map((o) => String(o ?? '').trim()).filter((o) => o.length > 0)),
+  );
+  return opts.length > 0 ? opts : null;
+}
 
 export function useCompanyQuestions() {
   const [questions, setQuestions] = useState<CompanyQuestion[]>([]);
@@ -36,14 +51,17 @@ export function useCompanyQuestions() {
   const refetch = useCallback(async () => {
     const { data, error } = await supabase
       .from('company_questions')
-      .select('id, kind, position, question, guidance, scoring_rubric, required')
+      .select('id, kind, position, question, guidance, scoring_rubric, required, format, options')
       .order('kind', { ascending: true })
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) {
       console.error('[useCompanyQuestions] fetch error:', error);
     }
-    setQuestions((data as CompanyQuestion[] | null) ?? []);
+    setQuestions(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((data as any[] | null) ?? []).map((q) => ({ ...q, options: parseOptions(q.options) })),
+    );
     setLoading(false);
   }, []);
 
@@ -61,13 +79,16 @@ export function useJobQuestions() {
   const refetch = useCallback(async () => {
     const { data, error } = await supabase
       .from('job_questions')
-      .select('id, job_id, position, question, guidance, scoring_rubric, required')
+      .select('id, job_id, position, question, guidance, scoring_rubric, required, format, options')
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) {
       console.error('[useJobQuestions] fetch error:', error);
     }
-    setQuestions((data as JobQuestion[] | null) ?? []);
+    setQuestions(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((data as any[] | null) ?? []).map((q) => ({ ...q, options: parseOptions(q.options) })),
+    );
     setLoading(false);
   }, []);
 
