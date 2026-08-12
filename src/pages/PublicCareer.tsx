@@ -17,6 +17,7 @@ import { invokeEdge } from '@/lib/functions';
 import { useAuth } from '@/hooks/use-auth';
 import { useCandidate } from '@/hooks/use-candidate';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
+import { parseBenefits } from '@/lib/benefits';
 import type { HighlightType } from '@/types/database';
 
 type PublicJob = {
@@ -27,7 +28,13 @@ type PublicJob = {
   status: string;
   highlight_question: string | null;
   highlight_type: HighlightType | null;
-  company: { slug: string; name: string; description: string | null } | null;
+  show_benefits: boolean;
+  company: {
+    slug: string;
+    name: string;
+    description: string | null;
+    benefits: string[];
+  } | null;
 };
 
 export function PublicCareer() {
@@ -85,7 +92,7 @@ export function PublicCareer() {
       // View pública (bypassa RLS de companies e expõe só os campos públicos)
       const { data: company } = await supabase
         .from('company_public_profiles')
-        .select('id, slug, name, description')
+        .select('id, slug, name, description, benefits')
         .eq('slug', companySlug)
         .maybeSingle();
       if (!company) {
@@ -94,14 +101,21 @@ export function PublicCareer() {
       }
       const { data: jobData } = await supabase
         .from('jobs')
-        .select('id, slug, title, description, status, highlight_question, highlight_type')
+        .select(
+          'id, slug, title, description, status, highlight_question, highlight_type, show_benefits',
+        )
         .eq('company_id', company.id)
         .eq('slug', jobSlug)
         .maybeSingle();
       if (jobData) {
         setJob({
           ...jobData,
-          company: { slug: company.slug, name: company.name, description: company.description },
+          company: {
+            slug: company.slug,
+            name: company.name,
+            description: company.description,
+            benefits: parseBenefits({ benefits: company.benefits }),
+          },
         });
       }
       setLoading(false);
@@ -531,6 +545,24 @@ export function PublicCareer() {
             </p>
           )}
           {job.description && <JobDescription description={job.description} />}
+
+          {job.show_benefits && (job.company?.benefits.length ?? 0) > 0 && (
+            <div className="mt-8">
+              <p className="font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f] mb-3">
+                Benefícios
+              </p>
+              <ul className="flex flex-wrap gap-2">
+                {job.company?.benefits.map((benefit) => (
+                  <li
+                    key={benefit}
+                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#4a4a52]"
+                  >
+                    {benefit}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Wizard */}
