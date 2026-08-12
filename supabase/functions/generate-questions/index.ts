@@ -147,9 +147,10 @@ const NOREN_BASE: NorenBaseQuestion[] = [
   },
 ];
 
-function baseLine(q: NorenBaseQuestion, i: number): string {
+function baseLine(q: NorenBaseQuestion): string {
+  const i = NOREN_BASE.indexOf(q);
   const opts = q.options ? ` | options: ${JSON.stringify(q.options)}` : '';
-  return `${i + 1}. [kind: ${q.kind} | format: ${q.format}${opts} | required: ${q.required}] "${q.question}" (mede: ${q.intent})`;
+  return `- [base_index: ${i} | kind: ${q.kind} | format: ${q.format}${opts} | required: ${q.required}] "${q.question}" (mede: ${q.intent})`;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -180,10 +181,10 @@ function buildPrompt(args: {
   const schema = `OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
 {
   "questions": [
-    { "kind": "culture" | "reasoning", "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>", "format": "text" | "number" | "single_select" | "multi_select", "options": ["<opção>", "..."] | null, "required": true | false }
+    { "kind": "culture" | "reasoning", "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>", "format": "text" | "number" | "single_select" | "multi_select", "options": ["<opção>", "..."] | null, "required": true | false, "base_index": <número, só nas perguntas da base fixa> }
   ]
 }
-Cada item traz o "kind" correto. "options" só existe (2 a 12 itens) quando format é single_select ou multi_select; nos outros formatos é null.`;
+Cada item traz o "kind" correto. "options" só existe (2 a 12 itens) quando format é single_select ou multi_select; nos outros formatos é null. "base_index" só existe nas perguntas da base fixa do método Noren.`;
 
   const norenCultureBase = NOREN_BASE.filter((q) => q.kind === 'culture');
   const norenReasoningBase = NOREN_BASE.filter((q) => q.kind === 'reasoning');
@@ -192,7 +193,7 @@ Cada item traz o "kind" correto. "options" só existe (2 a 12 itens) quando form
     ? args.mode === 'noren'
       ? `SEÇÃO CULTURA E PERFIL (método Noren, kind "culture"):
 Cultura NÃO é sobre segmento, produto ou experiência no ramo. É soft skill, caráter, valores e ética de trabalho: como a pessoa pensa, lida com fracasso, o que a move, o quanto assume responsabilidade.
-O método Noren tem uma base fixa, testada em processo real. Reproduza CADA pergunta abaixo mantendo question, kind, format, options e required EXATAMENTE como especificado. Seu trabalho nelas é escrever guidance e scoring_rubric calibrados pela cultura DESTA empresa (o campo "mede" diz a intenção):
+O método Noren tem uma base fixa, testada em processo real. Reproduza CADA pergunta abaixo incluindo o "base_index" indicado. Seu trabalho nelas é escrever guidance e scoring_rubric calibrados pela cultura DESTA empresa (o campo "mede" diz a intenção); question, format, options e required serão fixados pelo sistema a partir do base_index:
 ${norenCultureBase.map(baseLine).join('\n')}
 Nas perguntas informativas (experiência, salário, regime, origem da vaga), a rubrica deve dizer com clareza que a resposta NÃO pontua cultura: serve de triagem (comparar com o nível, a faixa salarial e o regime da vaga) e entra como contexto pro avaliador.
 
@@ -209,7 +210,7 @@ Além das abertas, gere 1 pergunta multi_select de calibração de mentalidade (
   const blocoRaciocinio = wantReasoning
     ? args.mode === 'noren'
       ? `SEÇÃO RACIOCÍNIO (método Noren, kind "reasoning"):
-Neutras, comparáveis, não dependem da cultura nem do segmento. Medem clareza de pensamento, não acertar um número. Reproduza CADA pergunta abaixo mantendo question, kind, format, options e required EXATAMENTE como especificado, escrevendo guidance e scoring_rubric (nas de seleção, a rubrica diz qual é a alternativa certa e como pontuar erro):
+Neutras, comparáveis, não dependem da cultura nem do segmento. Medem clareza de pensamento, não acertar um número. Reproduza CADA pergunta abaixo incluindo o "base_index" indicado e escrevendo guidance e scoring_rubric (nas de seleção, a rubrica diz qual é a alternativa certa e como pontuar erro):
 ${norenReasoningBase.map(baseLine).join('\n')}
 Não gere perguntas de raciocínio além dessas.
 `
@@ -248,19 +249,20 @@ function normalizeFormat(value: unknown): QuestionFormat {
 
 function normalizeOptions(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
-  const opts = value
-    .map((o) => String(o ?? '').trim())
-    .filter((o) => o.length > 0)
-    .slice(0, 12);
+  const opts = Array.from(
+    new Set(value.map((o) => String(o ?? '').trim()).filter((o) => o.length > 0)),
+  ).slice(0, 12);
   return opts.length >= 2 ? opts : null;
 }
 
-function parseQuestions(text: string, fallbackKind: Kind): GeneratedQuestion[] | null {
+type ParsedQuestion = GeneratedQuestion & { baseIndex: number | null };
+
+function parseQuestions(text: string, fallbackKind: Kind): ParsedQuestion[] | null {
   const cleaned = text.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
   try {
     const parsed = JSON.parse(cleaned);
     const raw = Array.isArray(parsed?.questions) ? parsed.questions : [];
-    const questions: GeneratedQuestion[] = raw
+    const questions: ParsedQuestion[] = raw
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((q: any) => {
         let format = normalizeFormat(q?.format);
@@ -277,13 +279,53 @@ function parseQuestions(text: string, fallbackKind: Kind): GeneratedQuestion[] |
           format,
           options: format === 'single_select' || format === 'multi_select' ? options : null,
           required: q?.required === true,
+          baseIndex: Number.isInteger(q?.base_index) ? (q.base_index as number) : null,
         };
       })
-      .filter((q: GeneratedQuestion) => q.question.length > 0);
+      .filter((q: ParsedQuestion) => q.question.length > 0);
     return questions.length > 0 ? questions : null;
   } catch {
     return null;
   }
+}
+
+// A base Noren é fixa por definição: a IA só contribui guidance e rubrica.
+// question, kind, format, options e required são sobrescritos daqui pelo
+// base_index, e item da base que a IA não devolveu entra mesmo assim (com
+// critério em branco, editável na revisão). Um eco parafraseado ou uma opção
+// alterada nunca chega ao formulário.
+function enforceNorenBase(
+  parsed: ParsedQuestion[],
+  wantCulture: boolean,
+  wantReasoning: boolean,
+): GeneratedQuestion[] {
+  const byIndex = new Map<number, ParsedQuestion>();
+  const extras: GeneratedQuestion[] = [];
+  for (const p of parsed) {
+    const { baseIndex, ...q } = p;
+    if (
+      baseIndex !== null &&
+      baseIndex >= 0 &&
+      baseIndex < NOREN_BASE.length &&
+      !byIndex.has(baseIndex)
+    ) {
+      byIndex.set(baseIndex, p);
+    } else {
+      extras.push(q);
+    }
+  }
+  const base: GeneratedQuestion[] = NOREN_BASE.map((q, i) => ({ q, i }))
+    .filter(({ q }) => (q.kind === 'culture' ? wantCulture : wantReasoning))
+    .map(({ q, i }) => ({
+      kind: q.kind,
+      question: q.question,
+      guidance: byIndex.get(i)?.guidance ?? '',
+      scoring_rubric: byIndex.get(i)?.scoring_rubric ?? '',
+      format: q.format,
+      options: q.options ?? null,
+      required: q.required,
+    }));
+  return [...base, ...extras];
 }
 
 Deno.serve(async (req) => {
@@ -372,8 +414,15 @@ Deno.serve(async (req) => {
       reasoningEffort: 'medium',
     });
     const fallbackKind: Kind = kind === 'reasoning' ? 'reasoning' : 'culture';
-    const questions = parseQuestions(text, fallbackKind);
-    if (!questions) return jsonResponse({ error: 'IA retornou formato inválido' }, 500);
+    const parsed = parseQuestions(text, fallbackKind);
+    if (!parsed) return jsonResponse({ error: 'IA retornou formato inválido' }, 500);
+
+    const wantCulture = kind === 'culture' || kind === 'mixed';
+    const wantReasoning = kind === 'reasoning' || kind === 'mixed';
+    const questions =
+      mode === 'noren'
+        ? enforceNorenBase(parsed, wantCulture, wantReasoning)
+        : parsed.map(({ baseIndex: _baseIndex, ...q }) => q);
 
     return jsonResponse({ ok: true, questions });
   } catch (err) {

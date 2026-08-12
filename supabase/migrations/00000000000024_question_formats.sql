@@ -13,6 +13,20 @@ alter table public.company_questions
     check (format in ('text', 'number', 'single_select', 'multi_select')),
   add column if not exists options jsonb;
 
+-- Pergunta de seleção sem pelo menos 2 opções travaria o candidato num passo
+-- obrigatório sem nada pra clicar. O banco não deixa esse estado existir.
+alter table public.job_questions
+  add constraint job_questions_select_options_check check (
+    format not in ('single_select', 'multi_select')
+    or (jsonb_typeof(options) = 'array' and jsonb_array_length(options) >= 2)
+  );
+
+alter table public.company_questions
+  add constraint company_questions_select_options_check check (
+    format not in ('single_select', 'multi_select')
+    or (jsonb_typeof(options) = 'array' and jsonb_array_length(options) >= 2)
+  );
+
 -- Views públicas expõem formato e opções (o candidato precisa renderizar o
 -- input certo). guidance e scoring_rubric continuam internos.
 create or replace view public.job_questions_public as

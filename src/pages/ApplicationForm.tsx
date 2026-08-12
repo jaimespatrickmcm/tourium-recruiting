@@ -56,6 +56,15 @@ function helperFor(format: QuestionFormat, openHelper: string): string {
 
 const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+// Seleção sem pelo menos 2 opções não tem o que clicar: vira pergunta aberta
+// em vez de travar o candidato num passo obrigatório sem saída.
+function effectiveFormat(format: QuestionFormat, options: string[]): QuestionFormat {
+  if ((format === 'single_select' || format === 'multi_select') && options.length < 2) {
+    return 'text';
+  }
+  return format;
+}
+
 type NavState = { name?: string; email?: string; phone?: string } | null;
 
 const CANDIDATE_STEPS: CandidateStep[] = [
@@ -107,6 +116,7 @@ export function ApplicationForm() {
 
   const [job, setJob] = useState<PublicJob | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [jobQuestions, setJobQuestions] = useState<QuestionStep[]>([]);
   const [companyQuestions, setCompanyQuestions] = useState<QuestionStep[]>([]);
 
@@ -157,63 +167,83 @@ export function ApplicationForm() {
           companyName: company.name,
         });
 
-        const { data: jq } = await supabase
+        const { data: jq, error: jqError } = await supabase
           .from('job_questions_public')
           .select('id, question, position, required, format, options')
           .eq('job_id', jobData.id)
           .order('position', { ascending: true });
         setJobQuestions(
-          (jq ?? []).map((q) => ({
-            type: 'question' as const,
-            source: 'job_question' as const,
-            refId: q.id,
-            sectionLabel: 'Sobre a vaga',
-            question: q.question,
-            helper: helperFor(
-              q.format,
-              'Seja concreto. Exemplos do que você já fez valem mais que frases genéricas.',
-            ),
-            required: q.required,
-            format: q.format,
-            options: parseOptions(q.options) ?? [],
-          })),
+          (jq ?? []).map((q) => {
+            const options = parseOptions(q.options) ?? [];
+            const format = effectiveFormat(q.format, options);
+            return {
+              type: 'question' as const,
+              source: 'job_question' as const,
+              refId: q.id,
+              sectionLabel: 'Sobre a vaga',
+              question: q.question,
+              helper: helperFor(
+                format,
+                'Seja concreto. Exemplos do que você já fez valem mais que frases genéricas.',
+              ),
+              required: q.required,
+              format,
+              options,
+            };
+          }),
         );
 
-        const { data: cq } = await supabase
+        const { data: cq, error: cqError } = await supabase
           .from('company_questions_public')
           .select('id, kind, question, position, required, format, options')
           .eq('company_id', company.id)
           .order('kind', { ascending: true })
           .order('position', { ascending: true });
+        // Sem as perguntas, o form viraria só os dados de contato e a candidatura
+        // chegaria vazia sem ninguém perceber. Melhor travar com erro visível.
+        if (jqError || cqError) {
+          console.error('[ApplicationForm] falha ao carregar perguntas:', jqError ?? cqError);
+          setLoadError(true);
+          setLoading(false);
+          return;
+        }
         const culture = (cq ?? [])
           .filter((q) => q.kind === 'culture')
-          .map((q) => ({
-            type: 'question' as const,
-            source: 'culture' as const,
-            refId: q.id,
-            sectionLabel: 'Cultura e raciocínio',
-            question: q.question,
-            helper: helperFor(
-              q.format,
-              'Não tem resposta certa. A gente quer entender como você pensa.',
-            ),
-            required: q.required,
-            format: q.format,
-            options: parseOptions(q.options) ?? [],
-          }));
+          .map((q) => {
+            const options = parseOptions(q.options) ?? [];
+            const format = effectiveFormat(q.format, options);
+            return {
+              type: 'question' as const,
+              source: 'culture' as const,
+              refId: q.id,
+              sectionLabel: 'Cultura e raciocínio',
+              question: q.question,
+              helper: helperFor(
+                format,
+                'Não tem resposta certa. A gente quer entender como você pensa.',
+              ),
+              required: q.required,
+              format,
+              options,
+            };
+          });
         const reasoning = (cq ?? [])
           .filter((q) => q.kind === 'reasoning')
-          .map((q) => ({
-            type: 'question' as const,
-            source: 'reasoning' as const,
-            refId: q.id,
-            sectionLabel: 'Cultura e raciocínio',
-            question: q.question,
-            helper: helperFor(q.format, 'Mostre o caminho até a resposta, não só a conclusão.'),
-            required: q.required,
-            format: q.format,
-            options: parseOptions(q.options) ?? [],
-          }));
+          .map((q) => {
+            const options = parseOptions(q.options) ?? [];
+            const format = effectiveFormat(q.format, options);
+            return {
+              type: 'question' as const,
+              source: 'reasoning' as const,
+              refId: q.id,
+              sectionLabel: 'Cultura e raciocínio',
+              question: q.question,
+              helper: helperFor(format, 'Mostre o caminho até a resposta, não só a conclusão.'),
+              required: q.required,
+              format,
+              options,
+            };
+          });
         setCompanyQuestions([...culture, ...reasoning]);
       }
       setLoading(false);
@@ -413,6 +443,22 @@ export function ApplicationForm() {
     );
   }
 
+  if (loadError) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-white px-6">
+        <div className="max-w-md text-center">
+          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-[#1d1d1f] mb-3">
+            Não conseguimos carregar o formulário
+          </h1>
+          <p className="text-[15px] text-[#6b6b70]">
+            Deu um problema ao buscar as perguntas. Recarregue a página em instantes. Se continuar,
+            volte pelo link que você recebeu.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   if (!job || job.status !== 'active') {
     return (
       <main className="min-h-screen flex items-center justify-center bg-white px-6">
@@ -577,9 +623,11 @@ export function ApplicationForm() {
                   className="h-12 rounded-xl border-gray-200 text-[16px]"
                 />
               ) : current.format === 'number' ? (
+                // type="text" de propósito: type="number" briga com "5.000",
+                // vírgula decimal e "R$ " colado, e silenciosamente guarda ''.
                 <Input
                   ref={inputRef}
-                  type="number"
+                  type="text"
                   inputMode="decimal"
                   value={answers[current.refId ?? ''] ?? ''}
                   onChange={(e) =>

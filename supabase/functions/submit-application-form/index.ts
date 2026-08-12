@@ -210,23 +210,46 @@ Deno.serve(async (req) => {
   // Congela o critério interno (guidance + rubrica) de cada pergunta junto com
   // a resposta. O lookup é feito agora, com o texto vigente no momento do
   // submit; depois disso o histórico não depende mais das tabelas de perguntas.
+  // Escopado por company/job: refId vem do payload anônimo e não pode servir
+  // pra congelar critério interno de outro tenant na candidatura.
   const refIds = answers.map((a) => a.refId).filter((id): id is string => Boolean(id));
   const criteriaById = new Map<string, { guidance: string | null; scoring_rubric: string | null }>();
+  let criteriaLookupOk = false;
   if (refIds.length > 0) {
     const [companyQ, jobQ] = await Promise.all([
-      admin.from('company_questions').select('id, guidance, scoring_rubric').in('id', refIds),
-      admin.from('job_questions').select('id, guidance, scoring_rubric').in('id', refIds),
+      admin
+        .from('company_questions')
+        .select('id, guidance, scoring_rubric')
+        .eq('company_id', company.id)
+        .in('id', refIds),
+      admin
+        .from('job_questions')
+        .select('id, guidance, scoring_rubric')
+        .eq('company_id', company.id)
+        .eq('job_id', job.id)
+        .in('id', refIds),
     ]);
+    if (companyQ.error) {
+      console.error('[submit-application-form] criteria lookup (company):', companyQ.error.message);
+    }
+    if (jobQ.error) {
+      console.error('[submit-application-form] criteria lookup (job):', jobQ.error.message);
+    }
+    criteriaLookupOk = !companyQ.error && !jobQ.error;
     for (const q of [...(companyQ.data ?? []), ...(jobQ.data ?? [])]) {
       criteriaById.set(q.id, { guidance: q.guidance, scoring_rubric: q.scoring_rubric });
     }
   }
 
-  // Grava respostas não vazias.
+  // Grava respostas não vazias. Com o lookup ok, snapshot vazio ('') é o estado
+  // congelado "pergunta sem critério": a análise não pode aplicar retroativamente
+  // um critério criado depois. Snapshot null (lookup falhou ou resposta antiga)
+  // mantém o fallback de lookup ao vivo.
   const rows = answers
     .filter((a) => (a.answer ?? '').trim().length > 0)
     .map((a) => {
       const criteria = a.refId ? criteriaById.get(a.refId) : undefined;
+      const freeze = criteriaLookupOk && Boolean(a.refId);
       return {
         application_id: applicationId,
         company_id: company.id,
@@ -234,10 +257,8 @@ Deno.serve(async (req) => {
         ref_id: a.refId ?? null,
         question_snapshot: (a.question ?? '').slice(0, MAX_QUESTION),
         answer: (a.answer ?? '').trim(),
-        guidance_snapshot: criteria?.guidance ? criteria.guidance.slice(0, MAX_SNAPSHOT) : null,
-        rubric_snapshot: criteria?.scoring_rubric
-          ? criteria.scoring_rubric.slice(0, MAX_SNAPSHOT)
-          : null,
+        guidance_snapshot: freeze ? (criteria?.guidance ?? '').slice(0, MAX_SNAPSHOT) : null,
+        rubric_snapshot: freeze ? (criteria?.scoring_rubric ?? '').slice(0, MAX_SNAPSHOT) : null,
       };
     });
 

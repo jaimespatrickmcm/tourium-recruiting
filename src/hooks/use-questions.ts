@@ -35,10 +35,12 @@ export type QuestionPatch = {
   options?: string[] | null;
 };
 
-/** Normaliza o jsonb `options` vindo do banco pra string[] limpa. */
+/** Normaliza o jsonb `options` vindo do banco pra string[] limpa, sem duplicata. */
 export function parseOptions(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
-  const opts = value.map((o) => String(o ?? '').trim()).filter((o) => o.length > 0);
+  const opts = Array.from(
+    new Set(value.map((o) => String(o ?? '').trim()).filter((o) => o.length > 0)),
+  );
   return opts.length > 0 ? opts : null;
 }
 

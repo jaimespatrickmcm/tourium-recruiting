@@ -115,10 +115,9 @@ function normalizeFormat(value: unknown): QuestionFormat {
 
 function normalizeOptions(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
-  const opts = value
-    .map((o) => String(o ?? '').trim())
-    .filter((o) => o.length > 0)
-    .slice(0, 12);
+  const opts = Array.from(
+    new Set(value.map((o) => String(o ?? '').trim()).filter((o) => o.length > 0)),
+  ).slice(0, 12);
   return opts.length >= 2 ? opts : null;
 }
 
@@ -237,7 +236,7 @@ Deno.serve(async (req) => {
       apiKey: openaiKey,
       model: MODEL,
       prompt,
-      maxTokens: 5000,
+      maxTokens: 7000,
       jsonMode: true,
       reasoningEffort: 'medium',
     });

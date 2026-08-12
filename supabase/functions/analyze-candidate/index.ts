@@ -117,8 +117,14 @@ async function loadFormAnswers(
   );
   if (scored.length === 0) return null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const missingSnapshot = scored.filter((a: any) => !a.guidance_snapshot && !a.rubric_snapshot);
+  // Snapshot null = resposta antiga (pré-snapshot) ou lookup que falhou no
+  // submit: só esses caem no lookup ao vivo. Snapshot '' significa "congelado
+  // sem critério" e NÃO pode ser re-resolvido (seria aplicar critério novo
+  // retroativamente a uma resposta antiga).
+  const missingSnapshot = scored.filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (a: any) => a.guidance_snapshot === null && a.rubric_snapshot === null,
+  );
   const companyIds = missingSnapshot
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter((a: any) => a.source !== 'job_question')
@@ -153,7 +159,7 @@ async function loadFormAnswers(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks = scored.map((a: any) => {
     const label = SOURCE_LABEL[a.source] ?? a.source;
-    const hasSnapshot = Boolean(a.guidance_snapshot || a.rubric_snapshot);
+    const hasSnapshot = a.guidance_snapshot !== null || a.rubric_snapshot !== null;
     const rub = hasSnapshot
       ? { guidance: a.guidance_snapshot, scoring_rubric: a.rubric_snapshot }
       : a.ref_id
