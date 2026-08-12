@@ -282,6 +282,7 @@ export type Database = {
           question: string;
           guidance: string | null;
           scoring_rubric: string | null;
+          required: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -302,6 +303,7 @@ export type Database = {
           question: string;
           guidance: string | null;
           scoring_rubric: string | null;
+          required: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -367,6 +369,7 @@ export type Database = {
           kind: QuestionKind;
           position: number;
           question: string;
+          required: boolean;
         };
         Relationships: [];
       };
@@ -376,6 +379,7 @@ export type Database = {
           job_id: string;
           position: number;
           question: string;
+          required: boolean;
         };
         Relationships: [];
       };

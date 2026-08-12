@@ -41,6 +41,7 @@ type EditableQuestion = {
   question: string;
   guidance: string | null;
   scoring_rubric: string | null;
+  required: boolean;
 };
 
 type ModalState = { mode: GeneratorMode; startManual: boolean } | null;
@@ -404,11 +405,13 @@ function QuestionCard({
   const [question, setQuestion] = useState(data.question);
   const [guidance, setGuidance] = useState(data.guidance ?? '');
   const [rubric, setRubric] = useState(data.scoring_rubric ?? '');
+  const [required, setRequired] = useState(data.required);
 
   function startEdit() {
     setQuestion(data.question);
     setGuidance(data.guidance ?? '');
     setRubric(data.scoring_rubric ?? '');
+    setRequired(data.required);
     setExpanded(true);
     setEditing(true);
   }
@@ -423,6 +426,7 @@ function QuestionCard({
       question: question.trim(),
       guidance: guidance.trim() || null,
       scoring_rubric: rubric.trim() || null,
+      required,
     });
     setSaving(false);
     if (ok) setEditing(false);
@@ -443,12 +447,29 @@ function QuestionCard({
 
         <div className="flex-1 min-w-0">
           {editing ? (
-            <Textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              rows={2}
-              className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
-            />
+            <>
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => setRequired((v) => !v)}
+                  aria-pressed={required}
+                  className={
+                    'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ' +
+                    (required
+                      ? 'border-amber-200 bg-amber-50 text-amber-700'
+                      : 'border-gray-200 bg-white text-[#8a8a8f] hover:text-[#1d1d1f]')
+                  }
+                >
+                  Obrigatória
+                </button>
+              </div>
+              <Textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                rows={2}
+                className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
+              />
+            </>
           ) : (
             <button
               type="button"
@@ -456,6 +477,11 @@ function QuestionCard({
               className="block w-full text-left"
               aria-expanded={expanded}
             >
+              {data.required && (
+                <span className="mb-1.5 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                  Obrigatória
+                </span>
+              )}
               <p className="text-[15px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
                 {data.question}
               </p>

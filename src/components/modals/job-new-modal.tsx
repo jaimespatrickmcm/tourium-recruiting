@@ -12,7 +12,12 @@ import type { HighlightType } from '@/types/database';
 
 const TOTAL_STEPS = 3;
 
-type JobQuestionDraft = { question: string; guidance: string; scoring_rubric: string };
+type JobQuestionDraft = {
+  question: string;
+  guidance: string;
+  scoring_rubric: string;
+  required: boolean;
+};
 
 function slugify(s: string): string {
   return s
@@ -179,6 +184,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
           question: String(q?.question ?? ''),
           guidance: String(q?.guidance ?? ''),
           scoring_rubric: String(q?.scoring_rubric ?? ''),
+          required: (q as any)?.required === true,
         })),
       );
     } catch (err) {
@@ -192,12 +198,21 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
     setQDrafts((prev) => prev.map((q, i) => (i === index ? { ...q, question } : q)));
   }
 
+  function toggleDraftRequired(index: number) {
+    setQDrafts((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, required: !q.required } : q)),
+    );
+  }
+
   function removeDraft(index: number) {
     setQDrafts((prev) => prev.filter((_, i) => i !== index));
   }
 
   function addDraft() {
-    setQDrafts((prev) => [...prev, { question: '', guidance: '', scoring_rubric: '' }]);
+    setQDrafts((prev) => [
+      ...prev,
+      { question: '', guidance: '', scoring_rubric: '', required: false },
+    ]);
   }
 
   function goToJob() {
@@ -218,6 +233,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
           question: q.question.trim(),
           guidance: q.guidance.trim() || null,
           scoring_rubric: q.scoring_rubric.trim() || null,
+          required: q.required,
         }));
         const { error } = await supabase.from('job_questions').insert(rows);
         if (error) throw error;
@@ -570,13 +586,30 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                       <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0 mt-1">
                         {i + 1}
                       </span>
-                      <Textarea
-                        value={q.question}
-                        onChange={(e) => updateDraft(i, e.target.value)}
-                        rows={2}
-                        placeholder="O que o candidato lê..."
-                        className="flex-1 rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
-                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="mb-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleDraftRequired(i)}
+                            aria-pressed={q.required}
+                            className={
+                              'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ' +
+                              (q.required
+                                ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                : 'border-gray-200 bg-white text-[#8a8a8f] hover:text-[#1d1d1f]')
+                            }
+                          >
+                            Obrigatória
+                          </button>
+                        </div>
+                        <Textarea
+                          value={q.question}
+                          onChange={(e) => updateDraft(i, e.target.value)}
+                          rows={2}
+                          placeholder="O que o candidato lê..."
+                          className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeDraft(i)}
