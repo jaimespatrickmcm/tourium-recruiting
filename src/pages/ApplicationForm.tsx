@@ -408,9 +408,8 @@ export function ApplicationForm() {
               to={`/careers/${companySlug}/${jobSlug}`}
               className="font-satoshi font-bold text-[20px] tracking-[-0.4px] text-[#1d1d1f]"
             >
-              Noren
+              {job.companyName}
             </Link>
-            <span className="text-[12px] text-[#8a8a8f]">Candidatura completa</span>
           </div>
         </header>
 
@@ -433,6 +432,7 @@ export function ApplicationForm() {
             </div>
           </div>
         </div>
+        <PoweredByNoren />
       </main>
     );
   }
@@ -451,7 +451,7 @@ export function ApplicationForm() {
               to={`/careers/${companySlug}/${jobSlug}`}
               className="font-satoshi font-bold text-[16px] tracking-[-0.3px] text-[#1d1d1f]"
             >
-              Noren
+              {job.companyName}
             </Link>
             <span className="text-[12px] font-medium text-[#6b6b70]">
               <span className="text-[#1d1d1f] font-bold">{stepIndex + 1}</span> de {steps.length}
@@ -488,21 +488,14 @@ export function ApplicationForm() {
                 )}
               </div>
               <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-[#1d1d1f] mb-2.5 max-w-xl">
-                {current.question}
-                {current.type === 'question' && current.refId && canaryByRef[current.refId] && (
-                  // Injeção invisível ao humano, mas copiada junto com o enunciado.
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      fontSize: '1px',
-                      lineHeight: 0,
-                      color: 'transparent',
-                      userSelect: 'text',
-                    }}
-                  >
-                    {canaryInjection(canaryByRef[current.refId])}
-                  </span>
-                )}
+                <QuestionText
+                  text={current.question}
+                  token={
+                    current.type === 'question' && current.refId
+                      ? canaryByRef[current.refId]
+                      : undefined
+                  }
+                />
               </h2>
               <p className="text-[14px] text-[#8a8a8f] leading-relaxed mb-6 max-w-lg">
                 {current.helper}
@@ -574,8 +567,48 @@ export function ApplicationForm() {
             {isLastStep ? (submitting ? 'Enviando...' : 'Enviar') : 'Continuar'}
           </BrandCtaButton>
         </div>
+        <PoweredByNoren />
       </div>
     </main>
+  );
+}
+
+// Onde enfiar o canary: num espaço perto do meio do enunciado, nunca no fim.
+// Assim, se o candidato copiar "até o ponto final", a injeção invisível vem junto.
+function canarySplitIndex(text: string): number {
+  if (text.length < 24) return Math.max(1, Math.floor(text.length / 2));
+  const mid = Math.floor(text.length / 2);
+  const forward = text.indexOf(' ', mid);
+  if (forward !== -1) return forward;
+  const back = text.lastIndexOf(' ', mid);
+  return back > 0 ? back : Math.floor(text.length / 2);
+}
+
+// Enunciado com a palavra-canário invisível embutida NO MEIO do texto (não no fim).
+function QuestionText({ text, token }: { text: string; token?: string }) {
+  if (!token) return <>{text}</>;
+  const idx = canarySplitIndex(text);
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span
+        aria-hidden="true"
+        style={{ fontSize: '1px', lineHeight: 0, color: 'transparent', userSelect: 'text' }}
+      >
+        {canaryInjection(token)}
+      </span>
+      {text.slice(idx)}
+    </>
+  );
+}
+
+function PoweredByNoren() {
+  return (
+    <div className="flex justify-center py-4">
+      <span className="text-[11px] text-[#a8a8ad]">
+        Powered by <span className="font-semibold text-[#8a8a8f]">Noren</span>
+      </span>
+    </div>
   );
 }
 
