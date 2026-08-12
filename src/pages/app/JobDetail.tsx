@@ -44,6 +44,7 @@ import {
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { Textarea } from '@/components/ui/textarea';
+import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import { cn } from '@/lib/utils';
 import type {
   ApplicationStatus,
@@ -437,6 +438,11 @@ export function JobDetail() {
           )}
         </div>
 
+        <DescriptionPanel
+          job={job}
+          onUpdate={(description) => setJob({ ...job, description })}
+        />
+
         <RequirementsPanel job={job} onUpdate={(requirements) => setJob({ ...job, requirements })} />
 
         {applications.length === 0 ? (
@@ -641,6 +647,178 @@ function StagePill({
         {count}
       </span>
     </button>
+  );
+}
+
+// Descrição da vaga: o que o candidato lê na career page. Dá pra editar na mão
+// ou regerar com IA (a vaga já existe, então a criação não serve mais).
+function DescriptionPanel({
+  job,
+  onUpdate,
+}: {
+  job: Job;
+  onUpdate: (description: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const description = job.description ?? '';
+  const sections = parseDescriptionSections(description);
+
+  async function save(next: string) {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ description: next })
+        .eq('id', job.id);
+      if (error) throw error;
+      onUpdate(next);
+      setEditing(false);
+      toast.success('Descrição salva.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra salvar a descrição.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function regenerate() {
+    setGenerating(true);
+    try {
+      const { data, error } = await invokeEdge<{ description: string }>(
+        'generate-job-description',
+        { jobTitle: job.title },
+      );
+      if (error || !data?.description) {
+        throw error ?? new Error('A IA não retornou a descrição.');
+      }
+      setDraft(data.description);
+      setEditing(true);
+      setOpen(true);
+      toast.success('Descrição gerada. Revise e salve.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra gerar a descrição.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <div className="mb-4 rounded-[28px] border border-gray-200 bg-white overflow-hidden">
+      <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-start gap-3 text-left min-w-0"
+        >
+          <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-sky-600 text-white">
+            <FileText className="h-3.5 w-3.5" />
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-2">
+              <span className="font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
+                Descrição da vaga
+              </span>
+              {open ? (
+                <ChevronUp className="h-4 w-4 text-[#8a8a8f]" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-[#8a8a8f]" />
+              )}
+            </span>
+            <span className="block text-[12px] text-[#6b6b70] mt-0.5">
+              É o que o candidato lê na career page.
+            </span>
+          </span>
+        </button>
+
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {!editing && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(description);
+                  setEditing(true);
+                  setOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => void regenerate()}
+                disabled={generating}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+              >
+                {generating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                Regerar
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {open && (
+        <div className="px-6 py-5">
+          {editing ? (
+            <div>
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={16}
+                placeholder="Descrição da vaga em seções (## Título)."
+                className="text-[14px] leading-relaxed"
+              />
+              <p className="mt-1.5 text-[11px] text-[#8a8a8f]">
+                Cada seção começa com "## Título" e vira um item expansível na career page.
+                Bullets começam com hífen.
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <BrandCtaButton size="sm" onClick={() => void save(draft)} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </BrandCtaButton>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                  className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : description ? (
+            <div className="space-y-4">
+              {sections.map((section, i) => (
+                <div key={i}>
+                  {section.title && (
+                    <p className="font-satoshi font-bold text-[14px] text-[#1d1d1f] mb-1">
+                      {section.title}
+                    </p>
+                  )}
+                  <DescriptionBody body={section.body} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+              Essa vaga ainda não tem descrição. Clique em Regerar pra a IA escrever uma, ou em
+              Editar pra escrever na mão.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
