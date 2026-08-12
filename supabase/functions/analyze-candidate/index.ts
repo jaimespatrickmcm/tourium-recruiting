@@ -91,10 +91,14 @@ const MAX_ANSWER_CHARS = 1500;
 const MAX_RUBRIC_CHARS = 500;
 
 const SOURCE_LABEL: Record<string, string> = {
+  profile: 'SOBRE O CANDIDATO',
   culture: 'CULTURA',
   reasoning: 'RACIOCÍNIO',
+  curiosity: 'CURIOSIDADE',
   job_question: 'TÉCNICA',
 };
+
+const SCORED_SOURCES = ['profile', 'culture', 'reasoning', 'curiosity', 'job_question'];
 
 // Carrega as respostas do formulário + o critério interno (rubrica) de cada
 // pergunta, e monta um bloco de texto pro prompt. Null se não houver respostas.
@@ -115,9 +119,7 @@ async function loadFormAnswers(
 
   const scored = answers.filter(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (a: any) =>
-      (a.source === 'culture' || a.source === 'reasoning' || a.source === 'job_question') &&
-      (a.answer ?? '').trim().length > 0,
+    (a: any) => SCORED_SOURCES.includes(a.source) && (a.answer ?? '').trim().length > 0,
   );
   if (scored.length === 0) return null;
 
@@ -252,7 +254,7 @@ PASSO 2, AVALIE SÓ COM EVIDÊNCIA. Regra dura: NÃO preencha lacunas, não inve
 O que dá pra ler de cada fonte:
 - CURRÍCULO: sustenta bem "execucao" (experiência, projetos, ferramentas, resultados vs o nível da vaga) e razoavelmente "potencial" (trajetória, evolução, projetos próprios). Se houver GABARITO INTERNO, compare a experiência do currículo com os must-have e as responsabilidades da vaga: quanto do que a vaga exige o candidato já mostra ter feito, no nível certo. O que a vaga pede e não aparece em nenhum lugar não vira nota alta (mas também não invente que falta, seja conservador e diga que não teve base). Um link de portfólio ou projeto no currículo conta como sinal positivo de que há material pra avaliar, mas você NÃO acessou o conteúdo do link: não descreva nem assuma o que teria nele.
 - Se só houver currículo, "cultura", "motivacao" e "comunicacao" NÃO recebem nota nenhuma: o currículo não revela valores, o porquê desta vaga, nem escrita espontânea. Essas áreas ficam FORA do array "dimensions" e serão avaliadas na etapa de fit cultural. Nota conservadora de algo sem evidência é chute, e chute não entra.
-- RESPOSTAS DO FORMULÁRIO (quando houver): aí sim "cultura" e cenários comportamentais viram evidência real de "cultura" e "motivacao"; "raciocínio" informa "potencial", "comunicacao" e "execucao"; respostas técnicas reforçam "execucao" no nível da vaga e o sinal cultural que revelam. Use o critério interno de cada resposta pra pontuar.
+- RESPOSTAS DO FORMULÁRIO (quando houver): aí sim "cultura" e cenários comportamentais viram evidência real de "cultura" e "motivacao"; "raciocínio" informa "potencial", "comunicacao" e "execucao"; respostas técnicas reforçam "execucao" no nível da vaga e o sinal cultural que revelam. Blocos SOBRE O CANDIDATO são informação e triagem (trajetória, experiência, salário, preferências): use como contexto e cheque contra o gabarito da vaga, sem transformar em nota de cultura por si. Blocos CURIOSIDADE medem curiosidade genuína e aprendizado por conta própria: informam "potencial" e "cultura". Use o critério interno de cada resposta pra pontuar.
 
 ESTÁGIO DE EVIDÊNCIA: ${args.evidenceStage === 'cv' ? 'SÓ CURRÍCULO (o candidato ainda não respondeu o formulário)' : 'COM RESPOSTAS DO FORMULÁRIO'}.
 Entregue a NOTA DA ETAPA, que é a decisão de avançar ou não NESTE estágio, calibrada ao que dá pra saber agora. Ela é diferente do score geral:

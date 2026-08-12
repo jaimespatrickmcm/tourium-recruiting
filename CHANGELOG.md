@@ -2,6 +2,21 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.5.0] - 2026-08-12
+
+Perguntas da empresa divididas em 4 categorias: sobre o candidato, cultura, curiosidade e raciocínio lógico.
+
+### Added
+- Categoria "Sobre o candidato" (profile): história, conquista, risco e falha, sonho, 3 anos e as perguntas de triagem (experiência, salário, regime, origem da vaga). No form, entra logo depois dos dados de contato, na mesma seção "Sobre você".
+- Categoria "Curiosidade": mede o quanto o candidato aprende por conta própria e se aprofunda no que gosta. Base fixa com "o que você aprendeu recentemente por conta própria" e "sobre o que você fala por meia hora sem preparar".
+- Pergunta fixa de cultura "Em quem você pensa quando falo em: pessoa inteligente?".
+- Banco de perguntas e gerador agrupam e editam pelas 4 categorias, cada uma com seu chip.
+
+### Changed
+- Cultura fica focada em estilo de pensamento e fit (cenário do gestor, referências, pessoa inteligente, identificação com figuras públicas). Raciocínio segue puro.
+- Análise rotula cada resposta pela categoria: SOBRE O CANDIDATO entra como contexto e triagem, CURIOSIDADE informa potencial e cultura.
+- Ordem do form: contato, sobre você, perguntas da vaga, cultura, curiosidade, raciocínio.
+
 ## [0.4.0] - 2026-08-12
 
 Perguntas de seleção e numéricas no application form, base Noren completa no gerador e histórico de respostas imutável.

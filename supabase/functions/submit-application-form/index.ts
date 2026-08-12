@@ -12,7 +12,13 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
-type AnswerSource = 'candidate_info' | 'job_question' | 'culture' | 'reasoning';
+type AnswerSource =
+  | 'candidate_info'
+  | 'job_question'
+  | 'profile'
+  | 'culture'
+  | 'reasoning'
+  | 'curiosity';
 
 type AnswerInput = {
   source: AnswerSource;
@@ -44,7 +50,14 @@ const MAX_ANSWERS = 100;
 const MAX_QUESTION = 2000;
 const MAX_SNAPSHOT = 2000;
 
-const ALLOWED_SOURCES: AnswerSource[] = ['candidate_info', 'job_question', 'culture', 'reasoning'];
+const ALLOWED_SOURCES: AnswerSource[] = [
+  'candidate_info',
+  'job_question',
+  'profile',
+  'culture',
+  'reasoning',
+  'curiosity',
+];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const runtime = (globalThis as any).EdgeRuntime;

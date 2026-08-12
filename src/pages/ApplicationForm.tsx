@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { invokeEdge } from '@/lib/functions';
 import { makeCanaryToken, canaryInjection } from '@/lib/canary';
 import { parseOptions } from '@/hooks/use-questions';
-import type { QuestionFormat } from '@/types/database';
+import type { QuestionFormat, QuestionKind } from '@/types/database';
 
 type PublicJob = {
   id: string;
@@ -33,7 +33,7 @@ type CandidateStep = {
 
 type QuestionStep = {
   type: 'question';
-  source: 'job_question' | 'culture' | 'reasoning';
+  source: 'job_question' | QuestionKind;
   refId: string | null;
   sectionLabel: string;
   question: string;
@@ -55,6 +55,39 @@ function helperFor(format: QuestionFormat, openHelper: string): string {
 }
 
 const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+// Categorias das perguntas da empresa, na ordem em que aparecem no form.
+// `profile` entra logo depois dos dados de contato (mesma seção "Sobre você");
+// cultura, curiosidade e raciocínio vêm depois das perguntas da vaga.
+const KIND_STEPS: Record<
+  QuestionKind,
+  { order: number; sectionLabel: string; openHelper: string }
+> = {
+  profile: {
+    order: 0,
+    sectionLabel: 'Sobre você',
+    openHelper: 'Sem resposta certa. É pra gente te conhecer melhor.',
+  },
+  culture: {
+    order: 1,
+    sectionLabel: 'Cultura',
+    openHelper: 'Não tem resposta certa. A gente quer entender como você pensa.',
+  },
+  curiosity: {
+    order: 2,
+    sectionLabel: 'Curiosidade',
+    openHelper: 'Responde do jeito que vier. A gente quer saber o que te move.',
+  },
+  reasoning: {
+    order: 3,
+    sectionLabel: 'Raciocínio lógico',
+    openHelper: 'Mostre o caminho até a resposta, não só a conclusão.',
+  },
+};
+
+function isQuestionKind(value: string): value is QuestionKind {
+  return value === 'profile' || value === 'culture' || value === 'reasoning' || value === 'curiosity';
+}
 
 // Seleção sem pelo menos 2 opções não tem o que clicar: vira pergunta aberta
 // em vez de travar o candidato num passo obrigatório sem saída.
@@ -207,44 +240,30 @@ export function ApplicationForm() {
           setLoading(false);
           return;
         }
-        const culture = (cq ?? [])
-          .filter((q) => q.kind === 'culture')
+        const companySteps: QuestionStep[] = (cq ?? [])
+          .filter((q) => isQuestionKind(q.kind))
+          .sort(
+            (a, b) =>
+              KIND_STEPS[a.kind as QuestionKind].order - KIND_STEPS[b.kind as QuestionKind].order ||
+              a.position - b.position,
+          )
           .map((q) => {
+            const kind = q.kind as QuestionKind;
             const options = parseOptions(q.options) ?? [];
             const format = effectiveFormat(q.format, options);
             return {
               type: 'question' as const,
-              source: 'culture' as const,
+              source: kind,
               refId: q.id,
-              sectionLabel: 'Cultura e raciocínio',
+              sectionLabel: KIND_STEPS[kind].sectionLabel,
               question: q.question,
-              helper: helperFor(
-                format,
-                'Não tem resposta certa. A gente quer entender como você pensa.',
-              ),
+              helper: helperFor(format, KIND_STEPS[kind].openHelper),
               required: q.required,
               format,
               options,
             };
           });
-        const reasoning = (cq ?? [])
-          .filter((q) => q.kind === 'reasoning')
-          .map((q) => {
-            const options = parseOptions(q.options) ?? [];
-            const format = effectiveFormat(q.format, options);
-            return {
-              type: 'question' as const,
-              source: 'reasoning' as const,
-              refId: q.id,
-              sectionLabel: 'Cultura e raciocínio',
-              question: q.question,
-              helper: helperFor(format, 'Mostre o caminho até a resposta, não só a conclusão.'),
-              required: q.required,
-              format,
-              options,
-            };
-          });
-        setCompanyQuestions([...culture, ...reasoning]);
+        setCompanyQuestions(companySteps);
       }
       setLoading(false);
     }
@@ -299,10 +318,13 @@ export function ApplicationForm() {
     [prefilledFields],
   );
 
-  const steps = useMemo<Step[]>(
-    () => [...candidateSteps, ...jobQuestions, ...companyQuestions],
-    [candidateSteps, jobQuestions, companyQuestions],
-  );
+  // Sobre o candidato (profile) cola nos dados de contato; o resto vem depois
+  // das perguntas da vaga: contato -> perfil -> vaga -> cultura -> curiosidade -> raciocínio.
+  const steps = useMemo<Step[]>(() => {
+    const profile = companyQuestions.filter((q) => q.source === 'profile');
+    const rest = companyQuestions.filter((q) => q.source !== 'profile');
+    return [...candidateSteps, ...profile, ...jobQuestions, ...rest];
+  }, [candidateSteps, jobQuestions, companyQuestions]);
 
   // Um canary token por pergunta aberta, gerado uma vez quando as perguntas
   // carregam. Só faz sentido em resposta digitada: seleção e número não têm
