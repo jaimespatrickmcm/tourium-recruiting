@@ -14,9 +14,37 @@ type GeneratedQuestion = {
   question: string;
   guidance: string;
   scoring_rubric: string;
+  required: boolean;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type JobRequirements = Record<string, any>;
+
 const MODEL = 'gpt-5';
+
+function list(items: unknown): string {
+  if (!Array.isArray(items) || items.length === 0) return '(não informado)';
+  return items.map((i) => `- ${String(i)}`).join('\n');
+}
+
+function formatRequirements(req: JobRequirements | null): string {
+  if (!req) return '';
+  return `
+
+GABARITO INTERNO DA VAGA (uso interno, o candidato nunca vê). Use isto como espinha dorsal: cada pergunta deve cobrir algo daqui, priorizando os must-have e o foco de avaliação.
+Nível: ${req.seniority ?? '(não informado)'}
+Resumo: ${req.summary ?? '(não informado)'}
+Must-have (obrigatórios):
+${list(req.must_have)}
+Nice-to-have:
+${list(req.nice_to_have)}
+Responsabilidades:
+${list(req.responsibilities)}
+Foco de avaliação:
+${list(req.evaluation_focus)}
+Red flags:
+${list(req.red_flags)}`;
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -30,6 +58,7 @@ function buildPrompt(args: {
   companyCulture: string | null;
   jobTitle: string;
   jobDescription: string | null;
+  requirements: JobRequirements | null;
 }): string {
   return `Você monta as perguntas técnicas de UMA vaga. Todo candidato dessa vaga responde as mesmas perguntas.
 
@@ -37,7 +66,7 @@ EMPRESA: ${args.companyName}
 Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
 
 VAGA: ${args.jobTitle}
-Descrição e exigências: ${args.jobDescription ?? '(não informado)'}
+Descrição e exigências: ${args.jobDescription ?? '(não informado)'}${formatRequirements(args.requirements)}
 
 PASSO 1, CALIBRE A SENIORIDADE. Antes de escrever, deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, lead). Isso mude TUDO:
 - Estágio / júnior: a pessoa está começando ou na faculdade. NÃO peça anos de experiência profissional, portfólio de campanhas pagas, biblioteca de assets pro time, decks de venda do zero ou liderança. Foque em fundamentos, curiosidade, projetos pequenos ou acadêmicos, familiaridade básica com as ferramentas, vontade de aprender e como a pessoa pensa. Perguntas que um bom estagiário consegue responder com o que já viveu.
@@ -53,6 +82,7 @@ Para cada pergunta, entregue:
 - "question": o enunciado que o candidato lê. Direto, português, no nível certo da vaga.
 - "guidance": o que uma boa resposta demonstra (uso interno). Concreto: ferramenta, raciocínio ou trade-off no nível da vaga.
 - "scoring_rubric": como pontuar de 0 a 100 (uso interno). Avalie DOIS eixos juntos: (a) fit técnico com a exigência da vaga no nível certo e (b) o sinal cultural/soft-skill que a resposta revela (calibrado pela cultura desta empresa). Diga o que aprova, o que reprova e onde fica a média.
+- "required": true se a pergunta cobre um must-have da vaga (o candidato não pode pular). false se cobre um nice-to-have ou é secundária. Marque como required só as que medem algo que a vaga EXIGE de fato. Se não houver gabarito, use true nas 1 a 2 mais decisivas e false no resto.
 
 REGRAS DE ESCRITA (valem pra question, guidance e scoring_rubric):
 - Português direto. Sem clichê de RH.
@@ -64,7 +94,7 @@ REGRAS DE ESCRITA (valem pra question, guidance e scoring_rubric):
 OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
 {
   "questions": [
-    { "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>" }
+    { "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>", "required": true }
   ]
 }`;
 }
@@ -80,6 +110,7 @@ function parseQuestions(text: string): GeneratedQuestion[] | null {
         question: String(q?.question ?? '').trim(),
         guidance: String(q?.guidance ?? '').trim(),
         scoring_rubric: String(q?.scoring_rubric ?? '').trim(),
+        required: q?.required === true,
       }))
       .filter((q: GeneratedQuestion) => q.question.length > 0);
     return questions.length > 0 ? questions : null;
@@ -143,7 +174,7 @@ Deno.serve(async (req) => {
 
   const { data: job } = await admin
     .from('jobs')
-    .select('id, company_id, title, description')
+    .select('id, company_id, title, description, requirements')
     .eq('id', payload.jobId)
     .maybeSingle();
 
@@ -165,6 +196,7 @@ Deno.serve(async (req) => {
     companyCulture: cultureText,
     jobTitle: job.title ?? '',
     jobDescription: job.description ?? null,
+    requirements: (job.requirements as JobRequirements | null) ?? null,
   });
 
   try {
