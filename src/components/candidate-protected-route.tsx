@@ -11,7 +11,7 @@ export function CandidateProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/candidato/login" state={{ from: location }} replace />;
+    return <Navigate to="/candidato/acesso" state={{ from: location }} replace />;
   }
 
   // Sessão de empresa (OTP email) não pertence ao portal do candidato.

@@ -2,6 +2,14 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.5.1] - 2026-08-12
+
+### Changed
+- Metadados do site atualizados pro posicionamento atual: gestão de pessoas do início ao fim (título, descrição e tags de compartilhamento). Antes falavam só de contratação.
+
+### Removed
+- Login por LinkedIn desligado por enquanto (não estava funcional). A rota antiga redireciona pro acesso por código, que segue normal. O campo de URL do LinkedIn na candidatura continua.
+
 ## [0.5.0] - 2026-08-12
 
 Perguntas da empresa divididas em 4 categorias: sobre o candidato, cultura, curiosidade e raciocínio lógico.

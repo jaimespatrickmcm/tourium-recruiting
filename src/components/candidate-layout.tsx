@@ -15,7 +15,7 @@ export function CandidateLayout() {
 
   async function handleSignOut() {
     await signOut();
-    navigate('/candidato/login');
+    navigate('/candidato/acesso');
   }
 
   return (

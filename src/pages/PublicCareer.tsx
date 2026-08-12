@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import {
   ArrowLeft,
   CheckCircle2,
-  Linkedin,
   FileText,
   Upload,
   Loader2,
@@ -266,28 +265,8 @@ export function PublicCareer() {
             Como podemos te chamar?
           </h2>
           <p className="text-[15px] text-[#6b6b70] leading-relaxed mb-6">
-            Seu nome e email pra gente entrar em contato. Você também pode entrar com LinkedIn pra
-            agilizar.
+            Seu nome e email pra gente entrar em contato.
           </p>
-
-          <Link
-            to="/candidato/login"
-            className="mb-6 inline-flex w-full items-center justify-center gap-2.5 h-11 rounded-xl bg-[#0A66C2] text-white font-semibold text-[14px] hover:bg-[#0A66C2]/90 transition-colors"
-          >
-            <Linkedin className="h-4 w-4" fill="currentColor" strokeWidth={0} />
-            Entrar com LinkedIn
-          </Link>
-
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-[#8a8a8f] font-semibold">
-                ou preencha
-              </span>
-            </div>
-          </div>
 
           <div className="space-y-4">
             <div>
