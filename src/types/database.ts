@@ -177,6 +177,10 @@ export type Database = {
           recommendation: string | null;
           reasoning: string | null;
           cv_observations: string | null;
+          evidence_stage: string | null;
+          stage_score: number | null;
+          stage_verdict: string | null;
+          stage_note: string | null;
           dimensions: Json | null;
           dna_version_used: number | null;
           model_used: string | null;

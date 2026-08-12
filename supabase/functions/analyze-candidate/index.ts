@@ -43,13 +43,27 @@ type ScoutArea = (typeof SCOUT_AREAS)[number];
 
 type DimensionScore = { area: ScoutArea; score: number; rationale: string };
 
+type StageVerdict = 'avancar' | 'segurar' | 'cortar';
+type EvidenceStage = 'cv' | 'form';
+
 type AnalysisResult = {
   score: number;
   recommendation: 'strong_hire' | 'hire' | 'maybe' | 'no_hire';
   reasoning: string;
   cv_observations: string | null;
+  stage_score: number;
+  stage_verdict: StageVerdict;
+  stage_note: string;
   dimensions: DimensionScore[];
 };
+
+const STAGE_VERDICTS = ['avancar', 'segurar', 'cortar'] as const;
+
+function normalizeVerdict(value: unknown): StageVerdict {
+  return (STAGE_VERDICTS as readonly string[]).includes(value as string)
+    ? (value as StageVerdict)
+    : 'segurar';
+}
 
 const MODEL = 'gpt-5';
 
@@ -178,6 +192,7 @@ function buildPrompt(args: {
   jobDescription: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   requirements: Record<string, any> | null;
+  evidenceStage: EvidenceStage;
   candidateName: string;
   candidateEmail: string;
   whyInterested: string | null;
@@ -217,6 +232,13 @@ O que dá pra ler de cada fonte:
 - Nesta etapa, se só houver currículo, "cultura" e "motivacao" são fracas: o currículo quase não revela valores nem o porquê desta vaga. Seja conservador nessas duas e diga no rationale que serão avaliadas melhor com as respostas do formulário. NÃO invente um perfil cultural a partir do currículo.
 - RESPOSTAS DO FORMULÁRIO (quando houver): aí sim "cultura" e cenários comportamentais viram evidência real de "cultura" e "motivacao"; "raciocínio" informa "potencial", "comunicacao" e "execucao"; respostas técnicas reforçam "execucao" no nível da vaga e o sinal cultural que revelam. Use o critério interno de cada resposta pra pontuar.
 
+ESTÁGIO DE EVIDÊNCIA: ${args.evidenceStage === 'cv' ? 'SÓ CURRÍCULO (o candidato ainda não respondeu o formulário)' : 'COM RESPOSTAS DO FORMULÁRIO'}.
+Entregue a NOTA DA ETAPA, que é a decisão de avançar ou não NESTE estágio, calibrada ao que dá pra saber agora. Ela é diferente do score geral:
+- "stage_score" (0-100): o fit considerando só o que ESTE estágio permite avaliar. No estágio SÓ CURRÍCULO, baseie em execução, potencial e aderência aos requisitos (must-have e responsabilidades), e NÃO rebaixe por cultura ou motivação que ainda não deu pra ver. Um bom currículo pro nível da vaga pode ter stage_score alto mesmo com cultura/motivação ainda em aberto. No estágio COM FORMULÁRIO, use toda a evidência. O stage_score responde "vale avançar pra próxima etapa?".
+- "stage_verdict": um de "avancar", "segurar", "cortar", a recomendação pra ESTA etapa.
+- "stage_note": 1 frase curta dizendo por que avançar, segurar ou cortar neste estágio.
+O "score" geral continua sendo a leitura acumulada das 5 áreas. No estágio só currículo ele é parcial: pesa mais potencial e execução, e cultura/motivação ficam conservadoras (não confunda score geral parcial com stage_score).
+
 Além do score geral, pontue o candidato em 5 áreas (0-100 cada), sempre NO NÍVEL DA VAGA e só com evidência real:
 - "cultura": alinhamento com a cultura e valores da empresa (só o que aparece de fato; conservador se só há currículo)
 - "execucao": capacidade de entrega e experiência concreta vs o que ESTA vaga pede no nível dela
@@ -238,6 +260,9 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
 {
   "score": <inteiro 0-100>,
   "recommendation": <"strong_hire" | "hire" | "maybe" | "no_hire">,
+  "stage_score": <inteiro 0-100>,
+  "stage_verdict": <"avancar" | "segurar" | "cortar">,
+  "stage_note": "<1 frase>",
   "reasoning": "<2-3 parágrafos>",
   "cv_observations": <"resumo factual do currículo em 3-6 frases" | null se não houver currículo>,
   "dimensions": [
@@ -278,11 +303,18 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
     const cvObservations =
       typeof cvRaw === 'string' && cvRaw.trim().length > 0 ? cvRaw.trim() : null;
 
+    const stageNoteRaw = parsed.stage_note;
+    const stageNote =
+      typeof stageNoteRaw === 'string' && stageNoteRaw.trim().length > 0 ? stageNoteRaw.trim() : '';
+
     return {
       score: clampScore(parsed.score),
       recommendation: normalizeRecommendation(parsed.recommendation),
       reasoning: String(parsed.reasoning),
       cv_observations: cvObservations,
+      stage_score: clampScore(parsed.stage_score),
+      stage_verdict: normalizeVerdict(parsed.stage_verdict),
+      stage_note: stageNote,
       dimensions,
     };
   } catch {
@@ -380,6 +412,8 @@ Deno.serve(async (req) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resumeText = await extractResumeText(admin, (app as any).resume_path ?? null);
   const formAnswers = await loadFormAnswers(admin, payload.applicationId);
+  // Estágio de evidência: com respostas do formulário é análise completa; sem, é só currículo.
+  const evidenceStage: EvidenceStage = formAnswers ? 'form' : 'cv';
 
   const prompt = buildPrompt({
     companyName: company?.name ?? '',
@@ -388,6 +422,7 @@ Deno.serve(async (req) => {
     jobTitle: job?.title ?? '',
     jobDescription: job?.description ?? null,
     requirements: job?.requirements ?? null,
+    evidenceStage,
     candidateName: app.candidate_name,
     candidateEmail: app.candidate_email,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -431,6 +466,10 @@ Deno.serve(async (req) => {
         recommendation: result.recommendation,
         reasoning: result.reasoning,
         cv_observations: resumeText ? result.cv_observations : null,
+        evidence_stage: evidenceStage,
+        stage_score: result.stage_score,
+        stage_verdict: result.stage_verdict,
+        stage_note: result.stage_note || null,
         dimensions: result.dimensions,
         dna_version_used: dnaVersion,
         model_used: MODEL,

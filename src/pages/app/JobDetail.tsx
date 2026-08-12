@@ -28,6 +28,7 @@ import {
   useApplications,
   analysisIsPending,
   type ApplicationWithAnalysis,
+  type ApplicationAnalysis,
 } from '@/hooks/use-applications';
 import { parseDimensions, overallFromDimensions } from '@/lib/scout-areas';
 import { ScoutCard } from '@/components/scout-card';
@@ -144,39 +145,66 @@ function scoreBand(score: number): ScoreBand {
   };
 }
 
-// Bloco que traduz a nota: recomendação, faixa, ponto forte/fraco e como fica
-// perante os outros candidatos da vaga.
-function ScoreReference({
-  score,
-  recommendation,
+const VERDICT_LABELS: Record<string, string> = {
+  avancar: 'Avançar',
+  segurar: 'Segurar',
+  cortar: 'Cortar',
+};
+const VERDICT_COLORS: Record<string, string> = {
+  avancar: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  segurar: 'text-amber-700 bg-amber-50 border-amber-200',
+  cortar: 'text-rose-700 bg-rose-50 border-rose-200',
+};
+const EVIDENCE_STAGE_LABELS: Record<string, string> = {
+  cv: 'Baseado só no currículo',
+  form: 'Com respostas do formulário',
+};
+
+// Decisão da etapa: o fit calibrado ao estágio (só CV vs com formulário), com
+// veredito de avançar/segurar/cortar e comparação com quem está no mesmo estágio.
+// Diferente do scout geral (5 áreas), que fica logo abaixo.
+function StageDecision({
+  analysis,
   dims,
-  cohortScores,
+  cohortStageScores,
 }: {
-  score: number;
-  recommendation: string | null | undefined;
+  analysis: ApplicationAnalysis;
   dims: { area: string; score: number }[];
-  cohortScores: number[];
+  cohortStageScores: number[];
 }) {
-  const band = scoreBand(score);
+  const stageScore = analysis.stage_score ?? analysis.score ?? 0;
+  const verdict = analysis.stage_verdict ?? null;
+  const stage = analysis.evidence_stage ?? null;
+  const band = scoreBand(stageScore);
   const sorted = [...dims].sort((a, b) => b.score - a.score);
   const strongest = sorted[0];
   const weakest = sorted[sorted.length - 1];
-  const total = cohortScores.length;
-  const rank = 1 + cohortScores.filter((s) => s > score).length;
+  const total = cohortStageScores.length;
+  const rank = 1 + cohortStageScores.filter((s) => s > stageScore).length;
   const average =
-    total > 0 ? Math.round(cohortScores.reduce((sum, s) => sum + s, 0) / total) : score;
+    total > 0 ? Math.round(cohortStageScores.reduce((sum, s) => sum + s, 0) / total) : stageScore;
 
   return (
     <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+          Decisão da etapa
+        </p>
+        {stage && (
+          <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#6b6b70]">
+            {EVIDENCE_STAGE_LABELS[stage] ?? stage}
+          </span>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
-        {recommendation && (
+        {verdict && (
           <span
             className={cn(
               'inline-flex items-center text-[12px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border',
-              recColors[recommendation] ?? '',
+              VERDICT_COLORS[verdict] ?? '',
             )}
           >
-            {recLabels[recommendation] ?? recommendation}
+            {VERDICT_LABELS[verdict] ?? verdict}
           </span>
         )}
         <span
@@ -185,10 +213,14 @@ function ScoreReference({
             band.chip,
           )}
         >
-          Nota {score}: {band.label}
+          Fit da etapa {stageScore}
         </span>
       </div>
-      <p className="mt-2 text-[13px] text-[#6b6b70] leading-relaxed">{band.hint}</p>
+      {analysis.stage_note ? (
+        <p className="mt-2 text-[13px] text-[#1d1d1f] leading-relaxed">{analysis.stage_note}</p>
+      ) : (
+        <p className="mt-2 text-[13px] text-[#6b6b70] leading-relaxed">{band.hint}</p>
+      )}
 
       {(strongest || weakest) && (
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px]">
@@ -213,8 +245,8 @@ function ScoreReference({
 
       <p className="mt-2 text-[12px] text-[#8a8a8f]">
         {total > 1
-          ? `${rank}º de ${total} candidatos analisados nesta vaga · média ${average}`
-          : 'Primeiro candidato analisado nesta vaga. A referência fica mais clara conforme chegam outros.'}
+          ? `${rank}º de ${total} no mesmo estágio nesta vaga · média ${average}`
+          : 'Primeiro candidato neste estágio. A referência fica mais clara conforme chegam outros.'}
       </p>
     </div>
   );
@@ -277,10 +309,17 @@ export function JobDetail() {
 
   const selected = applications.find((a) => a.id === selectedId) ?? null;
 
-  // Notas concluídas da vaga, pra dar referência relativa (rank e média).
-  const cohortScores = applications
-    .filter((a) => a.ai_analysis?.status === 'completed' && typeof a.ai_analysis?.score === 'number')
-    .map((a) => a.ai_analysis!.score as number);
+  // Referência relativa comparando só quem está no MESMO estágio de evidência
+  // (não faz sentido comparar um fit de currículo com um já respondido).
+  const selectedStage = selected?.ai_analysis?.evidence_stage ?? null;
+  const cohortStageScores = applications
+    .filter(
+      (a) =>
+        a.ai_analysis?.status === 'completed' &&
+        (a.ai_analysis?.evidence_stage ?? null) === selectedStage &&
+        typeof a.ai_analysis?.stage_score === 'number',
+    )
+    .map((a) => a.ai_analysis!.stage_score as number);
 
   return (
     <div className="relative min-h-screen bg-white">
@@ -365,7 +404,8 @@ export function JobDetail() {
                   </div>
                 ) : (
                   filtered.map((app) => {
-                    const score = app.ai_analysis?.score;
+                    const stageScore = app.ai_analysis?.stage_score ?? app.ai_analysis?.score;
+                    const verdict = app.ai_analysis?.stage_verdict ?? null;
                     const aStatus = app.ai_analysis?.status;
                     const isPending = analysisIsPending(app);
                     const hasError = aStatus === 'error';
@@ -403,11 +443,13 @@ export function JobDetail() {
                                 Erro
                               </span>
                             )}
-                            {aStatus === 'completed' && score !== null && score !== undefined && (
-                              <p className="font-satoshi font-black text-[22px] tracking-[-0.4px] text-[#1d1d1f] leading-none">
-                                {score}
-                              </p>
-                            )}
+                            {aStatus === 'completed' &&
+                              stageScore !== null &&
+                              stageScore !== undefined && (
+                                <p className="font-satoshi font-black text-[22px] tracking-[-0.4px] text-[#1d1d1f] leading-none">
+                                  {stageScore}
+                                </p>
+                              )}
                           </div>
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -419,17 +461,29 @@ export function JobDetail() {
                           >
                             {stageLabels[app.status]}
                           </span>
-                          {aStatus === 'completed' && app.ai_analysis?.recommendation && (
+                          {aStatus === 'completed' && verdict && (
                             <span
                               className={cn(
                                 'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
-                                recColors[app.ai_analysis.recommendation] ?? '',
+                                VERDICT_COLORS[verdict] ?? '',
                               )}
                             >
-                              {recLabels[app.ai_analysis.recommendation] ??
-                                app.ai_analysis.recommendation}
+                              {VERDICT_LABELS[verdict] ?? verdict}
                             </span>
                           )}
+                          {aStatus === 'completed' &&
+                            !verdict &&
+                            app.ai_analysis?.recommendation && (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
+                                  recColors[app.ai_analysis.recommendation] ?? '',
+                                )}
+                              >
+                                {recLabels[app.ai_analysis.recommendation] ??
+                                  app.ai_analysis.recommendation}
+                              </span>
+                            )}
                           {app.ai_suspected && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-700"
@@ -455,7 +509,7 @@ export function JobDetail() {
                     jobTitle={job.title}
                     highlightQuestion={job.highlight_question}
                     highlightType={job.highlight_type}
-                    cohortScores={cohortScores}
+                    cohortStageScores={cohortStageScores}
                     refetch={refetch}
                     patchApplication={patchApplication}
                     onDeleted={() => {
@@ -783,7 +837,7 @@ function CandidateDetail({
   jobTitle,
   highlightQuestion,
   highlightType,
-  cohortScores,
+  cohortStageScores,
   refetch,
   patchApplication,
   onDeleted,
@@ -792,7 +846,7 @@ function CandidateDetail({
   jobTitle: string;
   highlightQuestion: string | null;
   highlightType: HighlightType | null;
-  cohortScores: number[];
+  cohortStageScores: number[];
   refetch: () => Promise<void>;
   patchApplication: (id: string, patch: Partial<ApplicationWithAnalysis>) => void;
   onDeleted: () => void;
@@ -1244,14 +1298,9 @@ function CandidateDetail({
               Re-analisar
             </button>
           </div>
-        ) : dims.length > 0 ? (
+        ) : dims.length > 0 && analysis ? (
           <div>
-            <ScoreReference
-              score={analysis?.score ?? overallFromDimensions(dims) ?? 0}
-              recommendation={analysis?.recommendation}
-              dims={dims}
-              cohortScores={cohortScores}
-            />
+            <StageDecision analysis={analysis} dims={dims} cohortStageScores={cohortStageScores} />
             <ScoutCard
               name={app.candidate_name}
               subtitle={jobTitle}
@@ -1269,19 +1318,14 @@ function CandidateDetail({
               </p>
             )}
           </div>
-        ) : (
+        ) : analysis ? (
           <div>
-            <ScoreReference
-              score={analysis?.score ?? 0}
-              recommendation={analysis?.recommendation}
-              dims={[]}
-              cohortScores={cohortScores}
-            />
+            <StageDecision analysis={analysis} dims={[]} cohortStageScores={cohortStageScores} />
             <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-              {analysis?.reasoning}
+              {analysis.reasoning}
             </p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Linha do tempo */}
