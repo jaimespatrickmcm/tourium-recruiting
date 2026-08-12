@@ -14,7 +14,6 @@ import { Jobs } from '@/pages/app/Jobs';
 import { JobDetail } from '@/pages/app/JobDetail';
 import { Team } from '@/pages/app/Team';
 import { TeamDetail } from '@/pages/app/TeamDetail';
-import { CandidateLogin } from '@/pages/candidate/Login';
 import { CandidateAccess } from '@/pages/candidate/Access';
 import { CandidateTokenArea } from '@/pages/candidate/TokenArea';
 import { ProtectedRoute } from '@/components/protected-route';
@@ -50,8 +49,9 @@ export const router = createBrowserRouter([
   },
 
   // Candidate area — acesso por token (magic link), não OAuth.
-  // LinkedIn segue como identificação opcional na candidatura.
-  { path: '/candidato/login', element: <CandidateLogin /> },
+  // Login por LinkedIn desligado por enquanto (não funcional): a rota antiga
+  // redireciona pro acesso por código.
+  { path: '/candidato/login', element: <Navigate to="/candidato/acesso" replace /> },
   { path: '/candidato/acesso', element: <CandidateAccess /> },
   { path: '/candidato', element: <CandidateTokenArea /> },
 
