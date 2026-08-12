@@ -26,12 +26,16 @@ export async function sendEmail(opts: {
   subject: string;
   html: string;
   replyTo?: string;
+  fromName?: string;
 }): Promise<{ id: string }> {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   if (!apiKey) {
     throw new EmailError('RESEND_API_KEY não configurada nos secrets do Supabase', 500);
   }
-  const from = Deno.env.get('EMAIL_FROM') || DEFAULT_FROM;
+  const configured = Deno.env.get('EMAIL_FROM') || DEFAULT_FROM;
+  // O e-mail vai em nome da empresa (o candidato se candidatou pra ela), mas
+  // pelo endereço verificado da Noren.
+  const from = opts.fromName ? withFromName(configured, opts.fromName) : configured;
 
   const res = await fetch(RESEND_ENDPOINT, {
     method: 'POST',
@@ -57,6 +61,14 @@ export async function sendEmail(opts: {
   return { id: String(data?.id ?? '') };
 }
 
+// Troca só o display name, mantendo o endereço verificado.
+function withFromName(configured: string, name: string): string {
+  const match = configured.match(/<([^>]+)>/);
+  const address = match ? match[1] : configured;
+  const clean = name.replace(/[<>"]/g, '').trim();
+  return clean ? `${clean} <${address}>` : configured;
+}
+
 function escapeHtml(input: string): string {
   return input
     .replace(/&/g, '&amp;')
@@ -67,45 +79,60 @@ function escapeHtml(input: string): string {
 
 export type EmailButton = { label: string; url: string };
 
-// Monta o HTML do e-mail com a cara da Noren. Table-based e com estilos inline
-// pra funcionar nos clientes de e-mail. Copy vem de quem chama (sem travessão).
+const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+// Template da Noren: clean, centrado, responsivo. A marca de cima é a EMPRESA
+// (é pra ela que a pessoa se candidatou); a Noren assina discreto no rodapé.
 export function renderEmail(opts: {
   title: string;
+  companyName: string;
   heading: string;
   paragraphs: string[];
   button?: EmailButton;
+  imageUrl?: string;
+  imageAlt?: string;
   secondaryNote?: string;
-  eyebrow?: string;
+  fallbackUrl?: string;
 }): string {
   const paragraphs = opts.paragraphs
     .map(
       (p) =>
-        `<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#3a3a40;">${escapeHtml(
+        `<p style="margin:0 0 18px;font-size:17px;line-height:1.6;color:#4a4a52;font-family:${FONT};">${escapeHtml(
           p,
         )}</p>`,
     )
     .join('');
 
+  const image = opts.imageUrl
+    ? `<img src="${escapeHtml(opts.imageUrl)}" alt="${escapeHtml(
+        opts.imageAlt ?? '',
+      )}" width="320" style="display:block;margin:0 auto 28px;width:100%;max-width:320px;height:auto;border:0;border-radius:16px;">`
+    : '';
+
   const button = opts.button
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 4px;">
-         <tr><td style="border-radius:12px;background:#0f0f1a;">
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:8px auto 0;">
+         <tr><td align="center" style="border-radius:980px;background:#0f0f14;">
            <a href="${escapeHtml(opts.button.url)}" target="_blank"
-              style="display:inline-block;padding:14px 26px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px;">
+              style="display:inline-block;padding:15px 40px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:980px;font-family:${FONT};">
              ${escapeHtml(opts.button.label)}
            </a>
          </td></tr>
        </table>`
     : '';
 
-  const secondary = opts.secondaryNote
-    ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:#8a8a8f;">${escapeHtml(
-        opts.secondaryNote,
-      )}</p>`
+  // Plano B discreto: link curto em vez de despejar a URL crua (que ocupa três
+  // linhas e destrói o visual). Continua sendo um link clicável de verdade.
+  const fallback = opts.fallbackUrl
+    ? `<p style="margin:20px 0 0;font-size:13px;line-height:1.5;color:#a1a1aa;font-family:${FONT};">
+         Se o botão não funcionar,
+         <a href="${escapeHtml(opts.fallbackUrl)}" target="_blank"
+            style="color:#8a8a93;text-decoration:underline;">abra por aqui</a>.
+       </p>`
     : '';
 
-  const eyebrow = opts.eyebrow
-    ? `<p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0ea5e9;">${escapeHtml(
-        opts.eyebrow,
+  const secondary = opts.secondaryNote
+    ? `<p style="margin:18px 0 0;font-size:14px;line-height:1.55;color:#8a8a93;font-family:${FONT};">${escapeHtml(
+        opts.secondaryNote,
       )}</p>`
     : '';
 
@@ -114,35 +141,56 @@ export function renderEmail(opts: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light">
 <title>${escapeHtml(opts.title)}</title>
+<style>
+  @media only screen and (max-width:600px) {
+    .wrap { padding:20px 12px !important; }
+    .card { border-radius:18px !important; }
+    .pad { padding:32px 22px 34px !important; }
+    .h1 { font-size:26px !important; }
+    .p { font-size:16px !important; }
+  }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#f4f5f7;">
-<span style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.title)}</span>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 16px;">
+<body style="margin:0;padding:0;background:#f5f5f7;-webkit-font-smoothing:antialiased;">
+<span style="display:none!important;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(
+    opts.title,
+  )}</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f7;">
   <tr>
-    <td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:20px;border:1px solid #ececf1;overflow:hidden;">
-        <tr><td style="height:4px;background:linear-gradient(90deg,#0ea5e9,#6366f1);"></td></tr>
+    <td class="wrap" align="center" style="padding:40px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card" style="max-width:520px;background:#ffffff;border-radius:22px;overflow:hidden;">
         <tr>
-          <td style="padding:32px 36px 8px;">
-            <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.3px;color:#0f0f1a;">Noren</div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:8px 36px 36px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-            ${eyebrow}
-            <h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;font-weight:800;letter-spacing:-0.4px;color:#0f0f1a;">${escapeHtml(
+          <td class="pad" align="center" style="padding:44px 40px 46px;">
+
+            <p style="margin:0 0 30px;font-size:15px;font-weight:600;letter-spacing:-0.1px;color:#0f0f14;font-family:${FONT};">${escapeHtml(
+              opts.companyName,
+            )}</p>
+
+            ${image}
+
+            <h1 class="h1" style="margin:0 0 20px;font-size:30px;line-height:1.18;font-weight:700;letter-spacing:-0.8px;color:#0f0f14;font-family:${FONT};">${escapeHtml(
               opts.heading,
             )}</h1>
-            ${paragraphs}
+
+            <div class="p" style="text-align:center;">${paragraphs}</div>
+
             ${button}
             ${secondary}
+            ${fallback}
+
           </td>
         </tr>
-        <tr><td style="border-top:1px solid #f0f0f3;padding:20px 36px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-          <p style="margin:0;font-size:12px;line-height:1.5;color:#a8a8ad;">Você recebeu este e-mail porque se candidatou por meio da Noren. Se não foi você, é só ignorar.</p>
-        </td></tr>
+        <tr>
+          <td align="center" style="padding:0 40px 34px;">
+            <div style="height:1px;background:#ededf0;margin:0 0 22px;"></div>
+            <p style="margin:0;font-size:12px;line-height:1.6;color:#b4b4bb;font-family:${FONT};">
+              Powered by <span style="color:#8a8a93;font-weight:600;">Noren</span>
+            </p>
+          </td>
+        </tr>
       </table>
     </td>
   </tr>

@@ -68,7 +68,12 @@ type EmailSpec = {
   paragraphs: string[];
   button?: EmailButton;
   secondaryNote?: string;
+  imageUrl?: string;
+  imageAlt?: string;
 };
+
+// GIF de comemoração no e-mail de contratação. Trocável por secret sem deploy.
+const DEFAULT_HIRE_GIF = 'https://media.giphy.com/media/g9582DNuQppxC/giphy.gif';
 
 // Copy por etapa. Voltada ao candidato, tom humano, PT-BR, sem travessão, sem
 // citar IA. eyebrow (nome da empresa) é montado no chamador.
@@ -85,17 +90,13 @@ function composeEmail(args: {
 
   if (toStatus === 'fit_cultural') {
     return {
-      subject: `Boa notícia sobre sua candidatura na ${companyName}`,
-      heading: 'Você passou pra próxima etapa',
+      subject: `Você passou, ${candidateFirstName || 'boa notícia'}!`,
+      heading: 'Você passou pra próxima',
       paragraphs: [
-        `${oi} Gostamos do seu perfil pra vaga de ${jobTitle} e queremos te conhecer melhor.`,
-        'O próximo passo é um formulário rápido pra gente entender melhor o seu fit com o time e com o jeito da empresa. Leva poucos minutos e dá pra salvar e voltar depois se precisar.',
-        'Quando estiver pronto, é só clicar no botão abaixo.',
+        `${oi} Seu perfil chamou atenção aqui pra vaga de ${jobTitle}.`,
+        'Agora vem a parte boa: algumas perguntas pra gente te conhecer de verdade, além do currículo. São poucos minutos.',
       ],
-      button: formUrl ? { label: 'Preencher agora', url: formUrl } : undefined,
-      secondaryNote: formUrl
-        ? `Se o botão não abrir, copie e cole este link no navegador: ${formUrl}`
-        : undefined,
+      button: formUrl ? { label: 'Bora responder', url: formUrl } : undefined,
     };
   }
 
@@ -103,55 +104,57 @@ function composeEmail(args: {
     // TODO: o link de agenda entra via secret SCHEDULING_URL. Enquanto não
     // estiver setado, não mandamos botão e avisamos que o time envia o link.
     const paragraphs = [
-      `${oi} Gostamos ainda mais do seu perfil pra vaga de ${jobTitle} e queremos marcar uma conversa com você.`,
+      `${oi} Chegou a hora da conversa sobre a vaga de ${jobTitle}.`,
     ];
     if (schedulingUrl) {
       paragraphs.push(
-        'Escolha o melhor horário pra gente conversar no link abaixo. Se nenhum encaixar, responda este e-mail que a gente ajeita.',
+        'Escolhe o horário que funciona pra você. Se nenhum encaixar, responde este e-mail que a gente dá um jeito.',
       );
     } else {
       paragraphs.push(
-        'Em seguida o time envia o link pra você escolher um horário que caiba na sua agenda. Fica de olho na caixa de entrada.',
+        'Em seguida mandamos o link pra você escolher um horário que caiba na sua agenda. Fica de olho aqui.',
       );
     }
     return {
-      subject: `Vamos conversar sobre a vaga de ${jobTitle}?`,
-      heading: 'Queremos marcar uma conversa',
+      subject: `Vamos conversar, ${candidateFirstName || 'tudo bem'}?`,
+      heading: 'Bora bater um papo',
       paragraphs,
-      button: schedulingUrl ? { label: 'Agendar conversa', url: schedulingUrl } : undefined,
+      button: schedulingUrl ? { label: 'Escolher horário', url: schedulingUrl } : undefined,
     };
   }
 
   if (toStatus === 'proposta') {
     return {
-      subject: `Novidade sobre a vaga de ${jobTitle} na ${companyName}`,
-      heading: 'Temos uma proposta a caminho',
+      subject: `Novidade boa sobre a vaga de ${jobTitle}`,
+      heading: 'A gente quer você aqui',
       paragraphs: [
-        `${oi} Temos uma ótima notícia: depois das conversas, decidimos seguir com você pra vaga de ${jobTitle}.`,
-        'O time entra em contato em breve pra alinhar os detalhes da proposta com você. Qualquer dúvida no meio do caminho, é só responder este e-mail.',
+        `${oi} Depois das conversas, a decisão foi fácil: queremos seguir com você pra vaga de ${jobTitle}.`,
+        'Já já a gente te chama pra alinhar os detalhes da proposta. Qualquer dúvida no caminho, é só responder aqui.',
       ],
     };
   }
 
   if (toStatus === 'contratado') {
     return {
-      subject: `Bem-vindo ao time da ${companyName}!`,
-      heading: 'Deu tudo certo, seja bem-vindo',
+      subject: `É oficial: bem-vindo ao time da ${companyName}!`,
+      heading: 'Deu bom, você é da casa',
       paragraphs: [
-        `${oi} Que alegria ter você com a gente. É oficial: você faz parte do time da ${companyName} na vaga de ${jobTitle}.`,
-        'O time entra em contato com os próximos passos pra começar. Estamos animados pra te ver por aqui.',
+        `${oi} É oficial! Você faz parte do time da ${companyName} como ${jobTitle}.`,
+        'Em breve mandamos os próximos passos pra você começar. Preparamos um cantinho aqui, mal podemos esperar.',
       ],
+      imageUrl: Deno.env.get('HIRE_GIF_URL') || DEFAULT_HIRE_GIF,
+      imageAlt: 'Comemoração de boas-vindas',
     };
   }
 
   if (toStatus === 'reprovado') {
     return {
       subject: `Sobre sua candidatura na ${companyName}`,
-      heading: 'Uma resposta sincera pra você',
+      heading: 'Uma resposta sincera',
       paragraphs: [
-        `${oi} Obrigado de verdade pelo tempo e pelo cuidado que você teve com o processo pra vaga de ${jobTitle}.`,
-        'Dessa vez a gente não vai seguir com a sua candidatura. A escolha foi difícil e não tira nada do valor do seu trabalho, foi mais uma questão do momento e do que a vaga pede agora.',
-        'Vamos guardar o seu contato pra futuras oportunidades. Te desejo tudo de bom pelo caminho.',
+        `${oi} Obrigado de verdade pelo tempo que você dedicou ao processo da vaga de ${jobTitle}.`,
+        'Dessa vez não vamos seguir. A escolha foi difícil e não diz nada sobre o valor do seu trabalho, foi mais sobre o momento e o que a vaga pede agora.',
+        'Guardamos seu contato pra quando aparecer algo com a sua cara. Boa sorte por aí.',
       ],
     };
   }
@@ -205,7 +208,11 @@ Deno.serve(async (req) => {
 
   const applicationId = (payload.applicationId ?? '').trim();
   const toStatus = (payload.toStatus ?? '').trim();
-  const origin = (payload.origin ?? '').trim().replace(/\/+$/, '');
+  // O link que vai pro candidato precisa ser o endereço público de produção.
+  // APP_URL manda; o origin do navegador é só plano B (senão vaza localhost).
+  const configuredAppUrl = (Deno.env.get('APP_URL') ?? '').trim().replace(/\/+$/, '');
+  const browserOrigin = (payload.origin ?? '').trim().replace(/\/+$/, '');
+  const origin = configuredAppUrl || browserOrigin;
 
   if (!applicationId) return jsonResponse({ error: 'applicationId obrigatório' }, 400);
   if (!toStatus) return jsonResponse({ error: 'toStatus obrigatório' }, 400);
@@ -310,13 +317,23 @@ Deno.serve(async (req) => {
       try {
         const html = renderEmail({
           title: spec.subject,
+          companyName,
           heading: spec.heading,
           paragraphs: spec.paragraphs,
           button: spec.button,
+          imageUrl: spec.imageUrl,
+          imageAlt: spec.imageAlt,
           secondaryNote: spec.secondaryNote,
-          eyebrow: companyName,
+          // Link cru só quando existe botão de form, como plano B.
+          fallbackUrl: spec.button && formUrl ? formUrl : undefined,
         });
-        await sendEmail({ to: candidateEmail, subject: spec.subject, html });
+        // Chega em nome da empresa, pelo endereço verificado da Noren.
+        await sendEmail({
+          to: candidateEmail,
+          subject: spec.subject,
+          html,
+          fromName: companyName,
+        });
         emailSent = true;
       } catch (err) {
         emailSent = false;
