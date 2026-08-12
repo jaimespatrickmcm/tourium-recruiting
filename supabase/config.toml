@@ -86,6 +86,16 @@ verify_jwt = true
 [functions.generate-job-requirements]
 verify_jwt = true
 
+# application-prefill: público. Valida token do candidato (applicant_tokens) pra
+# devolver os dados que já temos e pré-preencher o form individual.
+[functions.application-prefill]
+verify_jwt = false
+
+# notify-stage-change: recrutador logado. Manda e-mail da virada de etapa e
+# devolve link do form + link de WhatsApp. Valida JWT + ownership internamente.
+[functions.notify-stage-change]
+verify_jwt = true
+
 # delete-application: recrutador logado apaga candidatura da própria empresa.
 # Valida JWT + ownership internamente e usa service_role pros deletes.
 [functions.delete-application]
