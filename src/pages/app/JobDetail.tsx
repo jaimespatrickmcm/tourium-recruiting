@@ -33,7 +33,14 @@ import {
   type ApplicationWithAnalysis,
   type ApplicationAnalysis,
 } from '@/hooks/use-applications';
-import { parseDimensions, overallFromDimensions } from '@/lib/scout-areas';
+import {
+  parseDimensions,
+  parseStageDimensions,
+  overallFromDimensions,
+  areaLabel,
+  SCOUT_AREAS,
+  type StageDimension,
+} from '@/lib/scout-areas';
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { Textarea } from '@/components/ui/textarea';
@@ -264,6 +271,60 @@ function StageDecision({
           ? `${rank}º de ${total} no mesmo estágio nesta vaga · média ${average}`
           : 'Primeiro candidato neste estágio. A referência fica mais clara conforme chegam outros.'}
       </p>
+    </div>
+  );
+}
+
+const STAGE_SCOUT_TITLES: Record<string, string> = {
+  cv: 'Leitura do currículo',
+  form: 'Leitura do fit cultural',
+};
+
+// Scout da etapa: as dimensões específicas do estágio de evidência (currículo
+// ou formulário), separadas do scout geral de 5 áreas que fica abaixo.
+function StageScout({
+  stageDims,
+  evidenceStage,
+}: {
+  stageDims: StageDimension[];
+  evidenceStage: string | null;
+}) {
+  const title = (evidenceStage && STAGE_SCOUT_TITLES[evidenceStage]) ?? 'Leitura da etapa';
+  return (
+    <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
+      <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+        {title}
+      </p>
+      <div className="space-y-2.5">
+        {stageDims.map((d) => (
+          <div
+            key={d.area}
+            className="flex items-center gap-3"
+            title={d.rationale ?? undefined}
+          >
+            <span className="w-28 shrink-0 text-[12px] font-medium text-[#6b6b70]">
+              {areaLabel(d.area)}
+            </span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+              {d.score !== null && (
+                <div
+                  className="h-full rounded-full holo-gradient transition-all duration-500"
+                  style={{ width: `${d.score}%` }}
+                />
+              )}
+            </div>
+            {d.score !== null ? (
+              <span className="w-8 shrink-0 text-right text-[12px] font-bold text-[#1d1d1f]">
+                {d.score}
+              </span>
+            ) : (
+              <span className="shrink-0 text-right text-[11px] italic text-[#b0b0b5]">
+                sem dados
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -586,6 +647,7 @@ function StagePill({
 const EMPTY_REQUIREMENTS: JobRequirements = {
   seniority: '',
   summary: '',
+  location: '',
   must_have: [],
   nice_to_have: [],
   responsibilities: [],
@@ -651,6 +713,7 @@ function RequirementsPanel({
     const cleaned: JobRequirements = {
       seniority: draft.seniority.trim(),
       summary: draft.summary.trim(),
+      location: draft.location.trim(),
       must_have: draft.must_have,
       nice_to_have: draft.nice_to_have,
       responsibilities: draft.responsibilities,
@@ -757,6 +820,17 @@ function RequirementsPanel({
                 />
               </div>
               <div>
+                <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">
+                  Local e modelo de trabalho
+                </label>
+                <input
+                  value={draft.location}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, location: e.target.value }))}
+                  placeholder="Ex.: Presencial em BH, Remoto, Híbrido em SP"
+                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-[14px] text-[#1d1d1f] outline-none focus:border-sky-400"
+                />
+              </div>
+              <div>
                 <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">Resumo</label>
                 <Textarea
                   value={draft.summary}
@@ -803,6 +877,16 @@ function RequirementsPanel({
                   </p>
                   <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[12px] font-semibold text-sky-700">
                     {requirements.seniority}
+                  </span>
+                </div>
+              )}
+              {requirements.location && (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                    Local e modelo
+                  </p>
+                  <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[12px] font-semibold text-[#1d1d1f]">
+                    {requirements.location}
                   </span>
                 </div>
               )}
@@ -1097,6 +1181,16 @@ function CandidateDetail({
   const stuckAnalysis =
     pendingAnalysis && Date.now() - new Date(pendingSince).getTime() > STUCK_ANALYSIS_MS;
   const dims = aStatus === 'completed' ? parseDimensions(analysis?.dimensions) : [];
+  const stageDims =
+    aStatus === 'completed' ? parseStageDimensions(analysis?.stage_dimensions) : [];
+  // Áreas gerais que a etapa atual ainda não consegue avaliar (ex.: cultura só
+  // depois do formulário de fit). Mostradas como pendentes, nunca inventadas.
+  const pendingAreas = SCOUT_AREAS.filter((a) => !dims.some((d) => d.area === a.key)).map(
+    (a) => ({
+      area: a.key,
+      note: analysis?.evidence_stage === 'cv' ? 'aguardando fit cultural' : 'sem evidência',
+    }),
+  );
 
   const next = NEXT_STAGE[app.status];
   const isFinal = app.status === 'contratado' || app.status === 'reprovado';
@@ -1404,6 +1498,9 @@ function CandidateDetail({
         ) : dims.length > 0 && analysis ? (
           <div>
             <StageDecision analysis={analysis} dims={dims} cohortStageScores={cohortStageScores} />
+            {stageDims.length > 0 && (
+              <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
+            )}
             <ScoutCard
               name={app.candidate_name}
               subtitle={jobTitle}
@@ -1414,6 +1511,7 @@ function CandidateDetail({
                   ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
                   : null
               }
+              pending={pendingAreas.length > 0 ? pendingAreas : undefined}
             />
             {analysis?.reasoning && (
               <p className="mt-5 text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
@@ -1424,6 +1522,9 @@ function CandidateDetail({
         ) : analysis ? (
           <div>
             <StageDecision analysis={analysis} dims={[]} cohortStageScores={cohortStageScores} />
+            {stageDims.length > 0 && (
+              <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
+            )}
             <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
               {analysis.reasoning}
             </p>

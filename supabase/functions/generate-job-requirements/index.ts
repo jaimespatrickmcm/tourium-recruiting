@@ -14,6 +14,7 @@ type Payload = { jobId: string };
 
 type JobRequirements = {
   seniority: string;
+  location: string;
   summary: string;
   must_have: string[];
   nice_to_have: string[];
@@ -51,6 +52,7 @@ PASSO 2, EXTRAIA os requisitos REAIS da vaga a partir do que a descrição suste
 
 Entregue JSON com estes campos:
 - "seniority": um de estagio, junior, pleno, senior, lead.
+- "location": local e modelo de trabalho da vaga, extraído do título/descrição (ex.: "Presencial em Belo Horizonte", "Remoto", "Híbrido em São Paulo"). Se a descrição não diz, string vazia. Não invente local.
 - "summary": 1 a 2 frases do que a vaga precisa de fato.
 - "must_have": 3 a 6 competências obrigatórias, calibradas ao nível. O que a pessoa PRECISA ter pra dar conta.
 - "nice_to_have": 0 a 4 diferenciais que ajudam mas não são obrigatórios.
@@ -67,6 +69,7 @@ REGRAS DE ESCRITA:
 OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
 {
   "seniority": "<nivel>",
+  "location": "<local e modelo, ou vazio>",
   "summary": "<texto>",
   "must_have": ["<item>"],
   "nice_to_have": ["<item>"],
@@ -89,6 +92,7 @@ function parseRequirements(text: string): JobRequirements | null {
     const parsed = JSON.parse(cleaned);
     const requirements: JobRequirements = {
       seniority: String(parsed?.seniority ?? '').trim(),
+      location: String(parsed?.location ?? '').trim(),
       summary: String(parsed?.summary ?? '').trim(),
       must_have: toStringArray(parsed?.must_have),
       nice_to_have: toStringArray(parsed?.nice_to_have),

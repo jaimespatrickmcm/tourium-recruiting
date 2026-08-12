@@ -43,6 +43,9 @@ type ScoutArea = (typeof SCOUT_AREAS)[number];
 
 type DimensionScore = { area: ScoutArea; score: number; rationale: string };
 
+// Scout da etapa: dimensões específicas do estágio. score null = sem dados.
+type StageDimension = { area: string; score: number | null; rationale: string };
+
 type StageVerdict = 'avancar' | 'segurar' | 'cortar';
 type EvidenceStage = 'cv' | 'form';
 
@@ -55,6 +58,7 @@ type AnalysisResult = {
   stage_verdict: StageVerdict;
   stage_note: string;
   dimensions: DimensionScore[];
+  stage_dimensions: StageDimension[];
 };
 
 const STAGE_VERDICTS = ['avancar', 'segurar', 'cortar'] as const;
@@ -171,6 +175,7 @@ function formatRequirements(req: Record<string, any> | null): string {
 
 GABARITO INTERNO DA VAGA (uso interno, o candidato nunca vê). É a referência do que a vaga EXIGE. Pese o candidato contra isto, priorizando must-have e o foco de avaliação. Red flags presentes puxam nota e recomendação pra baixo.
 Nível: ${req.seniority ?? '(não informado)'}
+Local e modelo de trabalho: ${req.location ?? '(não informado)'}
 Resumo: ${req.summary ?? '(não informado)'}
 Must-have (obrigatórios):
 ${reqList(req.must_have)}
@@ -229,7 +234,7 @@ PASSO 2, AVALIE SÓ COM EVIDÊNCIA. Regra dura: NÃO preencha lacunas, não inve
 
 O que dá pra ler de cada fonte:
 - CURRÍCULO: sustenta bem "execucao" (experiência, projetos, ferramentas, resultados vs o nível da vaga) e razoavelmente "potencial" (trajetória, evolução, projetos próprios). Se houver GABARITO INTERNO, compare a experiência do currículo com os must-have e as responsabilidades da vaga: quanto do que a vaga exige o candidato já mostra ter feito, no nível certo. O que a vaga pede e não aparece em nenhum lugar não vira nota alta (mas também não invente que falta, seja conservador e diga que não teve base). Um link de portfólio ou projeto no currículo conta como sinal positivo de que há material pra avaliar, mas você NÃO acessou o conteúdo do link: não descreva nem assuma o que teria nele.
-- Nesta etapa, se só houver currículo, "cultura" e "motivacao" são fracas: o currículo quase não revela valores nem o porquê desta vaga. Seja conservador nessas duas e diga no rationale que serão avaliadas melhor com as respostas do formulário. NÃO invente um perfil cultural a partir do currículo.
+- Se só houver currículo, "cultura", "motivacao" e "comunicacao" NÃO recebem nota nenhuma: o currículo não revela valores, o porquê desta vaga, nem escrita espontânea. Essas áreas ficam FORA do array "dimensions" e serão avaliadas na etapa de fit cultural. Nota conservadora de algo sem evidência é chute, e chute não entra.
 - RESPOSTAS DO FORMULÁRIO (quando houver): aí sim "cultura" e cenários comportamentais viram evidência real de "cultura" e "motivacao"; "raciocínio" informa "potencial", "comunicacao" e "execucao"; respostas técnicas reforçam "execucao" no nível da vaga e o sinal cultural que revelam. Use o critério interno de cada resposta pra pontuar.
 
 ESTÁGIO DE EVIDÊNCIA: ${args.evidenceStage === 'cv' ? 'SÓ CURRÍCULO (o candidato ainda não respondeu o formulário)' : 'COM RESPOSTAS DO FORMULÁRIO'}.
@@ -239,12 +244,22 @@ Entregue a NOTA DA ETAPA, que é a decisão de avançar ou não NESTE estágio, 
 - "stage_note": 1 frase curta dizendo por que avançar, segurar ou cortar neste estágio.
 O "score" geral continua sendo a leitura acumulada das 5 áreas. No estágio só currículo ele é parcial: pesa mais potencial e execução, e cultura/motivação ficam conservadoras (não confunda score geral parcial com stage_score).
 
-Além do score geral, pontue o candidato em 5 áreas (0-100 cada), sempre NO NÍVEL DA VAGA e só com evidência real:
-- "cultura": alinhamento com a cultura e valores da empresa (só o que aparece de fato; conservador se só há currículo)
-- "execucao": capacidade de entrega e experiência concreta vs o que ESTA vaga pede no nível dela
-- "comunicacao": clareza e estrutura do que o candidato escreveu
-- "motivacao": genuinidade e especificidade do interesse nesta vaga (conservador se não respondeu)
-- "potencial": curiosidade, evolução e espaço pra crescer no papel
+SCOUT GERAL ("dimensions", 0-100 cada, sempre NO NÍVEL DA VAGA): pontue APENAS as áreas que a evidência DESTE estágio sustenta. Área sem evidência fica FORA do array, sem nota nenhuma.
+- Estágio SÓ CURRÍCULO: pontue somente "execucao" (entrega e experiência concreta vs o que esta vaga pede no nível dela) e "potencial" (curiosidade, trajetória, evolução, projetos próprios). NÃO inclua cultura, comunicacao nem motivacao.
+- Estágio COM FORMULÁRIO: pontue as 5 ("cultura": alinhamento real com a cultura da empresa; "execucao"; "comunicacao": clareza e estrutura da escrita; "motivacao": genuinidade e especificidade do interesse nesta vaga; "potencial"), refinando com as respostas o que o currículo já indicava.
+
+SCOUT DA ETAPA ("stage_dimensions"): as dimensões específicas que ESTE estágio consegue medir de fato. Cada uma com score 0-100 OU null quando não há dado (e o rationale diz o que faltou). Nunca chute.
+- Estágio SÓ CURRÍCULO, avalie estas 5:
+  - "experiencia": profundidade e relevância da experiência vs os requisitos, no nível da vaga.
+  - "estabilidade": tempo médio por empresa a partir das DATAS do currículo. Pulos curtos repetidos baixam; trajetória consistente sobe. Datas ausentes ou ilegíveis: score null.
+  - "aderencia_tecnica": hard skills e formação DECLARADAS no currículo vs os must-have do gabarito.
+  - "disponibilidade": vínculo com data em aberto (tipo "2023-atual") indica empregado, disponibilidade menor; último vínculo encerrado indica disponível, score alto. Sem como saber: null.
+  - "localizacao": cidade/região que aparece no currículo vs o local e modelo de trabalho da vaga (campo de local do gabarito). Gabarito sem local OU currículo sem cidade: null.
+- Estágio COM FORMULÁRIO, avalie estas 4 a partir das respostas:
+  - "cultura": alinhamento com a cultura da empresa que as respostas mostram de verdade.
+  - "motivacao": genuinidade e especificidade do interesse nesta vaga.
+  - "comunicacao": clareza e estrutura da escrita.
+  - "raciocinio": qualidade do raciocínio nas respostas de cenário e lógica.
 
 OBSERVAÇÕES DO CURRÍCULO (para o recrutador ler): em "cv_observations", escreva um resumo factual em português do que o CURRÍCULO de fato mostra, para o recrutador bater o olho e entender o candidato rápido. 3 a 6 frases curtas (ou um parágrafo curto): anos e tipo de experiência, background relevante, empresas/áreas, fatos notáveis e link de portfólio/projeto se aparecer no texto. Regra dura, a mesma de sempre: SÓ evidência real do texto do currículo, nada de inventar, preencher lacuna ou assumir. Se houver um link, apenas registre que existe (você não acessou o conteúdo). Se NÃO houver texto de currículo, retorne cv_observations como null. Não use as respostas do formulário aqui, só o currículo.
 
@@ -266,11 +281,10 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
   "reasoning": "<2-3 parágrafos>",
   "cv_observations": <"resumo factual do currículo em 3-6 frases" | null se não houver currículo>,
   "dimensions": [
-    { "area": "cultura", "score": <0-100>, "rationale": "<1-2 frases>" },
-    { "area": "execucao", "score": <0-100>, "rationale": "<1-2 frases>" },
-    { "area": "comunicacao", "score": <0-100>, "rationale": "<1-2 frases>" },
-    { "area": "motivacao", "score": <0-100>, "rationale": "<1-2 frases>" },
-    { "area": "potencial", "score": <0-100>, "rationale": "<1-2 frases>" }
+    { "area": "<SOMENTE área geral COM evidência neste estágio>", "score": <0-100>, "rationale": "<1-2 frases>" }
+  ],
+  "stage_dimensions": [
+    { "area": "<dimensão do estágio>", "score": <0-100 ou null se sem dados>, "rationale": "<1-2 frases>" }
   ]
 }`;
 }
@@ -278,6 +292,14 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
 function clampScore(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value);
   if (Number.isNaN(n)) return 50;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+// null explícito quando não há nota (sem dados). Nunca vira default.
+function scoreOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  if (Number.isNaN(n)) return null;
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
@@ -289,15 +311,26 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
     if (typeof parsed.score !== 'number' || !parsed.reasoning) return null;
 
     const rawDims = Array.isArray(parsed.dimensions) ? parsed.dimensions : [];
-    const dimensions: DimensionScore[] = SCOUT_AREAS.map((area) => {
+    // Scout geral PARCIAL: só entram áreas que o modelo pontuou com número.
+    // Área sem evidência fica FORA (a UI mostra "aguardando"). Nada de default 50.
+    const dimensions: DimensionScore[] = SCOUT_AREAS.flatMap((area) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const found = rawDims.find((d: any) => d?.area === area);
-      return {
-        area,
-        score: clampScore(found?.score),
-        rationale: String(found?.rationale ?? ''),
-      };
+      const score = scoreOrNull(found?.score);
+      if (score === null) return [];
+      return [{ area, score, rationale: String(found?.rationale ?? '') }];
     });
+
+    const rawStage = Array.isArray(parsed.stage_dimensions) ? parsed.stage_dimensions : [];
+    const stage_dimensions: StageDimension[] = rawStage
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((d: any) => d && typeof d.area === 'string')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((d: any) => ({
+        area: String(d.area),
+        score: scoreOrNull(d.score),
+        rationale: String(d.rationale ?? ''),
+      }));
 
     const cvRaw = parsed.cv_observations;
     const cvObservations =
@@ -316,6 +349,7 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       stage_verdict: normalizeVerdict(parsed.stage_verdict),
       stage_note: stageNote,
       dimensions,
+      stage_dimensions,
     };
   } catch {
     return null;
@@ -471,6 +505,7 @@ Deno.serve(async (req) => {
         stage_verdict: result.stage_verdict,
         stage_note: result.stage_note || null,
         dimensions: result.dimensions,
+        stage_dimensions: result.stage_dimensions,
         dna_version_used: dnaVersion,
         model_used: MODEL,
         cost_cents: costCents,
