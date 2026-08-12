@@ -55,8 +55,17 @@ type Props = {
   onDone: () => void;
 };
 
+const KINDS: QuestionKind[] = ['profile', 'culture', 'curiosity', 'reasoning'];
+
+const KIND_LABEL: Record<QuestionKind, string> = {
+  profile: 'Sobre o candidato',
+  culture: 'Cultura',
+  curiosity: 'Curiosidade',
+  reasoning: 'Raciocínio',
+};
+
 function normalizeKind(value: unknown): QuestionKind {
-  return value === 'reasoning' ? 'reasoning' : 'culture';
+  return KINDS.includes(value as QuestionKind) ? (value as QuestionKind) : 'culture';
 }
 
 const FORMATS: QuestionFormat[] = ['text', 'number', 'single_select', 'multi_select'];
@@ -87,11 +96,15 @@ function emptyQuestion(): DraftQuestion {
 }
 
 function KindChip({ kind }: { kind: QuestionKind }) {
-  const label = kind === 'culture' ? 'Cultura' : 'Raciocínio';
+  const label = KIND_LABEL[kind];
   const cls =
-    kind === 'culture'
-      ? 'bg-sky-50 text-sky-700 border-sky-200'
-      : 'bg-violet-50 text-violet-700 border-violet-200';
+    kind === 'profile'
+      ? 'bg-gray-50 text-gray-700 border-gray-200'
+      : kind === 'culture'
+        ? 'bg-sky-50 text-sky-700 border-sky-200'
+        : kind === 'curiosity'
+          ? 'bg-amber-50 text-amber-700 border-amber-200'
+          : 'bg-violet-50 text-violet-700 border-violet-200';
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cls}`}
@@ -119,7 +132,7 @@ export function QuestionGeneratorModal({
   const initializedRef = useRef(false);
 
   const isJob = mode.type === 'job';
-  const headerLabel = isJob ? 'Perguntas da vaga' : 'Cultura e raciocínio';
+  const headerLabel = isJob ? 'Perguntas da vaga' : 'Perguntas da empresa';
 
   useEffect(() => {
     if (!open) {
@@ -275,7 +288,12 @@ export function QuestionGeneratorModal({
         const { data: existing } = await supabase
           .from('company_questions')
           .select('kind, position');
-        const nextByKind: Record<QuestionKind, number> = { culture: 0, reasoning: 0 };
+        const nextByKind: Record<QuestionKind, number> = {
+          profile: 0,
+          culture: 0,
+          curiosity: 0,
+          reasoning: 0,
+        };
         for (const row of (existing as { kind: QuestionKind; position: number }[] | null) ?? []) {
           if (row.position + 1 > nextByKind[row.kind]) {
             nextByKind[row.kind] = row.position + 1;
@@ -376,7 +394,7 @@ export function QuestionGeneratorModal({
               <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
                 {isJob
                   ? 'Perguntas técnicas específicas dessa vaga. Todo candidato da vaga responde as mesmas.'
-                  : 'Perguntas de cultura e raciocínio da empresa. Todo candidato responde as mesmas.'}
+                  : 'Perguntas sobre o candidato, cultura, curiosidade e raciocínio. Todo candidato responde as mesmas.'}
               </p>
 
               <div className="space-y-3">
@@ -761,25 +779,21 @@ function KindToggle({
   value: QuestionKind;
   onChange: (kind: QuestionKind) => void;
 }) {
-  const options: { key: QuestionKind; label: string }[] = [
-    { key: 'culture', label: 'Cultura' },
-    { key: 'reasoning', label: 'Raciocínio' },
-  ];
   return (
-    <div className="inline-flex items-center rounded-full border border-gray-200 bg-white p-0.5">
-      {options.map((opt) => {
-        const active = value === opt.key;
+    <div className="inline-flex flex-wrap items-center rounded-full border border-gray-200 bg-white p-0.5">
+      {KINDS.map((key) => {
+        const active = value === key;
         return (
           <button
-            key={opt.key}
+            key={key}
             type="button"
-            onClick={() => onChange(opt.key)}
+            onClick={() => onChange(key)}
             className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors ${
               active ? 'bg-sky-600 text-white' : 'text-[#8a8a8f] hover:text-[#1d1d1f]'
             }`}
             aria-pressed={active}
           >
-            {opt.label}
+            {KIND_LABEL[key]}
           </button>
         );
       })}

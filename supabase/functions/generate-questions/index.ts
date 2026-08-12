@@ -7,8 +7,10 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { callOpenAI } from '../_shared/openai.ts';
 
-type Kind = 'culture' | 'reasoning';
-type GenKind = Kind | 'mixed';
+type Kind = 'profile' | 'culture' | 'reasoning' | 'curiosity';
+// O payload do modal segue 'culture' | 'reasoning' | 'mixed'. 'culture' cobre
+// as seções da pessoa (profile + culture + curiosity); 'reasoning' só o raciocínio.
+type GenKind = 'culture' | 'reasoning' | 'mixed';
 type Mode = 'noren' | 'scratch';
 type Payload = { kind: GenKind; mode?: Mode; notes?: string };
 
@@ -39,41 +41,74 @@ type NorenBaseQuestion = {
 };
 
 const NOREN_BASE: NorenBaseQuestion[] = [
+  // ---- SOBRE O CANDIDATO (profile): informação, história e triagem ----
   {
-    kind: 'culture',
+    kind: 'profile',
     question: 'Conte um pouco da sua história. Como você chegou até aqui?',
     format: 'text',
     required: true,
     intent: 'trajetória, autoconhecimento e clareza narrativa',
   },
   {
-    kind: 'culture',
+    kind: 'profile',
     question: 'Cite uma conquista da qual você tem orgulho e o motivo.',
     format: 'text',
     required: true,
     intent: 'o que a pessoa considera vitória e o papel dela na conquista',
   },
   {
-    kind: 'culture',
+    kind: 'profile',
     question: 'Conte sobre uma vez em que você assumiu um risco e falhou. O que aprendeu?',
     format: 'text',
     required: true,
     intent: 'relação com fracasso, ownership e aprendizado',
   },
   {
-    kind: 'culture',
+    kind: 'profile',
     question: 'Qual seu maior sonho ainda não realizado?',
     format: 'text',
     required: false,
     intent: 'ambição e o que move a pessoa',
   },
   {
-    kind: 'culture',
+    kind: 'profile',
     question: 'Onde você quer estar daqui a 3 anos?',
     format: 'text',
     required: true,
     intent: 'aspiração e aderência do plano da pessoa ao que a empresa oferece',
   },
+  {
+    kind: 'profile',
+    question: 'Quantos anos de experiência você tem na área dessa vaga?',
+    format: 'number',
+    required: true,
+    intent: 'informativo de triagem: comparar com o nível da vaga, não pontua',
+  },
+  {
+    kind: 'profile',
+    question: 'Qual foi o seu último salário? Se ainda estiver trabalhando, pode colocar o atual.',
+    format: 'number',
+    required: true,
+    intent:
+      'informativo de triagem: checar se o candidato cabe na faixa salarial da vaga, não pontua',
+  },
+  {
+    kind: 'profile',
+    question: 'Qual regime de contrato você prefere?',
+    format: 'multi_select',
+    options: ['PJ', 'CLT'],
+    required: true,
+    intent: 'informativo de triagem: compatibilidade com o regime que a empresa oferece',
+  },
+  {
+    kind: 'profile',
+    question: 'Onde você ficou sabendo dessa vaga?',
+    format: 'single_select',
+    options: ['LinkedIn', 'Indicação', 'Anúncio', 'Site da empresa', 'Outro'],
+    required: true,
+    intent: 'informativo de sourcing: de onde vêm os candidatos, não pontua',
+  },
+  // ---- CULTURA: estilo de pensamento e fit ----
   {
     kind: 'culture',
     question:
@@ -91,34 +126,27 @@ const NOREN_BASE: NorenBaseQuestion[] = [
   },
   {
     kind: 'culture',
-    question: 'Quantos anos de experiência você tem na área dessa vaga?',
-    format: 'number',
-    required: true,
-    intent: 'informativo de triagem: comparar com o nível da vaga, não pontua cultura',
+    question: 'Em quem você pensa quando falo em: pessoa inteligente? Não vale você mesmo.',
+    format: 'text',
+    required: false,
+    intent: 'o que a pessoa entende por inteligência revela o que ela valoriza e persegue',
   },
+  // ---- CURIOSIDADE: o quanto a pessoa aprende sozinha e se interessa ----
   {
-    kind: 'culture',
-    question: 'Qual foi o seu último salário? Se ainda estiver trabalhando, pode colocar o atual.',
-    format: 'number',
+    kind: 'curiosity',
+    question:
+      'O que você aprendeu recentemente por conta própria, sem ninguém pedir? Como você foi atrás?',
+    format: 'text',
     required: true,
     intent:
-      'informativo de triagem: checar se o candidato cabe na faixa salarial da vaga, não pontua cultura',
+      'curiosidade genuína e iniciativa de aprendizado: especificidade do tema e do caminho valem mais que o assunto em si',
   },
   {
-    kind: 'culture',
-    question: 'Qual regime de contrato você prefere?',
-    format: 'multi_select',
-    options: ['PJ', 'CLT'],
-    required: true,
-    intent: 'informativo de triagem: compatibilidade com o regime que a empresa oferece',
-  },
-  {
-    kind: 'culture',
-    question: 'Onde você ficou sabendo dessa vaga?',
-    format: 'single_select',
-    options: ['LinkedIn', 'Indicação', 'Anúncio', 'Site da empresa', 'Outro'],
-    required: true,
-    intent: 'informativo de sourcing: de onde vêm os candidatos, não pontua',
+    kind: 'curiosity',
+    question: 'Sobre o que você consegue falar por meia hora sem preparar nada?',
+    format: 'text',
+    required: false,
+    intent: 'profundidade de interesse real em algum tema, qualquer tema',
   },
   {
     kind: 'reasoning',
@@ -181,29 +209,35 @@ function buildPrompt(args: {
   const schema = `OUTPUT: somente JSON, nenhum texto antes ou depois. Schema:
 {
   "questions": [
-    { "kind": "culture" | "reasoning", "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>", "format": "text" | "number" | "single_select" | "multi_select", "options": ["<opção>", "..."] | null, "required": true | false, "base_index": <número, só nas perguntas da base fixa> }
+    { "kind": "profile" | "culture" | "curiosity" | "reasoning", "question": "<texto>", "guidance": "<texto>", "scoring_rubric": "<texto>", "format": "text" | "number" | "single_select" | "multi_select", "options": ["<opção>", "..."] | null, "required": true | false, "base_index": <número, só nas perguntas da base fixa> }
   ]
 }
 Cada item traz o "kind" correto. "options" só existe (2 a 12 itens) quando format é single_select ou multi_select; nos outros formatos é null. "base_index" só existe nas perguntas da base fixa do método Noren.`;
 
-  const norenCultureBase = NOREN_BASE.filter((q) => q.kind === 'culture');
+  const categorias = `As perguntas se dividem em 4 categorias (campo "kind"):
+- "profile" (Sobre o candidato): informação e história da pessoa, mais dados de triagem (experiência, salário, regime, origem). Não mede fit por si; a rubrica diz o que a resposta informa pro avaliador e contra o que comparar.
+- "culture" (Cultura): estilo de pensamento, valores e fit com ESTA empresa. É onde a mesma resposta pontua diferente conforme a cultura.
+- "curiosity" (Curiosidade): o quanto a pessoa é curiosa, aprende por conta própria e se aprofunda no que gosta. Rubrica premia especificidade e iniciativa genuína, não o tema escolhido.
+- "reasoning" (Raciocínio lógico): raciocínio puro, neutro e comparável entre candidatos.`;
+
+  const norenPersonBase = NOREN_BASE.filter((q) => q.kind !== 'reasoning');
   const norenReasoningBase = NOREN_BASE.filter((q) => q.kind === 'reasoning');
 
   const blocoCultura = wantCulture
     ? args.mode === 'noren'
-      ? `SEÇÃO CULTURA E PERFIL (método Noren, kind "culture"):
+      ? `SEÇÕES SOBRE O CANDIDATO + CULTURA + CURIOSIDADE (método Noren):
 Cultura NÃO é sobre segmento, produto ou experiência no ramo. É soft skill, caráter, valores e ética de trabalho: como a pessoa pensa, lida com fracasso, o que a move, o quanto assume responsabilidade.
-O método Noren tem uma base fixa, testada em processo real. Reproduza CADA pergunta abaixo incluindo o "base_index" indicado. Seu trabalho nelas é escrever guidance e scoring_rubric calibrados pela cultura DESTA empresa (o campo "mede" diz a intenção); question, format, options e required serão fixados pelo sistema a partir do base_index:
-${norenCultureBase.map(baseLine).join('\n')}
-Nas perguntas informativas (experiência, salário, regime, origem da vaga), a rubrica deve dizer com clareza que a resposta NÃO pontua cultura: serve de triagem (comparar com o nível, a faixa salarial e o regime da vaga) e entra como contexto pro avaliador.
+O método Noren tem uma base fixa, testada em processo real. Reproduza CADA pergunta abaixo incluindo o "base_index" indicado. Seu trabalho nelas é escrever guidance e scoring_rubric calibrados pela cultura DESTA empresa (o campo "mede" diz a intenção); question, kind, format, options e required serão fixados pelo sistema a partir do base_index:
+${norenPersonBase.map(baseLine).join('\n')}
+Nas perguntas informativas de profile (experiência, salário, regime, origem da vaga), a rubrica deve dizer com clareza que a resposta NÃO pontua: serve de triagem (comparar com o nível, a faixa salarial e o regime da vaga) e entra como contexto pro avaliador.
 
-Depois da base, gere MAIS DUAS perguntas de cultura:
+Depois da base, gere MAIS DUAS perguntas de kind "culture":
 - Uma multi_select de calibração de mentalidade: "Com qual dessas pessoas você mais se identifica?" com 10 a 12 figuras públicas amplamente conhecidas no Brasil, required true, cobrindo mentalidades bem diferentes entre si: alta performance e execução, criatividade e arte, ciência, ativismo social ou ambiental, disciplina e filosofia, empreendedorismo, esporte, e visões políticas de lados opostos. A rubrica é o coração dessa pergunta: diga quais escolhas indicam fit forte com ESTA cultura, quais são neutras e quais indicam anti-fit, e como pontuar combinações mistas. Escolhas de anti-fit não são "erradas", são sinal de que a pessoa rende mais em outro tipo de empresa.
 - Uma pergunta aberta extra (format text) no mesmo estilo pessoal do método, que revele o que ESTA cultura mais valoriza.
 `
-      : `SEÇÃO CULTURA (gerada do zero, kind "culture"):
-Cultura é soft skill, caráter, valores e ética de trabalho, não segmento nem hard skill. Gere 4 perguntas pessoais e abertas (história, conquista, fracasso e aprendizado, aspiração, cenários de comportamento como discordar do gestor ou receber feedback duro), calibradas ao que ESTA cultura valoriza e reprova. Continuam genéricas quanto ao negócio: são sobre a pessoa.
-Além das abertas, gere 1 pergunta multi_select de calibração de mentalidade ("Com qual dessas pessoas você mais se identifica?", 10 a 12 figuras públicas conhecidas no Brasil, de mentalidades bem diferentes entre si) com rubrica dizendo quais escolhas indicam fit, neutro e anti-fit pra ESTA cultura.
+      : `SEÇÕES SOBRE O CANDIDATO + CULTURA + CURIOSIDADE (geradas do zero):
+Gere 3 perguntas de kind "profile" (história, conquista, fracasso e aprendizado, aspiração), 3 de kind "culture" pessoais e abertas (cenários de comportamento como discordar do gestor ou receber feedback duro, referências), e 1 a 2 de kind "curiosity" (aprendizado por conta própria, profundidade de interesse). Calibradas ao que ESTA cultura valoriza e reprova, mas genéricas quanto ao negócio: são sobre a pessoa.
+Além das abertas, gere 1 pergunta multi_select de kind "culture" de calibração de mentalidade ("Com qual dessas pessoas você mais se identifica?", 10 a 12 figuras públicas conhecidas no Brasil, de mentalidades bem diferentes entre si) com rubrica dizendo quais escolhas indicam fit, neutro e anti-fit pra ESTA cultura.
 `
     : '';
 
@@ -226,9 +260,11 @@ Nome: ${args.companyName}
 Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
 Notas de quem está montando: ${args.notes ?? '(nenhuma)'}
 
+${categorias}
+
 ${blocoCultura}${blocoRaciocinio}
 Para CADA pergunta entregue:
-- "kind": "culture" ou "reasoning".
+- "kind": "profile", "culture", "curiosity" ou "reasoning".
 - "question": o enunciado que o candidato lê.
 - "guidance": o que uma boa resposta demonstra (uso interno). Concreto.
 - "scoring_rubric": como pontuar de 0 a 100 (uso interno). Em cultura, CALIBRE PELA CULTURA DESTA EMPRESA (a mesma pergunta pontua diferente conforme o que a empresa valoriza). Diga o que aprova, o que reprova e onde fica a média. Em pergunta de seleção com resposta certa, diga qual é. Em pergunta informativa, diga que não pontua e o que o avaliador deve comparar.
@@ -271,8 +307,13 @@ function parseQuestions(text: string, fallbackKind: Kind): ParsedQuestion[] | nu
         if ((format === 'single_select' || format === 'multi_select') && !options) {
           format = 'text';
         }
+        const kindOk =
+          q?.kind === 'profile' ||
+          q?.kind === 'culture' ||
+          q?.kind === 'reasoning' ||
+          q?.kind === 'curiosity';
         return {
-          kind: q?.kind === 'reasoning' || q?.kind === 'culture' ? q.kind : fallbackKind,
+          kind: kindOk ? (q.kind as Kind) : fallbackKind,
           question: String(q?.question ?? '').trim(),
           guidance: String(q?.guidance ?? '').trim(),
           scoring_rubric: String(q?.scoring_rubric ?? '').trim(),
@@ -315,7 +356,7 @@ function enforceNorenBase(
     }
   }
   const base: GeneratedQuestion[] = NOREN_BASE.map((q, i) => ({ q, i }))
-    .filter(({ q }) => (q.kind === 'culture' ? wantCulture : wantReasoning))
+    .filter(({ q }) => (q.kind === 'reasoning' ? wantReasoning : wantCulture))
     .map(({ q, i }) => ({
       kind: q.kind,
       question: q.question,

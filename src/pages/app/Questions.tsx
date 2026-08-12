@@ -57,6 +57,15 @@ function isSelectFormat(format: QuestionFormat): boolean {
   return format === 'single_select' || format === 'multi_select';
 }
 
+const KIND_ORDER: QuestionKind[] = ['profile', 'culture', 'curiosity', 'reasoning'];
+
+const KIND_EMPTY_LABEL: Record<QuestionKind, string> = {
+  profile: 'sobre o candidato',
+  culture: 'cultura',
+  curiosity: 'curiosidade',
+  reasoning: 'raciocínio',
+};
+
 type ModalState = { mode: GeneratorMode; startManual: boolean } | null;
 
 export function Questions() {
@@ -81,12 +90,11 @@ export function Questions() {
     void loadJobs();
   }, []);
 
-  const cultureQuestions = useMemo(
-    () => companyQuestions.filter((q) => q.kind === 'culture'),
-    [companyQuestions],
-  );
-  const reasoningQuestions = useMemo(
-    () => companyQuestions.filter((q) => q.kind === 'reasoning'),
+  const questionsByKind = useMemo(
+    () =>
+      Object.fromEntries(
+        KIND_ORDER.map((kind) => [kind, companyQuestions.filter((q) => q.kind === kind)]),
+      ) as Record<QuestionKind, CompanyQuestion[]>,
     [companyQuestions],
   );
 
@@ -121,14 +129,13 @@ export function Questions() {
 
         <Tabs defaultValue="company">
           <TabsList className="mb-6">
-            <TabsTrigger value="company">Cultura e raciocínio</TabsTrigger>
+            <TabsTrigger value="company">Da empresa</TabsTrigger>
             <TabsTrigger value="job">Por vaga</TabsTrigger>
           </TabsList>
 
           <TabsContent value="company">
             <UnifiedCompanyPanel
-              cultureQuestions={cultureQuestions}
-              reasoningQuestions={reasoningQuestions}
+              questionsByKind={questionsByKind}
               loading={loadingCompany}
               onGerar={() => openGenerator({ type: 'company' })}
               onManual={() => openGenerator({ type: 'company' }, true)}
@@ -163,28 +170,26 @@ export function Questions() {
 }
 
 function UnifiedCompanyPanel({
-  cultureQuestions,
-  reasoningQuestions,
+  questionsByKind,
   loading,
   onGerar,
   onManual,
   onChanged,
 }: {
-  cultureQuestions: CompanyQuestion[];
-  reasoningQuestions: CompanyQuestion[];
+  questionsByKind: Record<QuestionKind, CompanyQuestion[]>;
   loading: boolean;
   onGerar: () => void;
   onManual: () => void;
   onChanged: () => void | Promise<void>;
 }) {
-  const total = cultureQuestions.length + reasoningQuestions.length;
+  const total = KIND_ORDER.reduce((sum, kind) => sum + questionsByKind[kind].length, 0);
 
   return (
     <div>
       <div className="flex items-start justify-between gap-4 mb-5">
         <p className="text-[14px] text-[#6b6b70] leading-relaxed max-w-md">
-          Perguntas de cultura (ética de trabalho e fit com o DNA) e de raciocínio lógico, geradas
-          juntas e padronizadas pra todo candidato.
+          Perguntas sobre o candidato (história e triagem), cultura (fit com o DNA), curiosidade e
+          raciocínio lógico. Geradas juntas e padronizadas pra todo candidato.
         </p>
         <div className="flex items-center gap-2 shrink-0">
           <button
@@ -223,16 +228,14 @@ function UnifiedCompanyPanel({
         </div>
       ) : (
         <div className="space-y-8">
-          <KindGroup
-            kind="culture"
-            questions={cultureQuestions}
-            onChanged={onChanged}
-          />
-          <KindGroup
-            kind="reasoning"
-            questions={reasoningQuestions}
-            onChanged={onChanged}
-          />
+          {KIND_ORDER.map((kind) => (
+            <KindGroup
+              key={kind}
+              kind={kind}
+              questions={questionsByKind[kind]}
+              onChanged={onChanged}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -259,7 +262,7 @@ function KindGroup({
 
       {questions.length === 0 ? (
         <p className="text-[13px] text-[#a8a8ad] italic">
-          Nenhuma pergunta de {kind === 'culture' ? 'cultura' : 'raciocínio'} ainda.
+          Nenhuma pergunta de {KIND_EMPTY_LABEL[kind]} ainda.
         </p>
       ) : (
         <div className="space-y-3">

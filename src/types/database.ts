@@ -19,7 +19,7 @@ export type ApplicationEventType = 'stage_change' | 'note' | 'hired';
 export type CollaboratorStatus = 'ativo' | 'desligado';
 export type ScoreSource = 'analise_inicial' | 'avaliacao';
 export type GoalStatus = 'em_andamento' | 'concluida' | 'pausada';
-export type QuestionKind = 'culture' | 'reasoning';
+export type QuestionKind = 'profile' | 'culture' | 'reasoning' | 'curiosity';
 export type QuestionFormat = 'text' | 'number' | 'single_select' | 'multi_select';
 export type JobVisibility = 'public' | 'private';
 export type HighlightType = 'yes_no' | 'short_text';
@@ -36,7 +36,13 @@ export type JobRequirements = {
   evaluation_focus: string[];
   red_flags: string[];
 };
-export type AnswerSource = 'candidate_info' | 'job_question' | 'culture' | 'reasoning';
+export type AnswerSource =
+  | 'candidate_info'
+  | 'job_question'
+  | 'profile'
+  | 'culture'
+  | 'reasoning'
+  | 'curiosity';
 
 export type Database = {
   public: {
