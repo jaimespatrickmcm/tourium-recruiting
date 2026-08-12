@@ -17,8 +17,48 @@ export type DimensionScore = {
   rationale?: string | null;
 };
 
+// Áreas específicas do scout por etapa (stage_dimensions). As de CV avaliam o
+// currículo contra a vaga; raciocinio aparece na etapa de formulário.
+export const STAGE_AREA_LABELS: Record<string, string> = {
+  experiencia: 'Experiência',
+  estabilidade: 'Estabilidade',
+  aderencia_tecnica: 'Aderência técnica',
+  disponibilidade: 'Disponibilidade',
+  localizacao: 'Localização',
+  raciocinio: 'Raciocínio',
+};
+
 export function areaLabel(key: string): string {
-  return SCOUT_AREAS.find((a) => a.key === key)?.label ?? key;
+  return SCOUT_AREAS.find((a) => a.key === key)?.label ?? STAGE_AREA_LABELS[key] ?? key;
+}
+
+export type StageDimension = {
+  area: string;
+  score: number | null;
+  rationale: string | null;
+};
+
+// Converte o jsonb stage_dimensions de ai_analyses (com validação defensiva).
+// Itens com score null são MANTIDOS: significam "sem dados" (ex.: datas
+// ilegíveis no currículo) e a UI mostra isso em vez de esconder.
+export function parseStageDimensions(raw: unknown): StageDimension[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StageDimension[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const { area, score, rationale } = item as Record<string, unknown>;
+    if (typeof area !== 'string' || area.length === 0) continue;
+    let normalized: number | null = null;
+    if (typeof score === 'number' && Number.isFinite(score)) {
+      normalized = Math.max(0, Math.min(100, Math.round(score)));
+    }
+    out.push({
+      area,
+      score: normalized,
+      rationale: typeof rationale === 'string' ? rationale : null,
+    });
+  }
+  return out;
 }
 
 // Converte o jsonb dimensions de ai_analyses (com validação defensiva)

@@ -27,6 +27,8 @@ export type HighlightType = 'yes_no' | 'short_text';
 export type JobRequirements = {
   seniority: string;
   summary: string;
+  /** Local + modelo de trabalho da vaga (ex.: "Presencial em BH", "Remoto"). '' quando desconhecido. */
+  location: string;
   must_have: string[];
   nice_to_have: string[];
   responsibilities: string[];
@@ -188,6 +190,7 @@ export type Database = {
           stage_verdict: string | null;
           stage_note: string | null;
           dimensions: Json | null;
+          stage_dimensions: Json | null;
           dna_version_used: number | null;
           model_used: string | null;
           cost_cents: number | null;

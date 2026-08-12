@@ -18,6 +18,8 @@ export type ScoutCardProps = {
   badge?: string | null;
   compact?: boolean;
   className?: string;
+  /** Áreas ainda sem avaliação nesta etapa (ex.: "aguardando fit cultural"). */
+  pending?: { area: string; note: string }[];
 };
 
 const RADAR_SIZE = 220;
@@ -56,6 +58,7 @@ export function ScoutCard({
   badge,
   compact = false,
   className,
+  pending,
 }: ScoutCardProps) {
   const n = dimensions.length;
   const gridLevels = [1 / 3, 2 / 3, 1];
@@ -182,6 +185,14 @@ export function ScoutCard({
               <span className={cn('w-8 shrink-0 text-right text-[12px] font-bold', scoreTone(d.score))}>
                 {d.score}
               </span>
+            </div>
+          ))}
+          {pending?.map((p) => (
+            <div key={p.area} className="flex items-center gap-3">
+              <span className="w-24 shrink-0 text-[12px] font-medium text-[#b0b0b5]">
+                {areaLabel(p.area)}
+              </span>
+              <span className="flex-1 text-[11px] italic text-[#b0b0b5]">{p.note}</span>
             </div>
           ))}
         </div>
