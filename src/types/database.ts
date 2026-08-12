@@ -121,6 +121,7 @@ export type Database = {
           highlight_type: HighlightType | null;
           highlight_expected: string | null;
           requirements: JobRequirements | null;
+          show_benefits: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -385,6 +386,8 @@ export type Database = {
           slug: string;
           name: string;
           description: string | null;
+          /** Só os benefícios do DNA. O resto do dna_document continua interno. */
+          benefits: Json;
         };
         Relationships: [];
       };

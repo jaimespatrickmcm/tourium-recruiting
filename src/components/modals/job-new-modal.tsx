@@ -45,6 +45,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
+  const [showBenefits, setShowBenefits] = useState(true);
   const [highlightOn, setHighlightOn] = useState(false);
   const [highlightType, setHighlightType] = useState<HighlightType>('yes_no');
   const [highlightQuestion, setHighlightQuestion] = useState('');
@@ -67,6 +68,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       setTitle('');
       setDescription('');
       setVisibility('private');
+      setShowBenefits(true);
       setHighlightOn(false);
       setHighlightType('yes_no');
       setHighlightQuestion('');
@@ -155,6 +157,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
         title,
         description: description || null,
         visibility,
+        show_benefits: showBenefits,
         highlight_question: highlightOn && highlightQuestion.trim() ? highlightQuestion.trim() : null,
         highlight_type: highlightOn && highlightQuestion.trim() ? highlightType : null,
         highlight_expected:
@@ -489,6 +492,33 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                     </p>
                   </button>
                 </div>
+              </div>
+
+              {/* Benefícios: vêm do DNA da empresa, a vaga só decide se mostra */}
+              <div className="mt-5 rounded-xl border border-gray-200 p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBenefits((v) => !v)}
+                  className="flex w-full items-start gap-3 text-left"
+                >
+                  <span
+                    className={
+                      'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ' +
+                      (showBenefits ? 'border-sky-500 bg-sky-500' : 'border-gray-300 bg-white')
+                    }
+                  >
+                    {showBenefits && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                  </span>
+                  <span>
+                    <span className="block text-[13px] font-semibold text-[#1d1d1f]">
+                      Exibir os benefícios da empresa nesta vaga
+                    </span>
+                    <span className="block text-[12px] text-[#6b6b70] mt-0.5">
+                      Usa os benefícios cadastrados no DNA da empresa. Desmarque se essa vaga tem
+                      condições diferentes.
+                    </span>
+                  </span>
+                </button>
               </div>
 
               {/* Pergunta de destaque (opcional) */}

@@ -63,6 +63,7 @@ type Job = {
   highlight_question: string | null;
   highlight_type: HighlightType | null;
   requirements: JobRequirements | null;
+  show_benefits: boolean;
 };
 
 type AppEvent = {
@@ -357,7 +358,7 @@ export function JobDetail() {
       const { data } = await supabase
         .from('jobs')
         .select(
-          'id, slug, title, description, status, created_at, highlight_question, highlight_type, requirements',
+          'id, slug, title, description, status, created_at, highlight_question, highlight_type, requirements, show_benefits',
         )
         .eq('id', id)
         .maybeSingle<Job>();
@@ -441,6 +442,7 @@ export function JobDetail() {
         <DescriptionPanel
           job={job}
           onUpdate={(description) => setJob({ ...job, description })}
+          onToggleBenefits={(show_benefits) => setJob({ ...job, show_benefits })}
         />
 
         <RequirementsPanel job={job} onUpdate={(requirements) => setJob({ ...job, requirements })} />
@@ -655,15 +657,36 @@ function StagePill({
 function DescriptionPanel({
   job,
   onUpdate,
+  onToggleBenefits,
 }: {
   job: Job;
   onUpdate: (description: string) => void;
+  onToggleBenefits: (showBenefits: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [togglingBenefits, setTogglingBenefits] = useState(false);
+
+  async function toggleBenefits() {
+    const next = !job.show_benefits;
+    setTogglingBenefits(true);
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ show_benefits: next })
+        .eq('id', job.id);
+      if (error) throw error;
+      onToggleBenefits(next);
+      toast.success(next ? 'Benefícios aparecem nesta vaga.' : 'Benefícios ocultos nesta vaga.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra atualizar.');
+    } finally {
+      setTogglingBenefits(false);
+    }
+  }
 
   const description = job.description ?? '';
   const sections = parseDescriptionSections(description);
@@ -815,6 +838,32 @@ function DescriptionPanel({
               Essa vaga ainda não tem descrição. Clique em Regerar pra a IA escrever uma, ou em
               Editar pra escrever na mão.
             </p>
+          )}
+
+          {!editing && (
+            <button
+              type="button"
+              onClick={() => void toggleBenefits()}
+              disabled={togglingBenefits}
+              className="mt-5 flex w-full items-start gap-3 rounded-xl border border-gray-200 p-3.5 text-left transition-colors hover:border-gray-300 disabled:opacity-50"
+            >
+              <span
+                className={
+                  'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ' +
+                  (job.show_benefits ? 'border-sky-500 bg-sky-500' : 'border-gray-300 bg-white')
+                }
+              >
+                {job.show_benefits && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+              </span>
+              <span>
+                <span className="block text-[13px] font-semibold text-[#1d1d1f]">
+                  Exibir os benefícios da empresa nesta vaga
+                </span>
+                <span className="block text-[12px] text-[#6b6b70] mt-0.5">
+                  Os benefícios são cadastrados no DNA da empresa e aparecem na career page.
+                </span>
+              </span>
+            </button>
           )}
         </div>
       )}

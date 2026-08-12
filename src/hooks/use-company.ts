@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 export type DnaDocument = {
   culture?: string;
+  benefits?: string[];
   // legacy fields kept for backward compat (old wizard data lives here)
   values?: string[];
   workStyle?: { pace?: string; autonomy?: string; communication?: string; decisionMaking?: string };

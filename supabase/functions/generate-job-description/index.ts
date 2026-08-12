@@ -43,8 +43,7 @@ Escreva uma descrição de vaga curta e direta (250-450 palavras) em seções. C
 ## Sobre a empresa
 2-3 frases honestas sobre o que a empresa faz, a cultura e o momento dela. Use as palavras da cultura acima quando fizer sentido.
 
-## Benefícios
-Inclua esta seção SOMENTE se as informações da empresa acima citarem benefícios reais (vale, plano, horário, remoto, auxílio). Liste em bullets apenas o que estiver escrito ali. Se não houver nada concreto, OMITA a seção inteira. Nunca invente benefício: prometer algo que a empresa não oferece queima a confiança do candidato.
+NÃO escreva seção de benefícios. Os benefícios são cadastrados à parte, como itens, e a career page mostra sozinha quando a vaga está configurada pra isso. Se você escrever aqui, o candidato vê duplicado.
 
 REGRAS DE FORMATO:
 - Título de seção: sempre "## Título", nunca com asteriscos.
