@@ -12,6 +12,12 @@ import {
   FileText,
   Linkedin,
   Trash2,
+  Sparkles,
+  Loader2,
+  Pencil,
+  ChevronDown,
+  ChevronUp,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -28,7 +34,12 @@ import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import type { ApplicationStatus, ApplicationEventType, HighlightType } from '@/types/database';
+import type {
+  ApplicationStatus,
+  ApplicationEventType,
+  HighlightType,
+  JobRequirements,
+} from '@/types/database';
 
 type Job = {
   id: string;
@@ -39,6 +50,7 @@ type Job = {
   created_at: string;
   highlight_question: string | null;
   highlight_type: HighlightType | null;
+  requirements: JobRequirements | null;
 };
 
 type AppEvent = {
@@ -121,7 +133,9 @@ export function JobDetail() {
       if (!id) return;
       const { data } = await supabase
         .from('jobs')
-        .select('id, slug, title, description, status, created_at, highlight_question, highlight_type')
+        .select(
+          'id, slug, title, description, status, created_at, highlight_question, highlight_type, requirements',
+        )
         .eq('id', id)
         .maybeSingle<Job>();
       setJob(data);
@@ -188,6 +202,8 @@ export function JobDetail() {
             </a>
           )}
         </div>
+
+        <RequirementsPanel job={job} onUpdate={(requirements) => setJob({ ...job, requirements })} />
 
         {applications.length === 0 ? (
           <div className="bg-white rounded-[28px] border border-gray-200 p-12 text-center">
@@ -364,6 +380,270 @@ function StagePill({
         {count}
       </span>
     </button>
+  );
+}
+
+const EMPTY_REQUIREMENTS: JobRequirements = {
+  seniority: '',
+  summary: '',
+  must_have: [],
+  nice_to_have: [],
+  responsibilities: [],
+  evaluation_focus: [],
+  red_flags: [],
+};
+
+const REQ_ARRAY_FIELDS: { key: keyof JobRequirements; label: string }[] = [
+  { key: 'must_have', label: 'Must-have' },
+  { key: 'nice_to_have', label: 'Nice-to-have' },
+  { key: 'responsibilities', label: 'Responsabilidades' },
+  { key: 'evaluation_focus', label: 'Foco de avaliação' },
+  { key: 'red_flags', label: 'Red flags' },
+];
+
+function RequirementsPanel({
+  job,
+  onUpdate,
+}: {
+  job: Job;
+  onUpdate: (requirements: JobRequirements) => void;
+}) {
+  const requirements = job.requirements;
+  const [open, setOpen] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<JobRequirements>(EMPTY_REQUIREMENTS);
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const { data, error } = await invokeEdge<{ requirements: JobRequirements }>(
+        'generate-job-requirements',
+        { jobId: job.id },
+      );
+      if (error || !data?.requirements) {
+        throw error ?? new Error('A IA não retornou os requisitos.');
+      }
+      const { error: saveError } = await supabase
+        .from('jobs')
+        .update({ requirements: data.requirements })
+        .eq('id', job.id);
+      if (saveError) throw saveError;
+      onUpdate(data.requirements);
+      toast.success(requirements ? 'Requisitos regerados.' : 'Requisitos gerados.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra gerar os requisitos.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function startEdit() {
+    setDraft(requirements ? { ...EMPTY_REQUIREMENTS, ...requirements } : EMPTY_REQUIREMENTS);
+    setEditing(true);
+    setOpen(true);
+  }
+
+  async function save() {
+    setSaving(true);
+    const cleaned: JobRequirements = {
+      seniority: draft.seniority.trim(),
+      summary: draft.summary.trim(),
+      must_have: draft.must_have,
+      nice_to_have: draft.nice_to_have,
+      responsibilities: draft.responsibilities,
+      evaluation_focus: draft.evaluation_focus,
+      red_flags: draft.red_flags,
+    };
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ requirements: cleaned })
+        .eq('id', job.id);
+      if (error) throw error;
+      onUpdate(cleaned);
+      setEditing(false);
+      toast.success('Requisitos salvos.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra salvar os requisitos.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function textFor(key: keyof JobRequirements): string {
+    const value = draft[key];
+    return Array.isArray(value) ? value.join('\n') : '';
+  }
+
+  function setArray(key: keyof JobRequirements, raw: string) {
+    const items = raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    setDraft((prev) => ({ ...prev, [key]: items }));
+  }
+
+  return (
+    <div className="mb-8 rounded-[28px] border border-gray-200 bg-white overflow-hidden">
+      <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-start gap-3 text-left min-w-0"
+        >
+          <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#1d1d1f] text-white">
+            <Lock className="h-3.5 w-3.5" />
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-2">
+              <span className="font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
+                Requisitos da vaga (interno)
+              </span>
+              {open ? (
+                <ChevronUp className="h-4 w-4 text-[#8a8a8f]" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-[#8a8a8f]" />
+              )}
+            </span>
+            <span className="block text-[12px] text-[#6b6b70] mt-0.5">
+              Uso interno. O candidato nunca vê. Alimenta a geração das perguntas e a análise.
+            </span>
+          </span>
+        </button>
+
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {requirements && !editing && (
+            <button
+              type="button"
+              onClick={startEdit}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar
+            </button>
+          )}
+          {!editing && (
+            <button
+              type="button"
+              onClick={() => void generate()}
+              disabled={generating}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+            >
+              {generating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {requirements ? 'Regerar' : 'Gerar'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {open && (
+        <div className="px-6 py-5">
+          {editing ? (
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">Nível</label>
+                <input
+                  value={draft.seniority}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, seniority: e.target.value }))}
+                  placeholder="Ex.: Pleno, Sênior, Staff"
+                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-[14px] text-[#1d1d1f] outline-none focus:border-sky-400"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">Resumo</label>
+                <Textarea
+                  value={draft.summary}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, summary: e.target.value }))}
+                  rows={3}
+                  placeholder="Resumo do perfil ideal pra essa vaga."
+                  className="text-[14px]"
+                />
+              </div>
+              {REQ_ARRAY_FIELDS.map((field) => (
+                <div key={field.key}>
+                  <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">
+                    {field.label}
+                    <span className="ml-2 font-normal text-[#8a8a8f]">um item por linha</span>
+                  </label>
+                  <Textarea
+                    value={textFor(field.key)}
+                    onChange={(e) => setArray(field.key, e.target.value)}
+                    rows={3}
+                    className="text-[14px]"
+                  />
+                </div>
+              ))}
+              <div className="flex items-center gap-2 pt-1">
+                <BrandCtaButton size="sm" onClick={() => void save()} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </BrandCtaButton>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                  className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : requirements ? (
+            <div className="space-y-5">
+              {requirements.seniority && (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                    Nível
+                  </p>
+                  <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[12px] font-semibold text-sky-700">
+                    {requirements.seniority}
+                  </span>
+                </div>
+              )}
+              {requirements.summary && (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                    Resumo
+                  </p>
+                  <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+                    {requirements.summary}
+                  </p>
+                </div>
+              )}
+              {REQ_ARRAY_FIELDS.map((field) => {
+                const items = requirements[field.key];
+                if (!Array.isArray(items) || items.length === 0) return null;
+                return (
+                  <div key={field.key}>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                      {field.label}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {items.map((item, i) => (
+                        <li key={i} className="flex gap-2 text-[14px] text-[#1d1d1f] leading-relaxed">
+                          <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gray-300" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+              Ainda não há requisitos gerados pra essa vaga. Clique em Gerar pra montar o gabarito
+              interno que orienta as perguntas e a análise.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

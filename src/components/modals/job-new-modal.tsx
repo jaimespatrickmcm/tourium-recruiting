@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { useCompany } from '@/hooks/use-company';
 import { supabase } from '@/lib/supabase';
-import type { HighlightType } from '@/types/database';
+import { invokeEdge } from '@/lib/functions';
+import type { HighlightType, JobRequirements } from '@/types/database';
 
 const TOTAL_STEPS = 3;
 
@@ -161,10 +162,39 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       toast.error(error?.message ?? 'Erro ao criar vaga');
       return;
     }
-    // Vaga criada. Segue pro passo 3 e já dispara a geração das perguntas dela.
+    // Vaga criada. Segue pro passo 3 e dispara a geração do gabarito interno
+    // (requisitos) antes das perguntas, pra que as perguntas saiam calibradas.
     setNewJobId(data.id);
     setStep(3);
-    void generateJobQuestions(data.id);
+    void generateRequirementsThenQuestions(data.id);
+  }
+
+  // Gera o gabarito interno (requisitos) e salva em jobs.requirements, depois
+  // gera as perguntas. Se os requisitos falharem, não bloqueia: segue pras
+  // perguntas mesmo assim. O mesmo spinner cobre as duas etapas.
+  async function generateRequirementsThenQuestions(jobId: string) {
+    setQGenerating(true);
+    setQError(null);
+    try {
+      const { data, error } = await invokeEdge<{ requirements: JobRequirements }>(
+        'generate-job-requirements',
+        { jobId },
+      );
+      if (error || !data?.requirements) {
+        console.error('[JobNewModal] gerar requisitos falhou:', error?.message ?? 'sem requisitos');
+      } else {
+        const { error: saveError } = await supabase
+          .from('jobs')
+          .update({ requirements: data.requirements })
+          .eq('id', jobId);
+        if (saveError) {
+          console.error('[JobNewModal] salvar requisitos falhou:', saveError.message);
+        }
+      }
+    } catch (err) {
+      console.error('[JobNewModal] erro inesperado ao gerar requisitos:', err);
+    }
+    await generateJobQuestions(jobId);
   }
 
   async function generateJobQuestions(jobId: string) {
@@ -573,7 +603,7 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
                         <Sparkles className="h-5 w-5 text-sky-400 opacity-40" />
                       </div>
                     </div>
-                    <p className="text-[14px]">Gerando perguntas com base na vaga...</p>
+                    <p className="text-[14px]">Analisando a vaga e gerando as perguntas...</p>
                   </div>
                 </div>
               ) : (
