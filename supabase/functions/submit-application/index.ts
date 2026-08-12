@@ -21,8 +21,11 @@ type Payload = {
   website?: string;
 };
 
-const RATE_LIMIT_MAX = 3; // por IP
-const RATE_LIMIT_WINDOW_MIN = 10;
+// Rate limit anti-abuso por IP. Desligado por padrão (0). Pra religar quando o
+// link público for divulgado, defina o secret SUBMIT_RATE_LIMIT_MAX (ex.: 3).
+const RATE_LIMIT_MAX = Number.parseInt(Deno.env.get('SUBMIT_RATE_LIMIT_MAX') ?? '0', 10) || 0;
+const RATE_LIMIT_WINDOW_MIN =
+  Number.parseInt(Deno.env.get('SUBMIT_RATE_LIMIT_WINDOW_MIN') ?? '10', 10) || 10;
 const MAX_NAME = 120;
 const MAX_EMAIL = 254;
 const MAX_PHONE = 40;
@@ -88,9 +91,9 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Rate limit por IP: 3 tentativas / 10min.
+  // Rate limit por IP (desligado enquanto SUBMIT_RATE_LIMIT_MAX não for setado).
   const ip = clientIp(req);
-  if (ip !== 'unknown') {
+  if (RATE_LIMIT_MAX > 0 && ip !== 'unknown') {
     const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MIN * 60_000).toISOString();
     const { count } = await admin
       .from('rate_limit_hits')
