@@ -46,6 +46,16 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
+# Templates dos emails de auth (código OTP), no visual Noren. Aplicar em
+# produção com: supabase config push --project-ref dknakecjaakbssuqxsjf
+[auth.email.template.magic_link]
+subject = "Seu código de acesso no Noren"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Seu código pra entrar no Noren"
+content_path = "./supabase/templates/confirmation.html"
+
 [auth.external.linkedin_oidc]
 enabled = false
 client_id = "env(SUPABASE_AUTH_LINKEDIN_CLIENT_ID)"
