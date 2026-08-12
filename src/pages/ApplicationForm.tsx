@@ -87,6 +87,7 @@ export function ApplicationForm() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const applicationId = searchParams.get('app');
+  const accessToken = searchParams.get('t');
   const navState = (location.state as NavState) ?? null;
 
   const [job, setJob] = useState<PublicJob | null>(null);
@@ -104,6 +105,9 @@ export function ApplicationForm() {
   const [phone, setPhone] = useState(navState?.phone ?? '');
   const [city, setCity] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Campos do candidato que já chegaram preenchidos (via link individual). Esses
+  // passos somem do formulário pra encurtar o caminho até as perguntas.
+  const [prefilledFields, setPrefilledFields] = useState<Set<CandidateField>>(() => new Set());
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -187,9 +191,57 @@ export function ApplicationForm() {
     void load();
   }, [companySlug, jobSlug]);
 
+  // Link individual: com app + token, buscamos os dados já conhecidos do
+  // candidato e pré-preenchemos. Os passos preenchidos somem do formulário.
+  useEffect(() => {
+    if (!applicationId || !accessToken) return;
+    let active = true;
+    async function prefill() {
+      const { data } = await invokeEdge<{
+        name: string | null;
+        email: string | null;
+        phone: string | null;
+        city: string | null;
+      }>('application-prefill', { applicationId, token: accessToken });
+      if (!active || !data) return;
+
+      const filled = new Set<CandidateField>();
+      const name = (data.name ?? '').trim();
+      const email = (data.email ?? '').trim();
+      const phone = (data.phone ?? '').trim();
+      const city = (data.city ?? '').trim();
+      if (name) {
+        setName(name);
+        filled.add('name');
+      }
+      if (email) {
+        setEmail(email);
+        filled.add('email');
+      }
+      if (phone) {
+        setPhone(phone);
+        filled.add('phone');
+      }
+      if (city) {
+        setCity(city);
+        filled.add('city');
+      }
+      setPrefilledFields(filled);
+    }
+    void prefill();
+    return () => {
+      active = false;
+    };
+  }, [applicationId, accessToken]);
+
+  const candidateSteps = useMemo<CandidateStep[]>(
+    () => CANDIDATE_STEPS.filter((step) => !prefilledFields.has(step.field)),
+    [prefilledFields],
+  );
+
   const steps = useMemo<Step[]>(
-    () => [...CANDIDATE_STEPS, ...jobQuestions, ...companyQuestions],
-    [jobQuestions, companyQuestions],
+    () => [...candidateSteps, ...jobQuestions, ...companyQuestions],
+    [candidateSteps, jobQuestions, companyQuestions],
   );
 
   // Um canary token por pergunta aberta, gerado uma vez quando as perguntas carregam.

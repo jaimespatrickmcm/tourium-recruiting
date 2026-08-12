@@ -18,6 +18,9 @@ import {
   ChevronDown,
   ChevronUp,
   Lock,
+  MessageCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -61,6 +64,15 @@ type AppEvent = {
   to_status: string | null;
   note: string | null;
   created_at: string;
+};
+
+// Retorno da edge function notify-stage-change: o que rolou de comunicação com o
+// candidato depois da virada de etapa.
+type StageComms = {
+  toStatus: string;
+  formUrl: string | null;
+  whatsappUrl: string | null;
+  emailSent: boolean;
 };
 
 const STAGE_ORDER: ApplicationStatus[] = [
@@ -864,6 +876,36 @@ function CandidateDetail({
   const [loadingResume, setLoadingResume] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [comms, setComms] = useState<StageComms | null>(null);
+  const [copiedForm, setCopiedForm] = useState(false);
+
+  // Dispara a comunicação com o candidato (e-mail + link de WhatsApp) depois de
+  // uma virada de etapa. Best-effort: nunca quebra a mudança de etapa. Se falhar,
+  // loga e mostra um toast leve. O painel de comms usa o retorno.
+  async function notifyStageChange(to: ApplicationStatus) {
+    try {
+      const { data, error } = await invokeEdge<StageComms>('notify-stage-change', {
+        applicationId: app.id,
+        toStatus: to,
+        origin: window.location.origin,
+      });
+      if (error || !data) throw error ?? new Error('sem retorno');
+      setComms(data);
+    } catch (err) {
+      console.error('[JobDetail] notify-stage-change error:', err);
+      toast('Etapa atualizada. A notificação ao candidato não saiu agora.');
+    }
+  }
+
+  async function copyFormLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedForm(true);
+      window.setTimeout(() => setCopiedForm(false), 2000);
+    } catch {
+      toast.error('Não deu pra copiar o link. Copie manualmente.');
+    }
+  }
 
   async function deleteApplication() {
     setDeleting(true);
@@ -963,7 +1005,10 @@ function CandidateDetail({
   async function advance(to: ApplicationStatus) {
     setBusy(true);
     const ok = await applyStageChange(to);
-    if (ok) toast.success(`Movido pra ${stageLabels[to]}`);
+    if (ok) {
+      toast.success(`Movido pra ${stageLabels[to]}`);
+      await notifyStageChange(to);
+    }
     setBusy(false);
   }
 
@@ -974,6 +1019,7 @@ function CandidateDetail({
       toast('Candidato reprovado');
       setRejecting(false);
       setRejectNote('');
+      await notifyStageChange('reprovado');
     }
     setBusy(false);
   }
@@ -985,6 +1031,7 @@ function CandidateDetail({
       setBusy(false);
       return;
     }
+    await notifyStageChange('contratado');
 
     const { data: collab, error: colError } = await supabase
       .from('collaborators')
@@ -1202,6 +1249,58 @@ function CandidateDetail({
                   Cancelar
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {comms && comms.toStatus === app.status && (
+        <div className="mb-6 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 to-violet-50/50 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+            Aviso ao candidato
+          </p>
+          <div className="flex items-center gap-2">
+            {comms.emailSent ? (
+              <>
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-600" />
+                <p className="text-[13px] font-medium text-[#1d1d1f]">E-mail enviado</p>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-4 w-4 flex-shrink-0 text-[#8a8a8f]" />
+                <p className="text-[13px] font-medium text-[#6b6b70]">
+                  E-mail ainda não configurado
+                </p>
+              </>
+            )}
+          </div>
+          {(comms.whatsappUrl || comms.formUrl) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {comms.whatsappUrl && (
+                <a
+                  href={comms.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-emerald-700 transition-colors hover:border-emerald-400"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Enviar no WhatsApp
+                </a>
+              )}
+              {comms.formUrl && (
+                <button
+                  type="button"
+                  onClick={() => void copyFormLink(comms.formUrl!)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400"
+                >
+                  {copiedForm ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {copiedForm ? 'Link copiado' : 'Copiar link do form'}
+                </button>
+              )}
             </div>
           )}
         </div>
