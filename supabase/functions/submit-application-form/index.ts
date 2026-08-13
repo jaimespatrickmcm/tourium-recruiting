@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
 
   // Resolve application: usa a existente se o id bater com a vaga, senão cria.
   let applicationId: string | null = null;
+  let createdNow = false;
 
   if (payload.applicationId) {
     const { data: existing } = await admin
@@ -171,6 +172,25 @@ Deno.serve(async (req) => {
     if (existing && existing.job_id === job.id) {
       applicationId = existing.id;
     }
+  }
+
+  // O formulário COMPLETA uma candidatura, não cria uma segunda. Se o link
+  // individual não trouxe o id (a pessoa chegou pela career page, ou o ?app= se
+  // perdeu no caminho), acha a candidatura dela nesta vaga pelo e-mail. Sem
+  // isso, o insert bate no unique (job_id, lower(email)) e ela perde as
+  // respostas que acabou de escrever.
+  // Comparação em JS pra bater exatamente com o índice: ilike trataria o "_" de
+  // um e-mail como curinga e poderia casar com a pessoa errada.
+  if (!applicationId && email) {
+    const { data: sameJob } = await admin
+      .from('applications')
+      .select('id, candidate_email')
+      .eq('job_id', job.id);
+    const match = (sameJob ?? []).find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (a: any) => String(a.candidate_email ?? '').trim().toLowerCase() === email,
+    );
+    if (match) applicationId = match.id;
   }
 
   if (!applicationId) {
@@ -192,15 +212,32 @@ Deno.serve(async (req) => {
       })
       .select('id')
       .single();
-    if (createError || !created) {
-      if (createError?.code === '23505') {
-        return jsonResponse({ error: 'Você já se candidatou a essa vaga com esse e-mail.' }, 409);
+    if (createError?.code === '23505') {
+      // Corrida: a candidatura nasceu entre a busca acima e este insert. Em vez
+      // de devolver erro e descartar as respostas, aproveita a que existe.
+      const { data: raced } = await admin
+        .from('applications')
+        .select('id, candidate_email')
+        .eq('job_id', job.id);
+      const match = (raced ?? []).find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (a: any) => String(a.candidate_email ?? '').trim().toLowerCase() === email,
+      );
+      if (!match) {
+        return jsonResponse({ error: 'Não deu pra salvar suas respostas. Tente de novo.' }, 500);
       }
+      applicationId = match.id;
+    } else if (createError || !created) {
       return jsonResponse({ error: createError?.message ?? 'Falha ao salvar aplicação' }, 500);
+    } else {
+      applicationId = created.id;
+      createdNow = true;
     }
-    applicationId = created.id;
-  } else {
-    // Atualiza a application existente com os campos do formulário completo.
+  }
+
+  // Candidatura que já existia (veio do link, do e-mail ou da corrida): completa
+  // com os dados do formulário. A recém-criada já nasceu com tudo isso.
+  if (!createdNow) {
     const update: Record<string, unknown> = {
       city: city || null,
       form_completed_at: new Date().toISOString(),
@@ -276,6 +313,18 @@ Deno.serve(async (req) => {
     });
 
   if (rows.length > 0) {
+    // Reenvio substitui: agora que a pessoa pode voltar e preencher de novo, as
+    // respostas antigas sairiam duplicadas e a análise leria a mesma pergunta
+    // duas vezes. O envio mais recente é o que vale.
+    if (!createdNow) {
+      const { error: clearError } = await admin
+        .from('application_answers')
+        .delete()
+        .eq('application_id', applicationId);
+      if (clearError) {
+        console.error('[submit-application-form] limpar respostas antigas:', clearError.message);
+      }
+    }
     const { error: answersError } = await admin.from('application_answers').insert(rows);
     if (answersError) {
       return jsonResponse({ error: answersError.message ?? 'Falha ao salvar respostas' }, 500);
