@@ -121,6 +121,26 @@ Deno.serve(async (req) => {
     .eq('candidate_email', email)
     .order('created_at', { ascending: false });
 
+  // Devolutiva do currículo: a ÚNICA parte da análise que o candidato pode ver.
+  // Pega a mais recente entre as candidaturas dele. O resto da análise (nota,
+  // veredito, dimensões) é interno da empresa e não sai daqui.
+  let cvFeedback: unknown = null;
+  if (appRows && appRows.length > 0) {
+    const { data: fb } = await admin
+      .from('ai_analyses')
+      .select('cv_feedback, ran_at')
+      .in(
+        'application_id',
+        appRows.map((a) => a.id as string),
+      )
+      .eq('status', 'completed')
+      .not('cv_feedback', 'is', null)
+      .order('ran_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    cvFeedback = fb?.cv_feedback ?? null;
+  }
+
   const applications: Array<Record<string, unknown>> = [];
 
   if (appRows && appRows.length > 0) {
@@ -223,7 +243,7 @@ Deno.serve(async (req) => {
 
   return jsonResponse({
     ok: true,
-    profile: profile ?? { email },
+    profile: { ...(profile ?? { email }), cv_feedback: cvFeedback },
     applications,
     jornada,
   });

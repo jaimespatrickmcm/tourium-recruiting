@@ -193,6 +193,7 @@ export type Database = {
           recommendation: string | null;
           reasoning: string | null;
           cv_observations: string | null;
+          cv_feedback: Json | null;
           evidence_stage: string | null;
           stage_score: number | null;
           stage_verdict: string | null;

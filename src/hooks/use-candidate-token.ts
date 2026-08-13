@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import type { Json } from '@/types/database';
 
 const TOKEN_KEY = 'noren_candidate_token';
 
@@ -15,6 +16,11 @@ export type CandidateProfile = {
   linkedin_url: string | null;
   picture_url: string | null;
   about: string | null;
+  // Anotações sobre o currículo, vindas da última análise do candidato.
+  // Opcional de propósito: hoje a edge function candidate-portal ainda não
+  // devolve esse campo, então ele chega undefined e a seção não renderiza.
+  // Pra ligar, o portal precisa incluir ai_analyses.cv_feedback no payload.
+  cv_feedback?: Json | null;
 };
 
 export type CandidateApplication = {

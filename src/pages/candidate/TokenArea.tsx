@@ -15,6 +15,7 @@ import {
   type CandidateJornada,
   type CandidateProfile,
 } from '@/hooks/use-candidate-token';
+import { parseCvFeedback, type CvFeedback } from '@/lib/evidence-points';
 import { AccessForm } from '@/pages/candidate/Access';
 
 type TabKey = 'candidaturas' | 'jornada' | 'perfil';
@@ -382,6 +383,50 @@ function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
   );
 }
 
+// Anotações sobre o currículo. É feedback sobre o documento, não sobre a
+// pessoa, e o texto é o mesmo que a empresa enxerga do outro lado.
+function CvSuggestions({ feedback }: { feedback: CvFeedback }) {
+  return (
+    <section className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
+      <h2 className="font-satoshi font-bold text-[17px] text-ink">Sugestões pro seu currículo</h2>
+      <p className="text-footnote text-ink-muted mt-1">
+        Anotações de quem leu seu currículo nas candidaturas. São sobre o documento, pra deixar
+        ele mais fácil de ler.
+      </p>
+
+      {feedback.strengths.length > 0 && (
+        <div className="mt-5">
+          <p className="text-sm font-semibold text-ink mb-2">O que já está bom</p>
+          <ul className="space-y-1.5">
+            {feedback.strengths.map((item, i) => (
+              <li key={`cv-ok-${i}`} className="flex gap-2.5">
+                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-positive" />
+                <span className="min-w-0 text-footnote text-ink-muted">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {feedback.improvements.length > 0 && (
+        <div className="mt-5">
+          <p className="text-sm font-semibold text-ink mb-2">O que ajudaria quem vai te ler</p>
+          <ul className="space-y-3">
+            {feedback.improvements.map((item, i) => (
+              <li key={`cv-ajuste-${i}`} className="rounded-tile border border-line-soft bg-canvas p-4">
+                <p className="text-sm font-semibold text-ink">{item.point}</p>
+                {item.why && (
+                  <p className="text-footnote text-ink-muted mt-1 leading-relaxed">{item.why}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function PerfilTab({
   profile,
   onSave,
@@ -420,6 +465,10 @@ function PerfilTab({
 
   const fieldClass =
     'w-full h-11 rounded-lg border border-line-soft bg-white px-3 text-callout outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100';
+
+  // Só aparece quando há currículo analisado. Sem anexo ou em análise antiga o
+  // parser devolve null e a seção some.
+  const cvFeedback = parseCvFeedback(profile.cv_feedback);
 
   return (
     <div className="space-y-5">
@@ -508,6 +557,8 @@ function PerfilTab({
           {saving ? 'Salvando...' : 'Salvar perfil'}
         </button>
       </form>
+
+      {cvFeedback && <CvSuggestions feedback={cvFeedback} />}
     </div>
   );
 }
