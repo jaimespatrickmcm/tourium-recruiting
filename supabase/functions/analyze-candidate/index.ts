@@ -609,7 +609,10 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
   const cleaned = text.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
   try {
     const parsed = JSON.parse(cleaned);
-    if (typeof parsed.score !== 'number' || !parsed.reasoning) return null;
+    // Só exige o que o modelo ainda entrega. `score` saiu do schema quando o
+    // scout geral virou média calculada das áreas: continuar exigindo aqui
+    // reprovava todo JSON válido com "IA retornou JSON inválido".
+    if (!parsed.reasoning) return null;
 
     const rawDims = Array.isArray(parsed.dimensions) ? parsed.dimensions : [];
     // Scout geral PARCIAL: só entram áreas que o modelo pontuou com número.
