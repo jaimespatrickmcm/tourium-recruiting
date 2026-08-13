@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ExternalLink,
@@ -24,6 +24,7 @@ import {
   Users,
   TrendingUp,
   Compass,
+  Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -1677,6 +1678,8 @@ function CandidateDetail({
   const [rejecting, setRejecting] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
   const [loadingResume, setLoadingResume] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [comms, setComms] = useState<StageComms | null>(null);
@@ -1720,6 +1723,52 @@ function CandidateDetail({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Não deu pra excluir o candidato.');
       setDeleting(false);
+    }
+  }
+
+  // Anexar currículo: pede um destino assinado, sobe o arquivo direto pro
+  // bucket e só então confirma o vínculo. Se o upload morrer no meio, o banco
+  // não fica apontando pra arquivo que não existe.
+  async function uploadResume(file: File) {
+    if (file.type !== 'application/pdf') {
+      toast.error('Só PDF por enquanto. A leitura do currículo não extrai texto de DOCX.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Arquivo acima de 10 MB.');
+      return;
+    }
+    setUploadingResume(true);
+    try {
+      const prep = await invokeEdge<{ path: string; token: string }>('attach-resume', {
+        applicationId: app.id,
+        action: 'prepare',
+      });
+      if (prep.error || !prep.data) throw prep.error ?? new Error('Falha ao preparar o upload');
+
+      const { error: upErr } = await supabase.storage
+        .from('resumes')
+        .uploadToSignedUrl(prep.data.path, prep.data.token, file, {
+          contentType: 'application/pdf',
+        });
+      if (upErr) throw new Error(upErr.message);
+
+      const confirm = await invokeEdge('attach-resume', {
+        applicationId: app.id,
+        action: 'confirm',
+        path: prep.data.path,
+      });
+      if (confirm.error) throw confirm.error;
+      await refetch();
+      toast.success('Currículo anexado.', {
+        // Não dispara sozinho: re-análise custa e sobrescreve a leitura atual.
+        // Quem decide é quem está olhando a tela.
+        action: { label: 'Re-analisar agora', onClick: () => void reanalyze() },
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não deu pra anexar o currículo.');
+    } finally {
+      setUploadingResume(false);
     }
   }
 
@@ -2066,9 +2115,36 @@ function CandidateDetail({
           </Chip>
         </div>
 
-        {(app.resume_path || app.linkedin_url) && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {app.resume_path && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {/* Anexar currículo pelo lado do recrutador. Quem chega por cadastro
+              manual ou fast apply costuma vir sem arquivo, e sem arquivo a
+              leitura de currículo fica vazia por falta de dado, não por falta
+              de candidato. */}
+          <input
+            ref={resumeInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void uploadResume(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => resumeInputRef.current?.click()}
+            disabled={uploadingResume}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+          >
+            {uploadingResume ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Upload className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {app.resume_path ? 'Trocar currículo' : 'Anexar currículo'}
+          </button>
+          {app.resume_path && (
               <button
                 type="button"
                 onClick={() => void openResume()}
@@ -2094,8 +2170,7 @@ function CandidateDetail({
                 LinkedIn
               </a>
             )}
-          </div>
-        )}
+        </div>
       </div>
 
       <div className="px-5 py-5 sm:px-6">
