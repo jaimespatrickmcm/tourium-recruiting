@@ -14,12 +14,18 @@ type Payload = {
   candidatePhone?: string;
   whyInterested?: string;
   candidateId?: string;
+  resumePath?: string;
+  linkedinUrl?: string;
+  highlightAnswer?: string;
   // Honeypot: campo invisível no form. Humano não preenche; bot preenche.
   website?: string;
 };
 
-const RATE_LIMIT_MAX = 3; // por IP
-const RATE_LIMIT_WINDOW_MIN = 10;
+// Rate limit anti-abuso por IP. Desligado por padrão (0). Pra religar quando o
+// link público for divulgado, defina o secret SUBMIT_RATE_LIMIT_MAX (ex.: 3).
+const RATE_LIMIT_MAX = Number.parseInt(Deno.env.get('SUBMIT_RATE_LIMIT_MAX') ?? '0', 10) || 0;
+const RATE_LIMIT_WINDOW_MIN =
+  Number.parseInt(Deno.env.get('SUBMIT_RATE_LIMIT_WINDOW_MIN') ?? '10', 10) || 10;
 const MAX_NAME = 120;
 const MAX_EMAIL = 254;
 const MAX_PHONE = 40;
@@ -85,9 +91,9 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Rate limit por IP: 3 tentativas / 10min.
+  // Rate limit por IP (desligado enquanto SUBMIT_RATE_LIMIT_MAX não for setado).
   const ip = clientIp(req);
-  if (ip !== 'unknown') {
+  if (RATE_LIMIT_MAX > 0 && ip !== 'unknown') {
     const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MIN * 60_000).toISOString();
     const { count } = await admin
       .from('rate_limit_hits')
@@ -112,7 +118,7 @@ Deno.serve(async (req) => {
 
   const { data: job, error: jobError } = await admin
     .from('jobs')
-    .select('id, status')
+    .select('id, status, highlight_type, highlight_expected')
     .eq('company_id', company.id)
     .eq('slug', payload.jobSlug)
     .maybeSingle();
@@ -141,6 +147,28 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Currículo: só aceita um path do bucket que pertença a essa empresa (pasta = company.id).
+  const resumePath =
+    typeof payload.resumePath === 'string' && payload.resumePath.startsWith(`${company.id}/`)
+      ? payload.resumePath
+      : null;
+  const linkedinUrl =
+    typeof payload.linkedinUrl === 'string' && payload.linkedinUrl.trim().length > 0
+      ? payload.linkedinUrl.trim().slice(0, 300)
+      : null;
+
+  // Pergunta de destaque: guarda a resposta e, se for Sim/Não com resposta ideal,
+  // marca se bateu (só pra sinalizar pro recrutador, nunca reprova sozinho).
+  const highlightAnswer =
+    typeof payload.highlightAnswer === 'string' && payload.highlightAnswer.trim().length > 0
+      ? payload.highlightAnswer.trim().slice(0, 500)
+      : null;
+  let highlightMatched: boolean | null = null;
+  if (highlightAnswer && job.highlight_type === 'yes_no' && job.highlight_expected) {
+    highlightMatched =
+      highlightAnswer.trim().toLowerCase() === String(job.highlight_expected).trim().toLowerCase();
+  }
+
   // Create application
   const { data: app, error: appError } = await admin
     .from('applications')
@@ -152,6 +180,10 @@ Deno.serve(async (req) => {
       candidate_phone: candidatePhone || null,
       why_interested: whyInterested || null,
       candidate_id: candidateId,
+      resume_path: resumePath,
+      linkedin_url: linkedinUrl,
+      highlight_answer: highlightAnswer,
+      highlight_matched: highlightMatched,
     })
     .select('id')
     .single();

@@ -1,5 +1,5 @@
 // Hook + helpers do módulo de time (colaboradores, scores e metas).
-// Scores por área seguem as 5 SCOUT_AREAS; o geral é sempre a média
+// Scores por área seguem as SCOUT_AREAS; o geral é sempre a média
 // arredondada do score mais recente de cada área.
 
 import { useCallback, useEffect, useState } from 'react';

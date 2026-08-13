@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { BrandCtaButton } from '@/components/brand-cta';
+import { PageShell, EmptyState } from '@/components/page-shell';
 import {
   Dialog,
   DialogContent,
@@ -40,66 +41,76 @@ export function Team() {
   const activeCount = collaborators.filter((c) => c.status === 'ativo').length;
 
   return (
-    <div className="relative min-h-screen bg-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[400px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.05),transparent_70%)]" />
-
-      <div className="relative max-w-5xl mx-auto px-8 py-12">
-        <div className="flex items-start justify-between gap-4 mb-8">
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-3">
-              Time
-            </p>
-            <h1 className="font-satoshi font-bold text-[36px] md:text-[44px] tracking-[-0.7px] leading-[1.1] text-[#1d1d1f]">
-              {activeCount > 0
-                ? `${activeCount} ${activeCount === 1 ? 'pessoa' : 'pessoas'} no time`
-                : 'Seu time'}
-            </h1>
-            <p className="text-[16px] text-[#6b6b70] mt-3 max-w-xl leading-relaxed">
-              Quem você contrata continua aqui: scout card, avaliações e plano de desenvolvimento
-              de cada pessoa.
-            </p>
-          </div>
-          <BrandCtaButton onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-            Adicionar colaborador
-          </BrandCtaButton>
-        </div>
-
-        {/* Filtro por status */}
-        <div className="flex items-center gap-2 mb-8">
+    <PageShell
+      width="wide"
+      eyebrow="Time"
+      title={
+        activeCount > 0
+          ? `${activeCount} ${activeCount === 1 ? 'pessoa' : 'pessoas'} no time`
+          : 'Time'
+      }
+      description="Quem você contrata continua aqui: scout card, avaliações e plano de desenvolvimento de cada pessoa."
+      action={
+        <BrandCtaButton onClick={() => setDialogOpen(true)} showArrow={false}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+          Adicionar colaborador
+        </BrandCtaButton>
+      }
+    >
+      {/* Filtro por status: some quando nao ha ninguem, pra nao competir com o
+          estado vazio nem sugerir que existe conteudo escondido atras dele. */}
+      {collaborators.length > 0 && (
+        <div className="mb-6 flex items-center gap-2">
           {FILTERS.map((f) => (
             <button
               key={f.value}
               type="button"
               onClick={() => setFilter(f.value)}
+              aria-pressed={filter === f.value}
               className={cn(
-                'px-4 py-1.5 rounded-full text-[13px] font-semibold transition-colors border',
+                'inline-flex h-9 items-center rounded-full border px-3.5 text-footnote font-semibold',
+                'transition-colors duration-200 ease-standard',
                 filter === f.value
-                  ? 'bg-[#1d1d1f] text-white border-[#1d1d1f]'
-                  : 'bg-white text-[#6b6b70] border-gray-200 hover:border-gray-400',
+                  ? 'border-ink bg-ink text-white'
+                  : 'border-line-soft bg-surface text-ink-muted hover:border-line hover:text-ink',
               )}
             >
               {f.label}
             </button>
           ))}
         </div>
+      )}
 
-        {loading ? (
-          <div className="text-[#8a8a8f] text-sm">Carregando...</div>
-        ) : collaborators.length === 0 ? (
-          <EmptyTeam onAdd={() => setDialogOpen(true)} />
-        ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-[24px] border border-gray-200 p-10 text-center">
-            <p className="text-[15px] text-[#6b6b70]">Nenhum colaborador com esse status.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((c) => (
-              <CollaboratorCard key={c.id} collaborator={c} />
-            ))}
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <div
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          aria-busy="true"
+          aria-label="Carregando time"
+        >
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="surface-card h-[136px] animate-pulse" />
+          ))}
+        </div>
+      ) : collaborators.length === 0 ? (
+        <EmptyTeam onAdd={() => setDialogOpen(true)} />
+      ) : filtered.length === 0 ? (
+        <div className="surface-card px-6 py-12 text-center">
+          <p className="text-callout text-ink-muted">Nenhum colaborador com esse status.</p>
+          <button
+            type="button"
+            onClick={() => setFilter('todos')}
+            className="mt-3 text-footnote font-semibold text-brand transition-colors hover:text-brand-hover"
+          >
+            Ver todos
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((c) => (
+            <CollaboratorCard key={c.id} collaborator={c} />
+          ))}
+        </div>
+      )}
 
       <AddCollaboratorDialog
         open={dialogOpen}
@@ -109,38 +120,33 @@ export function Team() {
           void refetch();
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 
 function CollaboratorCard({ collaborator: c }: { collaborator: CollaboratorWithOverall }) {
   return (
-    <Link
-      to={`/app/time/${c.id}`}
-      className="relative block bg-white rounded-[24px] border border-gray-200 p-5 hover:border-gray-400 transition-colors"
-    >
+    <Link to={`/app/time/${c.id}`} className="surface-card-interactive block p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-50 border border-sky-100 font-satoshi font-bold text-[18px] text-sky-700">
+        <span className="icon-tile h-12 w-12 shrink-0 font-satoshi text-title-3 font-bold">
           {c.full_name.trim().charAt(0).toUpperCase() || '?'}
-        </div>
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
-            {c.full_name}
-          </p>
-          {c.role_title && <p className="truncate text-[13px] text-[#6b6b70]">{c.role_title}</p>}
-          <p className="text-[12px] text-[#8a8a8f] mt-0.5">desde {formatDatePtBR(c.hired_at)}</p>
+          <p className="truncate font-satoshi text-callout font-bold text-ink">{c.full_name}</p>
+          {c.role_title && <p className="truncate text-footnote text-ink-muted">{c.role_title}</p>}
+          <p className="mt-0.5 text-caption text-ink-subtle">desde {formatDatePtBR(c.hired_at)}</p>
         </div>
         {c.overall !== null && (
-          <div className="text-right shrink-0">
+          <div className="shrink-0 text-right">
             <p
               className={cn(
-                'font-satoshi font-bold text-[26px] leading-none tracking-[-0.5px]',
+                'font-satoshi text-title-2 font-bold tabular-nums',
                 scoreTone(c.overall),
               )}
             >
               {c.overall}
             </p>
-            <p className="text-[9px] font-bold uppercase tracking-wider text-[#8a8a8f]">Geral</p>
+            <p className="text-eyebrow font-bold uppercase text-ink-subtle">Geral</p>
           </div>
         )}
       </div>
@@ -153,11 +159,11 @@ function CollaboratorCard({ collaborator: c }: { collaborator: CollaboratorWithO
 
 function StatusChip({ status }: { status: 'ativo' | 'desligado' }) {
   return status === 'ativo' ? (
-    <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+    <span className="inline-flex items-center rounded-full bg-positive-tint px-2.5 py-1 text-eyebrow font-bold uppercase text-positive">
       Ativo
     </span>
   ) : (
-    <span className="inline-flex items-center rounded-full bg-gray-100 border border-gray-200 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#6b6b70]">
+    <span className="inline-flex items-center rounded-full bg-canvas px-2.5 py-1 text-eyebrow font-bold uppercase text-ink-subtle">
       Desligado
     </span>
   );
@@ -165,19 +171,13 @@ function StatusChip({ status }: { status: 'ativo' | 'desligado' }) {
 
 function EmptyTeam({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="bg-white rounded-[24px] border border-gray-200 shadow-[0_10px_40px_-15px_rgba(15,15,30,0.08)] p-12 text-center">
-      <div className="inline-flex h-14 w-14 rounded-2xl holo-gradient items-center justify-center mb-5">
-        <Users className="h-7 w-7 text-white" strokeWidth={2} />
-      </div>
-      <h2 className="font-satoshi font-bold text-[22px] tracking-[-0.3px] text-[#1d1d1f] mb-2">
-        Ninguém no time ainda
-      </h2>
-      <p className="text-[15px] text-[#6b6b70] leading-relaxed mb-6 max-w-md mx-auto">
-        Quando você contratar alguém pelo pipeline de uma vaga, a pessoa aparece aqui com o scout
-        card da análise inicial. Também dá pra adicionar alguém manualmente.
-      </p>
-      <BrandCtaButton onClick={onAdd}>Adicionar colaborador</BrandCtaButton>
-    </div>
+    <EmptyState
+      icon={<Users className="h-7 w-7" strokeWidth={1.75} />}
+      title="Ninguém no time ainda"
+      description="Marque um candidato como contratado no pipeline de uma vaga e ele entra aqui automaticamente, já com o scout card da análise inicial."
+      action={<BrandCtaButton onClick={onAdd}>Adicionar colaborador</BrandCtaButton>}
+      hint="Adicione manualmente quem já estava no time antes do Noren."
+    />
   );
 }
 
@@ -230,18 +230,18 @@ function AddCollaboratorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-[24px] bg-white sm:rounded-[24px]">
+      <DialogContent className="rounded-card bg-white sm:rounded-card overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-satoshi font-bold text-[22px] tracking-[-0.3px] text-[#1d1d1f]">
+          <DialogTitle className="font-satoshi font-bold text-[22px] tracking-[-0.3px] text-ink">
             Adicionar colaborador
           </DialogTitle>
-          <DialogDescription className="text-[14px] text-[#6b6b70]">
+          <DialogDescription className="text-callout text-ink-muted">
             Pra quem já está no time e não passou pelo pipeline. As avaliações começam do zero.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="collab-name" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-name" className="text-footnote font-semibold text-ink">
               Nome completo
             </Label>
             <Input
@@ -253,7 +253,7 @@ function AddCollaboratorDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="collab-email" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-email" className="text-footnote font-semibold text-ink">
               Email
             </Label>
             <Input
@@ -266,7 +266,7 @@ function AddCollaboratorDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="collab-role" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-role" className="text-footnote font-semibold text-ink">
               Cargo
             </Label>
             <Input
@@ -277,7 +277,7 @@ function AddCollaboratorDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="collab-hired" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-hired" className="text-footnote font-semibold text-ink">
               Data de contratação
             </Label>
             <Input

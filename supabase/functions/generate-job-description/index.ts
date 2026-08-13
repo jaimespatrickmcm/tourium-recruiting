@@ -4,13 +4,9 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { callOpenAI } from '../_shared/openai.ts';
 
 type Payload = { jobTitle: string };
-
-type ClaudeResponse = {
-  content: Array<{ type: string; text: string }>;
-  usage?: { input_tokens: number; output_tokens: number };
-};
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -33,19 +29,27 @@ Cultura: ${args.companyCulture ?? '(não informado)'}
 
 VAGA: ${args.jobTitle}
 
-Escreva uma descrição de vaga curta e direta (250-400 palavras) com esta estrutura, usando markdown leve:
+Escreva uma descrição de vaga curta e direta (250-450 palavras) em seções. Cada seção começa com um título markdown de nível 2 (duas cerquilhas e um espaço, exatamente como abaixo). O candidato lê cada seção separada, então cada uma tem que fazer sentido sozinha.
 
-**Sobre a posição**
+## Sobre a vaga
 2-3 frases sobre o que a pessoa vai fazer e o impacto que terá.
 
-**O que você vai entregar**
-- 4-6 bullets concretos. Resultado esperado, não atividade.
+## O que você vai fazer
+- 4-6 bullets concretos, começando com hífen. Resultado esperado, não atividade.
 
-**O que esperamos de você**
-- 4-5 bullets. Skills e experiência. Específico, não "ser proativo".
+## O que esperamos de você
+- 4-5 bullets, começando com hífen. Skills e experiência. Específico, não "ser proativo".
 
-**Por que aqui**
-2-3 frases honestas sobre a cultura e o momento da empresa. Use as palavras da cultura acima quando fizer sentido.
+## Sobre a empresa
+2-3 frases honestas sobre o que a empresa faz, a cultura e o momento dela. Use as palavras da cultura acima quando fizer sentido.
+
+NÃO escreva seção de benefícios. Os benefícios são cadastrados à parte, como itens, e a career page mostra sozinha quando a vaga está configurada pra isso. Se você escrever aqui, o candidato vê duplicado.
+
+REGRAS DE FORMATO:
+- Título de seção: sempre "## Título", nunca com asteriscos.
+- Bullets: sempre "- item" no começo da linha.
+- Negrito só dentro de frase, com dois asteriscos de cada lado, e com moderação.
+- Uma linha em branco entre seções.
 
 REGRAS:
 - Português direto. Sem clichê de RH ("oportunidade única", "ambiente dinâmico", "queremos pessoas apaixonadas").
@@ -78,13 +82,13 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
 
   if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return jsonResponse({ error: 'Server misconfigured' }, 500);
   }
-  if (!anthropicKey) {
-    return jsonResponse({ error: 'ANTHROPIC_API_KEY não configurada' }, 500);
+  if (!openaiKey) {
+    return jsonResponse({ error: 'OPENAI_API_KEY não configurada' }, 500);
   }
 
   // Resolve company_id from JWT via public.users
@@ -130,29 +134,15 @@ Deno.serve(async (req) => {
     jobTitle: payload.jobTitle.trim(),
   });
 
-  const model = 'claude-sonnet-4-6';
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const { text } = await callOpenAI({
+      apiKey: openaiKey,
+      model: 'gpt-5',
+      prompt,
+      maxTokens: 3000,
+      reasoningEffort: 'low',
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return jsonResponse({ error: `Anthropic ${response.status}: ${errText.slice(0, 300)}` }, 500);
-    }
-
-    const claudeData = (await response.json()) as ClaudeResponse;
-    const description = claudeData.content?.[0]?.text?.trim() ?? '';
+    const description = text.trim();
     if (!description) return jsonResponse({ error: 'IA retornou vazio' }, 500);
 
     return jsonResponse({ ok: true, description });

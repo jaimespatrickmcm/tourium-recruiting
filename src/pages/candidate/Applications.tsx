@@ -11,6 +11,7 @@ import type { ApplicationStatus } from '@/types/database';
 
 const STAGES = [
   { key: 'triagem', label: 'Triagem' },
+  { key: 'fit_cultural', label: 'Fit cultural' },
   { key: 'entrevista', label: 'Entrevista' },
   { key: 'proposta', label: 'Proposta' },
   { key: 'contratado', label: 'Contratado' },
@@ -78,7 +79,7 @@ function StageProgress({ status }: { status: ApplicationStatus }) {
             <div
               className={cn(
                 'relative z-10 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 bg-white',
-                filled ? 'border-sky-500' : 'border-gray-200',
+                filled ? 'border-sky-500' : 'border-line-soft',
                 isCurrent && 'bg-sky-500',
               )}
             >
@@ -87,8 +88,8 @@ function StageProgress({ status }: { status: ApplicationStatus }) {
             </div>
             <span
               className={cn(
-                'mt-1.5 text-[10px] sm:text-[11px] font-semibold text-center leading-tight',
-                filled ? 'text-[#1d1d1f]' : 'text-[#8a8a8f]',
+                'mt-1.5 text-[10px] sm:text-caption font-semibold text-center leading-tight',
+                filled ? 'text-ink' : 'text-ink-subtle',
               )}
             >
               {stage.label}
@@ -116,18 +117,18 @@ function ApplicationCard({
   const timelineCount = events.length + 1; // +1 pela linha de envio
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
+    <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-satoshi font-bold text-[17px] leading-snug text-[#1d1d1f] truncate">
+          <h2 className="font-satoshi font-bold text-[17px] leading-snug text-ink truncate">
             {jobTitle}
           </h2>
-          <p className="text-[13px] text-[#6b6b70] mt-0.5">
+          <p className="text-footnote text-ink-muted mt-0.5">
             {companyName ? `${companyName} · ` : ''}Enviada em {fullDate(app.created_at)}
           </p>
         </div>
         {rejected && (
-          <span className="shrink-0 rounded-full bg-gray-100 border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-[#6b6b70]">
+          <span className="shrink-0 rounded-full bg-surface-sunken border border-line-soft px-2.5 py-1 text-caption font-semibold text-ink-muted">
             Encerrado
           </span>
         )}
@@ -135,9 +136,9 @@ function ApplicationCard({
 
       <div className="mt-5">
         {rejected ? (
-          <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
-            <p className="text-sm font-semibold text-[#1d1d1f]">Processo encerrado nessa vaga</p>
-            <p className="text-[13px] text-[#6b6b70] mt-0.5">
+          <div className="rounded-tile bg-canvas border border-line-soft px-4 py-3">
+            <p className="text-sm font-semibold text-ink">Processo encerrado nessa vaga</p>
+            <p className="text-footnote text-ink-muted mt-0.5">
               Obrigado por participar. Seu perfil segue disponível pra futuras oportunidades.
             </p>
           </div>
@@ -146,11 +147,11 @@ function ApplicationCard({
         )}
       </div>
 
-      <div className="mt-4 border-t border-gray-100 pt-3">
+      <div className="mt-4 border-t border-line-soft pt-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 text-[13px] font-semibold text-sky-700 hover:text-sky-800"
+          className="inline-flex items-center gap-1 text-footnote font-semibold text-sky-700 hover:text-sky-800"
           aria-expanded={open}
         >
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -158,14 +159,14 @@ function ApplicationCard({
         </button>
         {open && (
           <ol className="mt-3 space-y-2">
-            <li className="flex items-center gap-2.5 text-[13px] text-[#6b6b70]">
+            <li className="flex items-center gap-2.5 text-footnote text-ink-muted">
               <span className="h-1.5 w-1.5 rounded-full bg-gray-300 shrink-0" />
               Candidatura enviada em {shortDate(app.created_at)}
             </li>
             {events.map((e, i) => (
               <li
                 key={`${e.created_at}-${i}`}
-                className="flex items-center gap-2.5 text-[13px] text-[#1d1d1f]"
+                className="flex items-center gap-2.5 text-footnote text-ink"
               >
                 <span
                   className={cn(
@@ -254,13 +255,13 @@ export function CandidateApplications() {
   }, [authLoading, fetchAll]);
 
   if (authLoading || loading) {
-    return <div className="text-sm text-[#6b6b70]">Carregando...</div>;
+    return <div className="text-sm text-ink-muted">Carregando...</div>;
   }
 
   if (error) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-[#1d1d1f]">{error}</p>
+        <p className="text-sm text-ink">{error}</p>
         <button
           type="button"
           onClick={() => void fetchAll()}
@@ -275,13 +276,13 @@ export function CandidateApplications() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-satoshi text-2xl font-bold text-[#1d1d1f] mb-1">Minhas candidaturas</h1>
-        <p className="text-sm text-[#6b6b70]">Acompanhe em que etapa você está em cada vaga.</p>
+        <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minhas candidaturas</h1>
+        <p className="text-sm text-ink-muted">Acompanhe em que etapa você está em cada vaga.</p>
       </div>
 
       {apps.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-          <p className="text-sm text-[#6b6b70]">
+        <div className="bg-white rounded-card border border-line-soft p-8 text-center">
+          <p className="text-sm text-ink-muted">
             Você ainda não se candidatou a nenhuma vaga. Quando se candidatar pela página de
             carreiras de uma empresa, ela aparece aqui.
           </p>

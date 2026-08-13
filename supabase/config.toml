@@ -46,6 +46,16 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
+# Templates dos emails de auth (código OTP), no visual Noren. Aplicar em
+# produção com: supabase config push --project-ref dknakecjaakbssuqxsjf
+[auth.email.template.magic_link]
+subject = "Seu código de acesso no Noren"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Seu código pra entrar no Noren"
+content_path = "./supabase/templates/confirmation.html"
+
 [auth.external.linkedin_oidc]
 enabled = false
 client_id = "env(SUPABASE_AUTH_LINKEDIN_CLIENT_ID)"
@@ -80,6 +90,25 @@ verify_jwt = false
 
 # generate-job-description valida o JWT internamente via getUser()
 [functions.generate-job-description]
+verify_jwt = true
+
+# generate-job-requirements: gabarito interno da vaga. Valida JWT + ownership.
+[functions.generate-job-requirements]
+verify_jwt = true
+
+# application-prefill: público. Valida token do candidato (applicant_tokens) pra
+# devolver os dados que já temos e pré-preencher o form individual.
+[functions.application-prefill]
+verify_jwt = false
+
+# notify-stage-change: recrutador logado. Manda e-mail da virada de etapa e
+# devolve link do form + link de WhatsApp. Valida JWT + ownership internamente.
+[functions.notify-stage-change]
+verify_jwt = true
+
+# delete-application: recrutador logado apaga candidatura da própria empresa.
+# Valida JWT + ownership internamente e usa service_role pros deletes.
+[functions.delete-application]
 verify_jwt = true
 
 # debug-login: dev-only, guardado pelo secret DEBUG_LOGIN_ENABLED

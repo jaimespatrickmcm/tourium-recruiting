@@ -8,11 +8,41 @@ export type Json =
 
 export type UserRole = 'owner' | 'recruiter' | 'viewer';
 export type CompanyPlan = 'trial' | 'starter' | 'growth';
-export type ApplicationStatus = 'triagem' | 'entrevista' | 'proposta' | 'contratado' | 'reprovado';
+export type ApplicationStatus =
+  | 'triagem'
+  | 'fit_cultural'
+  | 'entrevista'
+  | 'proposta'
+  | 'contratado'
+  | 'reprovado';
 export type ApplicationEventType = 'stage_change' | 'note' | 'hired';
 export type CollaboratorStatus = 'ativo' | 'desligado';
 export type ScoreSource = 'analise_inicial' | 'avaliacao';
 export type GoalStatus = 'em_andamento' | 'concluida' | 'pausada';
+export type QuestionKind = 'profile' | 'culture' | 'reasoning' | 'curiosity';
+export type QuestionFormat = 'text' | 'number' | 'single_select' | 'multi_select';
+export type JobVisibility = 'public' | 'private';
+export type HighlightType = 'yes_no' | 'short_text';
+
+/** Perfil de requisitos interno da vaga (jobs.requirements). Nunca exposto ao candidato. */
+export type JobRequirements = {
+  seniority: string;
+  summary: string;
+  /** Local + modelo de trabalho da vaga (ex.: "Presencial em BH", "Remoto"). '' quando desconhecido. */
+  location: string;
+  must_have: string[];
+  nice_to_have: string[];
+  responsibilities: string[];
+  evaluation_focus: string[];
+  red_flags: string[];
+};
+export type AnswerSource =
+  | 'candidate_info'
+  | 'job_question'
+  | 'profile'
+  | 'culture'
+  | 'reasoning'
+  | 'curiosity';
 
 export type Database = {
   public: {
@@ -86,6 +116,12 @@ export type Database = {
           title: string;
           description: string | null;
           status: string;
+          visibility: JobVisibility;
+          highlight_question: string | null;
+          highlight_type: HighlightType | null;
+          highlight_expected: string | null;
+          requirements: JobRequirements | null;
+          show_benefits: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -108,6 +144,14 @@ export type Database = {
           candidate_phone: string | null;
           why_interested: string | null;
           status: ApplicationStatus;
+          city: string | null;
+          form_completed_at: string | null;
+          resume_path: string | null;
+          linkedin_url: string | null;
+          highlight_answer: string | null;
+          highlight_matched: boolean | null;
+          ai_suspected: boolean;
+          ai_flags: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -148,7 +192,19 @@ export type Database = {
           score: number | null;
           recommendation: string | null;
           reasoning: string | null;
+          cv_observations: string | null;
+          cv_feedback: Json | null;
+          evidence_stage: string | null;
+          stage_score: number | null;
+          stage_verdict: string | null;
+          stage_note: string | null;
           dimensions: Json | null;
+          stage_dimensions: Json | null;
+          strengths: Json | null;
+          concerns: Json | null;
+          question_scores: Json | null;
+          potential_breakdown: Json | null;
+          leadership_signal: Json | null;
           dna_version_used: number | null;
           model_used: string | null;
           cost_cents: number | null;
@@ -244,6 +300,110 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['development_goals']['Row']>;
         Relationships: [];
       };
+      company_questions: {
+        Row: {
+          id: string;
+          company_id: string;
+          kind: QuestionKind;
+          position: number;
+          question: string;
+          guidance: string | null;
+          scoring_rubric: string | null;
+          required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['company_questions']['Row']> & {
+          company_id: string;
+          kind: QuestionKind;
+          question: string;
+        };
+        Update: Partial<Database['public']['Tables']['company_questions']['Row']>;
+        Relationships: [];
+      };
+      job_questions: {
+        Row: {
+          id: string;
+          job_id: string;
+          company_id: string;
+          position: number;
+          question: string;
+          guidance: string | null;
+          scoring_rubric: string | null;
+          required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['job_questions']['Row']> & {
+          job_id: string;
+          company_id: string;
+          question: string;
+        };
+        Update: Partial<Database['public']['Tables']['job_questions']['Row']>;
+        Relationships: [];
+      };
+      application_answers: {
+        Row: {
+          id: string;
+          application_id: string;
+          company_id: string;
+          source: AnswerSource;
+          ref_id: string | null;
+          question_snapshot: string;
+          answer: string | null;
+          guidance_snapshot: string | null;
+          rubric_snapshot: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['application_answers']['Row']> & {
+          application_id: string;
+          company_id: string;
+          source: AnswerSource;
+          question_snapshot: string;
+        };
+        Update: Partial<Database['public']['Tables']['application_answers']['Row']>;
+        Relationships: [];
+      };
+      profile_assessments: {
+        Row: {
+          id: string;
+          email: string;
+          method: 'disc' | 'bigfive' | 'grit';
+          answers: Json;
+          result: Json;
+          consent_at: string;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['profile_assessments']['Row']> & {
+          email: string;
+          method: 'disc' | 'bigfive' | 'grit';
+          answers: Json;
+          result: Json;
+          consent_at: string;
+        };
+        Update: Partial<Database['public']['Tables']['profile_assessments']['Row']>;
+        Relationships: [];
+      };
+      applicant_profiles: {
+        Row: {
+          email: string;
+          full_name: string | null;
+          phone: string | null;
+          city: string | null;
+          linkedin_url: string | null;
+          picture_url: string | null;
+          about: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['applicant_profiles']['Row']> & { email: string };
+        Update: Partial<Database['public']['Tables']['applicant_profiles']['Row']>;
+        Relationships: [];
+      };
     };
     Views: {
       company_public_profiles: {
@@ -252,6 +412,35 @@ export type Database = {
           slug: string;
           name: string;
           description: string | null;
+          /** Só os benefícios do DNA. O resto do dna_document continua interno. */
+          benefits: Json;
+        };
+        Relationships: [];
+      };
+      company_questions_public: {
+        Row: {
+          id: string;
+          company_id: string;
+          kind: QuestionKind;
+          position: number;
+          question: string;
+          required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
+          min_selections: number;
+        };
+        Relationships: [];
+      };
+      job_questions_public: {
+        Row: {
+          id: string;
+          job_id: string;
+          position: number;
+          question: string;
+          required: boolean;
+          format: QuestionFormat;
+          options: Json | null;
+          min_selections: number;
         };
         Relationships: [];
       };

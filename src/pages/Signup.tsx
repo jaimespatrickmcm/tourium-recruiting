@@ -55,18 +55,18 @@ export function Signup() {
         <div className="text-center mb-8">
           <Link
             to="/"
-            className="inline-block font-satoshi font-bold text-[28px] tracking-[-0.6px] text-[#1d1d1f]"
+            className="inline-block font-satoshi font-bold text-[28px] tracking-[-0.6px] text-ink"
           >
             Noren
           </Link>
         </div>
 
-        <div className="bg-white rounded-[28px] border border-gray-200 shadow-[0_20px_60px_-20px_rgba(15,15,30,0.12)] p-8 md:p-10">
+        <div className="bg-white rounded-panel border border-line-soft shadow-e3 p-8 md:p-10">
           <div className="mb-7">
-            <h1 className="font-satoshi font-bold text-[26px] tracking-[-0.4px] text-[#1d1d1f] leading-tight mb-2">
+            <h1 className="font-satoshi font-bold text-[26px] tracking-[-0.4px] text-ink leading-tight mb-2">
               Criar conta
             </h1>
-            <p className="text-[15px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Sem senha. A gente manda um código de 6 dígitos pro seu email. Toda vez.
             </p>
           </div>
@@ -78,12 +78,12 @@ export function Signup() {
                 name="fullName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[13px] font-semibold text-[#1d1d1f]">Seu nome</FormLabel>
+                    <FormLabel className="text-footnote font-semibold text-ink">Seu nome</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Maria Silva"
                         autoComplete="name"
-                        className="h-11 rounded-xl border-gray-200 text-[15px]"
+                        className="h-11 rounded-tile border-line-soft text-callout"
                         {...field}
                       />
                     </FormControl>
@@ -96,13 +96,13 @@ export function Signup() {
                 name="companyName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[13px] font-semibold text-[#1d1d1f]">
+                    <FormLabel className="text-footnote font-semibold text-ink">
                       Nome da empresa
                     </FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Acme Inc"
-                        className="h-11 rounded-xl border-gray-200 text-[15px]"
+                        className="h-11 rounded-tile border-line-soft text-callout"
                         {...field}
                       />
                     </FormControl>
@@ -115,7 +115,7 @@ export function Signup() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[13px] font-semibold text-[#1d1d1f]">
+                    <FormLabel className="text-footnote font-semibold text-ink">
                       Email de trabalho
                     </FormLabel>
                     <FormControl>
@@ -123,7 +123,7 @@ export function Signup() {
                         type="email"
                         placeholder="voce@empresa.com"
                         autoComplete="email"
-                        className="h-11 rounded-xl border-gray-200 text-[15px]"
+                        className="h-11 rounded-tile border-line-soft text-callout"
                         {...field}
                       />
                     </FormControl>
@@ -136,9 +136,9 @@ export function Signup() {
                 <BrandCtaButton type="submit" disabled={submitting} className="w-full justify-center">
                   {submitting ? 'Enviando código...' : 'Receber código de acesso'}
                 </BrandCtaButton>
-                <p className="text-[14px] text-[#8a8a8f] text-center">
+                <p className="text-callout text-ink-subtle text-center">
                   Já tem conta?{' '}
-                  <Link to="/login" className="text-[#1d1d1f] font-semibold hover:underline">
+                  <Link to="/login" className="text-ink font-semibold hover:underline">
                     Entrar
                   </Link>
                 </p>

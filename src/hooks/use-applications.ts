@@ -8,9 +8,20 @@ import type { ApplicationStatus, Json } from '@/types/database';
 
 export type ApplicationAnalysis = {
   score: number | null;
-  recommendation: string | null;
   reasoning: string | null;
+  cv_observations: string | null;
+  cv_feedback: Json | null;
+  evidence_stage: string | null;
+  stage_score: number | null;
+  stage_verdict: string | null;
+  stage_note: string | null;
   dimensions: Json | null;
+  stage_dimensions: Json | null;
+  strengths: Json | null;
+  concerns: Json | null;
+  question_scores: Json | null;
+  potential_breakdown: Json | null;
+  leadership_signal: Json | null;
   status: string;
   error_message: string | null;
   ran_at: string | null;
@@ -25,6 +36,12 @@ export type ApplicationWithAnalysis = {
   why_interested: string | null;
   status: ApplicationStatus;
   created_at: string;
+  ai_suspected: boolean;
+  form_completed_at: string | null;
+  resume_path: string | null;
+  linkedin_url: string | null;
+  highlight_answer: string | null;
+  highlight_matched: boolean | null;
   ai_analysis: ApplicationAnalysis | null;
 };
 
@@ -44,8 +61,8 @@ export function useApplications(jobId: string | undefined) {
       .from('applications')
       .select(
         `
-        id, company_id, candidate_id, candidate_name, candidate_email, why_interested, status, created_at,
-        ai_analysis:ai_analyses(score, recommendation, reasoning, dimensions, status, error_message, ran_at)
+        id, company_id, candidate_id, candidate_name, candidate_email, why_interested, status, created_at, ai_suspected, form_completed_at, resume_path, linkedin_url, highlight_answer, highlight_matched,
+        ai_analysis:ai_analyses(score, reasoning, cv_observations, cv_feedback, evidence_stage, stage_score, stage_verdict, stage_note, dimensions, stage_dimensions, strengths, concerns, question_scores, potential_breakdown, leadership_signal, status, error_message, ran_at)
       `,
       )
       .eq('job_id', jobId)
