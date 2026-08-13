@@ -257,19 +257,26 @@ async function loadFormAnswers(
 
   // Quais perguntas são obrigatórias (cobrem must-have): pesam o dobro na média.
   const requiredById = new Map<string, boolean>();
+  const formatById = new Map<string, string>();
   const allRefIds = scored
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((a: any) => a.ref_id)
     .filter(Boolean);
   if (allRefIds.length > 0) {
     const [cq, jq] = await Promise.all([
-      admin.from('company_questions').select('id, required').in('id', allRefIds),
-      admin.from('job_questions').select('id, required').in('id', allRefIds),
+      admin.from('company_questions').select('id, required, format').in('id', allRefIds),
+      admin.from('job_questions').select('id, required, format').in('id', allRefIds),
     ]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const q of cq.data ?? []) requiredById.set(q.id, q.required === true);
+    for (const q of cq.data ?? []) {
+      requiredById.set(q.id, q.required === true);
+      formatById.set(q.id, String(q.format ?? 'text'));
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const q of jq.data ?? []) requiredById.set(q.id, q.required === true);
+    for (const q of jq.data ?? []) {
+      requiredById.set(q.id, q.required === true);
+      formatById.set(q.id, String(q.format ?? 'text'));
+    }
   }
 
   const questions: ScoredQuestion[] = [];
@@ -286,8 +293,12 @@ async function loadFormAnswers(
       [rub?.guidance, rub?.scoring_rubric].filter(Boolean).join(' | ').slice(0, MAX_RUBRIC_CHARS) ||
       '(sem critério cadastrado)';
     const required = a.ref_id ? requiredById.get(a.ref_id) === true : false;
+    const format = (a.ref_id ? formatById.get(a.ref_id) : 'text') ?? 'text';
+    const isSelect = format === 'single_select' || format === 'multi_select';
     questions.push({ refId: a.ref_id ?? null, source: a.source, required });
-    return `PERGUNTA ${i + 1} [${label}]${required ? ' [OBRIGATÓRIA]' : ''}
+    return `PERGUNTA ${i + 1} [${label}]${required ? ' [OBRIGATÓRIA]' : ''}${
+      isSelect ? ' [MARCAR OPÇÕES: o candidato só escolhe da lista, não escreve nada]' : ''
+    }
 Enunciado: ${String(a.question_snapshot ?? '').slice(0, 400)}
 Resposta: ${String(a.answer ?? '').slice(0, MAX_ANSWER_CHARS)}
 Critério interno (como pontuar nesta empresa): ${criterio}`;
@@ -433,7 +444,8 @@ REGRAS:
 NOTA POR PERGUNTA: em "question_scores", dê uma nota de 0 a 100 para CADA pergunta respondida, usando o critério interno daquela pergunta como régua (é ele que diz o que aprova, o que reprova e onde fica a média). Identifique pelo número ("n": 1 para PERGUNTA 1, e assim por diante).
 - Julgue a resposta contra o critério DAQUELA pergunta, não contra o candidato ideal imaginário nem contra as outras respostas.
 - "rationale": uma frase dizendo por que essa nota, citando o que a resposta trouxe ou deixou de trazer. É o que o recrutador vai ler ao lado da resposta, então seja concreto e sem jargão.
-- Valem as mesmas regras: capacidade acima de rótulo, e nada de exigir vocabulário específico.
+- PERGUNTA DE MARCAR OPÇÕES: julgue APENAS as opções escolhidas, comparando com o que a vaga precisa. O candidato não digita nada nesse formato, então é ERRO tirar ponto por "não justificou", "não deu exemplo", "não detalhou" ou "faltou contexto". Se as opções certas estão marcadas, a nota é alta, ponto.
+- O ENUNCIADO E A RÉGUA PODEM ESTAR ENVIESADOS. Muitas perguntas foram escritas cobrando um método, uma métrica ou uma ferramenta pelo nome (OKR, KR, CAC, LTV, payback, SQL). Quando isso acontecer, traduza para a capacidade que está sendo medida e credite o EQUIVALENTE que o candidato descreveu: quem desdobrou metas em indicadores com rito e correção de rota atendeu o item de "OKR"; quem modelou margem, DRE, prazo médio ou payback do jeito do negócio dele atendeu o item de "unit economics"; quem monta painel em BI ou planilha atendeu o item de "SQL". Não escreva no rationale que faltou a sigla: diga o que faltou de CAPACIDADE, se é que faltou.
 
 PONTOS FORTES E PONTOS DE ATENÇÃO: entregue "strengths" (2 a 4) e "concerns" (1 a 3). É o que explica o scout pro recrutador, então cada item tem duas partes:
 - "point": a leitura, em uma frase direta (ex.: "Roda o ciclo de metas de ponta a ponta").
@@ -727,6 +739,26 @@ Deno.serve(async (req) => {
       },
       { onConflict: 'application_id' },
     );
+
+    // Log append-only: a re-analise sobrescreve ai_analyses, mas o historico de
+    // cada etapa fica aqui. E o que vai permitir olhar pra tras e perguntar
+    // quanto tirou, em cada etapa, quem virou bom funcionario.
+    const { error: historyError } = await admin.from('application_stage_scores').insert({
+      application_id: payload.applicationId,
+      company_id: company?.id,
+      evidence_stage: evidenceStage,
+      stage_score: stageScore,
+      stage_verdict: stageVerdict,
+      score: result.score,
+      dimensions: result.dimensions,
+      stage_dimensions: result.stage_dimensions,
+      question_scores: questionScores,
+      model_used: MODEL,
+    });
+    if (historyError) {
+      // Historico e importante, mas nao pode derrubar a analise que ja rodou.
+      console.error('[analyze-candidate] historico de etapa:', historyError.message);
+    }
 
     return jsonResponse({
       ok: true,
