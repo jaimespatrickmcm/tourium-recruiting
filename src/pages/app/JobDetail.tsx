@@ -41,6 +41,7 @@ import {
   SCOUT_AREAS,
   type StageDimension,
 } from '@/lib/scout-areas';
+import { parseEvidencePoints, type EvidencePoint } from '@/lib/evidence-points';
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { Textarea } from '@/components/ui/textarea';
@@ -303,6 +304,75 @@ function StageDecision({
           ? `${rank}º de ${total} no mesmo estágio nesta vaga · média ${average}`
           : 'Primeiro candidato neste estágio. A referência fica mais clara conforme chegam outros.'}
       </p>
+    </div>
+  );
+}
+
+// Pontos fortes e pontos de atenção com a evidência que sustenta cada leitura.
+// É o "por que" do score: fica logo abaixo da decisão da etapa pra o recrutador
+// entender de onde saiu a nota antes de ver os gráficos. Análise antiga não tem
+// esses dados e o bloco inteiro some.
+function EvidencePoints({
+  strengths,
+  concerns,
+}: {
+  strengths: EvidencePoint[];
+  concerns: EvidencePoint[];
+}) {
+  if (strengths.length === 0 && concerns.length === 0) return null;
+
+  return (
+    <div className="mb-4 space-y-6 rounded-2xl border border-gray-200 bg-white p-5">
+      {strengths.length > 0 && (
+        <section>
+          <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            Pontos fortes
+          </p>
+          <div className="space-y-4">
+            {strengths.map((item, i) => (
+              <div key={`forte-${i}`} className="flex gap-3">
+                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                <div>
+                  <p className="text-[14px] font-semibold text-[#1d1d1f]">{item.point}</p>
+                  {item.evidence && (
+                    <p className="mt-1 text-[13px] text-[#6b6b70] leading-relaxed">
+                      {item.evidence}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {concerns.length > 0 && (
+        <section>
+          <p className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+            <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+            Pontos de atenção
+          </p>
+          <p className="mb-3 text-[12px] text-[#8a8a8f]">
+            Não são vetos. São os temas que valem uma pergunta na entrevista.
+          </p>
+          <div className="space-y-4">
+            {concerns.map((item, i) => (
+              <div key={`atencao-${i}`} className="flex gap-3">
+                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                <div>
+                  <p className="text-[14px] font-semibold text-[#1d1d1f]">{item.point}</p>
+                  {item.evidence && (
+                    <p className="mt-1 text-[13px] text-[#6b6b70] leading-relaxed">
+                      {item.evidence}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -1460,6 +1530,10 @@ function CandidateDetail({
   const dims = aStatus === 'completed' ? parseDimensions(analysis?.dimensions) : [];
   const stageDims =
     aStatus === 'completed' ? parseStageDimensions(analysis?.stage_dimensions) : [];
+  // Evidência por trás da nota. Só existe em análises novas: as antigas voltam
+  // vazias e o bloco não aparece.
+  const strengths = aStatus === 'completed' ? parseEvidencePoints(analysis?.strengths) : [];
+  const concerns = aStatus === 'completed' ? parseEvidencePoints(analysis?.concerns) : [];
   // Áreas gerais que a etapa atual ainda não consegue avaliar (ex.: cultura só
   // depois do formulário de fit). Mostradas como pendentes, nunca inventadas.
   const pendingAreas = SCOUT_AREAS.filter((a) => !dims.some((d) => d.area === a.key)).map(
@@ -1800,6 +1874,7 @@ function CandidateDetail({
           ) : dims.length > 0 && analysis ? (
             <div>
               <StageDecision analysis={analysis} dims={dims} cohortStageScores={cohortStageScores} />
+              <EvidencePoints strengths={strengths} concerns={concerns} />
               {stageDims.length > 0 && (
                 <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
               )}
@@ -1824,6 +1899,7 @@ function CandidateDetail({
           ) : analysis ? (
             <div>
               <StageDecision analysis={analysis} dims={[]} cohortStageScores={cohortStageScores} />
+              <EvidencePoints strengths={strengths} concerns={concerns} />
               {stageDims.length > 0 && (
                 <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
               )}

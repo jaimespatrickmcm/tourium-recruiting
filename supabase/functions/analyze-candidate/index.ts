@@ -49,6 +49,8 @@ type StageDimension = { area: string; score: number | null; rationale: string };
 type StageVerdict = 'avancar' | 'segurar' | 'cortar';
 type EvidenceStage = 'cv' | 'form';
 
+type EvidencePoint = { point: string; evidence: string };
+
 type AnalysisResult = {
   score: number;
   recommendation: 'strong_hire' | 'hire' | 'maybe' | 'no_hire';
@@ -59,6 +61,8 @@ type AnalysisResult = {
   stage_note: string;
   dimensions: DimensionScore[];
   stage_dimensions: StageDimension[];
+  strengths: EvidencePoint[];
+  concerns: EvidencePoint[];
 };
 
 const STAGE_VERDICTS = ['avancar', 'segurar', 'cortar'] as const;
@@ -67,6 +71,48 @@ function normalizeVerdict(value: unknown): StageVerdict {
   return (STAGE_VERDICTS as readonly string[]).includes(value as string)
     ? (value as StageVerdict)
     : 'segurar';
+}
+
+// Peso de cada dimensão no fit da etapa. O modelo julga as evidências (que é o
+// que ele faz bem) e o CÓDIGO calcula a nota e o veredito. Antes o modelo
+// escolhia o número e o veredito livremente, e a mesma candidatura oscilava
+// entre 38 e 58, cortar e segurar, entre rodadas. Régua fixa acaba com isso e
+// ainda deixa a decisão auditável.
+const STAGE_WEIGHTS: Record<string, number> = {
+  // Estágio currículo: o que a vaga exige pesa mais que contexto logístico.
+  experiencia: 0.4,
+  aderencia_tecnica: 0.3,
+  estabilidade: 0.15,
+  disponibilidade: 0.1,
+  localizacao: 0.05,
+  // Estágio formulário.
+  cultura: 0.3,
+  raciocinio: 0.3,
+  comunicacao: 0.2,
+  motivacao: 0.2,
+};
+
+// Média ponderada das dimensões pontuadas. Dimensão sem dado (null) sai da conta
+// e os pesos se redistribuem, senão "sem dado" viraria nota zero disfarçada.
+function computeStageScore(dims: StageDimension[], fallback: number): number {
+  const scored = dims.filter((d) => typeof d.score === 'number');
+  if (scored.length === 0) return fallback;
+  let sum = 0;
+  let weightTotal = 0;
+  for (const d of scored) {
+    const w = STAGE_WEIGHTS[d.area] ?? 0.2;
+    sum += (d.score as number) * w;
+    weightTotal += w;
+  }
+  if (weightTotal === 0) return fallback;
+  return Math.max(0, Math.min(100, Math.round(sum / weightTotal)));
+}
+
+// A etapa é um portão, não a contratação: só corta quem está claramente abaixo.
+function verdictFromScore(score: number): StageVerdict {
+  if (score >= 60) return 'avancar';
+  if (score >= 40) return 'segurar';
+  return 'cortar';
 }
 
 const MODEL = 'gpt-5';
@@ -316,6 +362,11 @@ REGRAS:
 - Esforço conta. Pergunta importante deixada em branco, ou respondida com evidente má vontade (uma palavra solta, texto aleatório, fora do tema, só pra passar), é sinal negativo de motivação e engajamento: pontue baixo nessas e diga no rationale. Não confunda uma resposta curta mas honesta e no tema com má vontade.
 - Responda em português
 
+PONTOS FORTES E PONTOS DE ATENÇÃO: entregue "strengths" (2 a 4) e "concerns" (1 a 3). É o que explica o scout pro recrutador, então cada item tem duas partes:
+- "point": a leitura, em uma frase direta (ex.: "Roda o ciclo de metas de ponta a ponta").
+- "evidence": o que sustenta, citando o que a pessoa DE FATO disse ou fez (ex.: "desdobrou metas de 4 unidades pra 10+ filiais, com rito semanal com donos e revisão mensal com a diretoria"). Sem evidência concreta, não escreva o ponto.
+Em "concerns", escreva o que investigar na próxima conversa, não sentença. "Não detalhou os critérios de priorização no cenário" é um ponto de atenção; "não sabe priorizar" seria um chute.
+
 OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
 {
   "score": <inteiro 0-100>,
@@ -330,7 +381,9 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
   ],
   "stage_dimensions": [
     { "area": "<dimensão do estágio>", "score": <0-100 ou null se sem dados>, "rationale": "<1-2 frases>" }
-  ]
+  ],
+  "strengths": [ { "point": "<uma frase>", "evidence": "<o que o candidato disse ou fez>" } ],
+  "concerns": [ { "point": "<uma frase>", "evidence": "<o que faltou, e o que investigar>" } ]
 }`;
 }
 
@@ -381,6 +434,15 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
     const cvObservations =
       typeof cvRaw === 'string' && cvRaw.trim().length > 0 ? cvRaw.trim() : null;
 
+    const parsePoints = (raw: unknown): EvidencePoint[] =>
+      (Array.isArray(raw) ? raw : [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((p: any) => ({
+          point: String(p?.point ?? '').trim(),
+          evidence: String(p?.evidence ?? '').trim(),
+        }))
+        .filter((p) => p.point.length > 0);
+
     const stageNoteRaw = parsed.stage_note;
     const stageNote =
       typeof stageNoteRaw === 'string' && stageNoteRaw.trim().length > 0 ? stageNoteRaw.trim() : '';
@@ -395,6 +457,8 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       stage_note: stageNote,
       dimensions,
       stage_dimensions,
+      strengths: parsePoints(parsed.strengths),
+      concerns: parsePoints(parsed.concerns),
     };
   } catch {
     return null;
@@ -515,7 +579,10 @@ Deno.serve(async (req) => {
       apiKey: openaiKey,
       model: MODEL,
       prompt,
-      maxTokens: 5000,
+      // GPT-5 conta os tokens de raciocínio dentro deste limite. Com o prompt e a
+      // saída maiores (dimensões da etapa, pontos fortes e de atenção), 5000
+      // acabava no meio do raciocínio e a resposta voltava vazia.
+      maxTokens: 14000,
       jsonMode: true,
       reasoningEffort: 'medium',
     });
@@ -538,6 +605,11 @@ Deno.serve(async (req) => {
 
     const costCents = openaiCostCents(usage);
 
+    // Nota e veredito da etapa são CALCULADOS aqui, não escolhidos pelo modelo:
+    // é o que impede a mesma candidatura de oscilar entre rodadas.
+    const stageScore = computeStageScore(result.stage_dimensions, result.stage_score);
+    const stageVerdict = verdictFromScore(stageScore);
+
     await admin.from('ai_analyses').upsert(
       {
         application_id: payload.applicationId,
@@ -546,11 +618,13 @@ Deno.serve(async (req) => {
         reasoning: result.reasoning,
         cv_observations: resumeText ? result.cv_observations : null,
         evidence_stage: evidenceStage,
-        stage_score: result.stage_score,
-        stage_verdict: result.stage_verdict,
+        stage_score: stageScore,
+        stage_verdict: stageVerdict,
         stage_note: result.stage_note || null,
         dimensions: result.dimensions,
         stage_dimensions: result.stage_dimensions,
+        strengths: result.strengths,
+        concerns: result.concerns,
         dna_version_used: dnaVersion,
         model_used: MODEL,
         cost_cents: costCents,
@@ -561,7 +635,12 @@ Deno.serve(async (req) => {
       { onConflict: 'application_id' },
     );
 
-    return jsonResponse({ ok: true, ...result });
+    return jsonResponse({
+      ok: true,
+      ...result,
+      stage_score: stageScore,
+      stage_verdict: stageVerdict,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro inesperado';
     await admin.from('ai_analyses').upsert(
