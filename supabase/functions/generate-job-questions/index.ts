@@ -72,10 +72,10 @@ Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
 VAGA: ${args.jobTitle}
 Descrição e exigências: ${args.jobDescription ?? '(não informado)'}${formatRequirements(args.requirements)}
 
-PASSO 1, CALIBRE A SENIORIDADE. Antes de escrever, deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, lead). Isso mude TUDO:
+PASSO 1, CALIBRE A SENIORIDADE. Antes de escrever, deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, liderança). Isso mude TUDO:
 - Estágio / júnior: a pessoa está começando ou na faculdade. NÃO peça anos de experiência profissional, portfólio de campanhas pagas, biblioteca de assets pro time, decks de venda do zero ou liderança. Foque em fundamentos, curiosidade, projetos pequenos ou acadêmicos, familiaridade básica com as ferramentas, vontade de aprender e como a pessoa pensa. Perguntas que um bom estagiário consegue responder com o que já viveu.
 - Pleno: experiência prática real, autonomia em tarefas, decisões do dia a dia.
-- Sênior / lead: arquitetura, trade-offs difíceis, mentoria, impacto amplo.
+- Sênior / liderança: arquitetura, trade-offs difíceis, mentoria, impacto amplo.
 Uma pergunta boa pra sênior costuma ser injusta pra estagiário. Ajuste a profundidade ao nível.
 
 PASSO 1B, ENTENDA DE QUEM É A VAGA. A vaga é da EMPRESA, pra atuar DENTRO dela. O que a empresa vende é contexto, não é a tarefa do candidato. Um gerente de planejamento estratégico planeja a estratégia DA EMPRESA, ele não é key account cuidando da entrega pro cliente. Só escreva pergunta sobre entrega ao cliente final se a descrição disser explicitamente que o papel é de atendimento ou de entrega pra clientes. Errar isso gera pergunta sobre o trabalho errado.

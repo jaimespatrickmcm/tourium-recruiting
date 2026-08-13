@@ -376,7 +376,7 @@ RESPOSTAS DO FORMULÁRIO: cada bloco traz a pergunta, a resposta do candidato e 
 ${args.formAnswers ?? '(candidato ainda não respondeu o formulário completo)'}
 <<<FIM_DADOS_CANDIDATO>>>
 
-PASSO 1, CALIBRE A SENIORIDADE. Deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, lead) e avalie o candidato contra o nível DESTA vaga, não contra um profissional genérico. Um candidato que já tem experiência real aplicando pra uma vaga de estágio EXCEDE o nível esperado, então isso é ponto ALTO em execução, não "só o básico". Não cobre de estagiário conhecimento de pleno ou sênior. O que é "básico" pra sênior pode ser "acima do esperado" pra estágio.
+PASSO 1, CALIBRE A SENIORIDADE. Deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, liderança) e avalie o candidato contra o nível DESTA vaga, não contra um profissional genérico. Um candidato que já tem experiência real aplicando pra uma vaga de estágio EXCEDE o nível esperado, então isso é ponto ALTO em execução, não "só o básico". Não cobre de estagiário conhecimento de pleno ou sênior. O que é "básico" pra sênior pode ser "acima do esperado" pra estágio.
 
 PASSO 1D, LEIA COMO UM HUNTER EXPERIENTE, NÃO COMO UM CONFERENTE DE PALAVRAS. Esse é o erro que mais destrói uma triagem: exigir o RÓTULO em vez da CAPACIDADE, e cortar gente ótima que faz exatamente aquilo com outro vocabulário.
 - Pergunte sempre: "a pessoa demonstra a CAPACIDADE por trás do requisito?". Se sim, o requisito está atendido, mesmo que ela nunca use a palavra do gabarito.
@@ -443,7 +443,8 @@ REGRAS:
 - Se houver GABARITO INTERNO, use como referência do que a vaga exige: priorize os must-have e o foco de avaliação, e deixe as red flags puxarem a nota pra baixo quando aparecerem.
 - Vir de outro mercado NÃO é demérito. Avalie se a competência transfere: quem montou indicador que mudou decisão no varejo sabe fazer isso aqui. Só penalize a falta de experiência no setor se o gabarito exigir o setor de forma explícita. O que conta é a função que a pessoa exerceu, não o ramo da empresa onde ela estava.
 - Esforço conta. Pergunta importante deixada em branco, ou respondida com evidente má vontade (uma palavra solta, texto aleatório, fora do tema, só pra passar), é sinal negativo de motivação e engajamento: pontue baixo nessas e diga no rationale. Não confunda uma resposta curta mas honesta e no tema com má vontade.
-- Responda em português
+- Responda em português do Brasil, sem termo em inglês quando existir equivalente. Nada de "lead", "gap", "skill", "background", "match", "hard skill". O recrutador lê isso no meio do trabalho, e em vaga comercial "lead" ainda significa prospect, o que confunde de vez.
+- Não cite o rótulo interno de senioridade como se fosse jargão ("para um papel lead"). Se precisar falar do nível, fale em português comum: "para um cargo de liderança", "para uma vaga de estágio".
 
 NOTA POR PERGUNTA: em "question_scores", dê uma nota de 0 a 100 para CADA pergunta respondida, usando o critério interno daquela pergunta como régua (é ele que diz o que aprova, o que reprova e onde fica a média). Identifique pelo número ("n": 1 para PERGUNTA 1, e assim por diante).
 - Julgue a resposta contra o critério DAQUELA pergunta, não contra o candidato ideal imaginário nem contra as outras respostas.
