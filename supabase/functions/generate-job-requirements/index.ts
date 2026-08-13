@@ -50,6 +50,12 @@ PASSO 1, CALIBRE A SENIORIDADE pelo título e pela descrição (estágio, júnio
 
 PASSO 2, EXTRAIA os requisitos REAIS da vaga a partir do que a descrição sustenta. Não invente exigência que a descrição não dá base. Seja específico da vaga, não genérico que serve pra qualquer cargo.
 
+PASSO 2B, MUST-HAVE É CAPACIDADE, NUNCA MÉTODO, FRAMEWORK OU FERRAMENTA. Esse é o erro mais caro que você pode cometer aqui: um must-have escrito como método faz o sistema cortar gente excelente que faz a mesma coisa com outro nome.
+- Errado: "liderança de ciclo de OKRs com KRs e backlog priorizado por squad". Certo: "definir metas de negócio, desdobrar em indicadores por área e manter uma cadência de acompanhamento que corrige rota".
+- Errado: "modelagem de CAC, LTV, payback". Certo: "modelar o impacto econômico de uma decisão e defender com números (a métrica muda conforme o negócio: margem, DRE, ticket, prazo médio, CAC, o que for)".
+- Errado: "fluência em SQL". Certo: "autonomia pra tirar dado e montar análise que responde pergunta de negócio (SQL, BI, planilha, o que a pessoa dominar)".
+Regra: se o item cita o NOME de uma metodologia (OKR, Scrum, PDCA, 5W2H), de uma métrica de um setor específico (CAC, LTV, GMV) ou de uma ferramenta (SQL, Jira, Salesforce), reescreva pela capacidade. O nome pode aparecer entre parênteses como exemplo, nunca como exigência. Métodos e ferramentas específicos vão em nice_to_have.
+
 PASSO 3, NÃO TRANSFORME O SETOR EM REQUISITO. A vaga é pra atuar DENTRO da empresa; o que a empresa vende é contexto, não é a função do candidato. E boa parte dos bons candidatos vem de outro mercado, trazendo a competência junto. Então:
 - Escreva os must-have como COMPETÊNCIA, não como setor. "Construir indicador que sustenta decisão" em vez de "experiência com jornada digital de hotelaria".
 - Só coloque experiência no setor específico como must-have se a descrição disser com todas as letras que é obrigatório. Se for só desejável, vai em nice-to-have.
