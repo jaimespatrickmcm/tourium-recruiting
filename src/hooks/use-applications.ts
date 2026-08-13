@@ -19,6 +19,7 @@ export type ApplicationAnalysis = {
   stage_dimensions: Json | null;
   strengths: Json | null;
   concerns: Json | null;
+  question_scores: Json | null;
   status: string;
   error_message: string | null;
   ran_at: string | null;
@@ -59,7 +60,7 @@ export function useApplications(jobId: string | undefined) {
       .select(
         `
         id, company_id, candidate_id, candidate_name, candidate_email, why_interested, status, created_at, ai_suspected, form_completed_at, resume_path, linkedin_url, highlight_answer, highlight_matched,
-        ai_analysis:ai_analyses(score, recommendation, reasoning, cv_observations, evidence_stage, stage_score, stage_verdict, stage_note, dimensions, stage_dimensions, strengths, concerns, status, error_message, ran_at)
+        ai_analysis:ai_analyses(score, recommendation, reasoning, cv_observations, evidence_stage, stage_score, stage_verdict, stage_note, dimensions, stage_dimensions, strengths, concerns, question_scores, status, error_message, ran_at)
       `,
       )
       .eq('job_id', jobId)

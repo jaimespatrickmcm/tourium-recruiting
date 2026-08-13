@@ -25,3 +25,29 @@ export function parseEvidencePoints(raw: unknown): EvidencePoint[] {
   }
   return out;
 }
+
+// Nota por pergunta (coluna jsonb question_scores em ai_analyses). Cada item
+// amarra numa resposta pelo ref_id e traz a justificativa da nota. Análises
+// antigas não têm a coluna preenchida, então o parser segue defensivo: formato
+// inesperado vira lista vazia e a UI renderiza as respostas sem nota.
+export type QuestionScore = {
+  ref_id: string | null;
+  score: number;
+  rationale: string;
+};
+
+export function parseQuestionScores(raw: unknown): QuestionScore[] {
+  if (!Array.isArray(raw)) return [];
+  const out: QuestionScore[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const { ref_id: refId, score, rationale } = item as Record<string, unknown>;
+    if (typeof score !== 'number' || !Number.isFinite(score)) continue;
+    out.push({
+      ref_id: typeof refId === 'string' && refId.trim().length > 0 ? refId.trim() : null,
+      score: Math.round(Math.min(100, Math.max(0, score))),
+      rationale: typeof rationale === 'string' ? rationale.trim() : '',
+    });
+  }
+  return out;
+}
