@@ -44,11 +44,13 @@ import {
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import { cn } from '@/lib/utils';
 import type {
   ApplicationStatus,
   ApplicationEventType,
+  AnswerSource,
   HighlightType,
   JobRequirements,
 } from '@/types/database';
@@ -73,6 +75,34 @@ type AppEvent = {
   to_status: string | null;
   note: string | null;
   created_at: string;
+};
+
+// Resposta do candidato no formulário, como ela foi gravada em application_answers.
+type AppAnswer = {
+  id: string;
+  source: AnswerSource;
+  question_snapshot: string;
+  answer: string | null;
+  created_at: string;
+};
+
+// Ordem de leitura das seções de resposta: começa pela vaga, termina nos dados.
+const ANSWER_SOURCE_ORDER: AnswerSource[] = [
+  'job_question',
+  'profile',
+  'culture',
+  'curiosity',
+  'reasoning',
+  'candidate_info',
+];
+
+const ANSWER_SOURCE_LABELS: Record<AnswerSource, string> = {
+  job_question: 'Sobre a vaga',
+  profile: 'Sobre o candidato',
+  culture: 'Cultura',
+  curiosity: 'Curiosidade',
+  reasoning: 'Raciocínio lógico',
+  candidate_info: 'Dados',
 };
 
 // Retorno da edge function notify-stage-change: o que rolou de comunicação com o
@@ -1181,6 +1211,8 @@ function CandidateDetail({
   const navigate = useNavigate();
   const { user } = useAuth();
   const [events, setEvents] = useState<AppEvent[]>([]);
+  const [answers, setAnswers] = useState<AppAnswer[]>([]);
+  const [answersLoading, setAnswersLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
@@ -1259,6 +1291,24 @@ function CandidateDetail({
   useEffect(() => {
     void loadEvents();
   }, [loadEvents]);
+
+  const loadAnswers = useCallback(async () => {
+    setAnswersLoading(true);
+    const { data, error } = await supabase
+      .from('application_answers')
+      .select('id, source, question_snapshot, answer, created_at')
+      .eq('application_id', app.id)
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.error('[JobDetail] answers load error:', error);
+    }
+    setAnswers((data as AppAnswer[]) ?? []);
+    setAnswersLoading(false);
+  }, [app.id]);
+
+  useEffect(() => {
+    void loadAnswers();
+  }, [loadAnswers]);
 
   async function applyStageChange(
     to: ApplicationStatus,
@@ -1421,6 +1471,15 @@ function CandidateDetail({
 
   const next = NEXT_STAGE[app.status];
   const isFinal = app.status === 'contratado' || app.status === 'reprovado';
+
+  // Respostas agrupadas por origem, na ordem de leitura. Grupo vazio some.
+  const answerGroups = ANSWER_SOURCE_ORDER.map((source) => ({
+    source,
+    label: ANSWER_SOURCE_LABELS[source],
+    items: answers.filter((a) => a.source === source && (a.answer ?? '').trim().length > 0),
+  })).filter((group) => group.items.length > 0);
+  const answersCount = answerGroups.reduce((total, group) => total + group.items.length, 0);
+  const hasAnswerContent = answersCount > 0 || Boolean(app.why_interested);
 
   const timeline: { key: string; label: string; date: string; note: string | null }[] = [
     {
@@ -1650,147 +1709,214 @@ function CandidateDetail({
         </div>
       )}
 
-      {app.why_interested && (
-        <div className="mb-6">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
-            Por que está interessado
-          </p>
-          <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-            {app.why_interested}
-          </p>
-        </div>
-      )}
+      <Tabs defaultValue="analise" className="border-t border-gray-100 pt-6">
+        <TabsList className="mb-5 h-auto w-full justify-start gap-1 rounded-full bg-gray-100 p-1">
+          <TabsTrigger
+            value="analise"
+            className="rounded-full px-4 py-1.5 text-[13px] font-semibold text-[#6b6b70] data-[state=active]:bg-white data-[state=active]:text-[#1d1d1f]"
+          >
+            Análise
+          </TabsTrigger>
+          <TabsTrigger
+            value="respostas"
+            className="gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold text-[#6b6b70] data-[state=active]:bg-white data-[state=active]:text-[#1d1d1f]"
+          >
+            Respostas
+            {answersCount > 0 && (
+              <span className="inline-flex min-w-[18px] justify-center rounded-full bg-sky-100 px-1.5 py-px text-[11px] font-bold text-sky-700">
+                {answersCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="historico"
+            className="rounded-full px-4 py-1.5 text-[13px] font-semibold text-[#6b6b70] data-[state=active]:bg-white data-[state=active]:text-[#1d1d1f]"
+          >
+            Histórico
+          </TabsTrigger>
+        </TabsList>
 
-      {analysis?.cv_observations && (
-        <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2 flex items-center gap-2">
-            <FileText className="h-3.5 w-3.5" />
-            O que o currículo mostra
-          </p>
-          <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-            {analysis.cv_observations}
-          </p>
-        </div>
-      )}
-
-      <div className="border-t border-gray-100 pt-6">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] flex items-center gap-2">
-            Análise IA
-            {aStatus === 'completed' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
-          </p>
-          {aStatus === 'completed' && (
-            <button
-              onClick={() => void reanalyze()}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#6b6b70] transition-colors hover:border-gray-400 hover:text-[#1d1d1f] disabled:opacity-50"
-              title="Roda a análise de novo (usa os requisitos atuais da vaga)"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
-              Re-analisar
-            </button>
+        <TabsContent value="analise" className="mt-0">
+          {analysis?.cv_observations && (
+            <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2 flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5" />
+                O que o currículo mostra
+              </p>
+              <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+                {analysis.cv_observations}
+              </p>
+            </div>
           )}
-        </div>
 
-        {pendingAnalysis ? (
-          <div>
-            <p className="text-[14px] text-[#8a8a8f] flex items-center gap-2">
-              <Clock className="h-4 w-4 animate-pulse" />
-              Análise rodando. O resultado aparece aqui em instantes.
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] flex items-center gap-2">
+              Análise IA
+              {aStatus === 'completed' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
             </p>
-            {stuckAnalysis && (
+            {aStatus === 'completed' && (
               <button
                 onClick={() => void reanalyze()}
                 disabled={busy}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#6b6b70] transition-colors hover:border-gray-400 hover:text-[#1d1d1f] disabled:opacity-50"
+                title="Roda a análise de novo (usa os requisitos atuais da vaga)"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
                 Re-analisar
               </button>
             )}
           </div>
-        ) : aStatus === 'error' ? (
-          <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
-            <p className="text-[13px] font-semibold text-rose-700 mb-1">Erro na análise</p>
-            <p className="text-[12px] text-rose-600 mb-3">{analysis?.error_message}</p>
-            <button
-              onClick={() => void reanalyze()}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-4 py-2 text-[13px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-50"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Re-analisar
-            </button>
-          </div>
-        ) : dims.length > 0 && analysis ? (
-          <div>
-            <StageDecision analysis={analysis} dims={dims} cohortStageScores={cohortStageScores} />
-            {stageDims.length > 0 && (
-              <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
-            )}
-            <ScoutCard
-              name={app.candidate_name}
-              subtitle={jobTitle}
-              overall={analysis?.score ?? overallFromDimensions(dims) ?? 0}
-              dimensions={dims}
-              badge={
-                analysis?.recommendation
-                  ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
-                  : null
-              }
-              pending={pendingAreas.length > 0 ? pendingAreas : undefined}
-            />
-            {analysis?.reasoning && (
-              <p className="mt-5 text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+
+          {pendingAnalysis ? (
+            <div>
+              <p className="text-[14px] text-[#8a8a8f] flex items-center gap-2">
+                <Clock className="h-4 w-4 animate-pulse" />
+                Análise rodando. O resultado aparece aqui em instantes.
+              </p>
+              {stuckAnalysis && (
+                <button
+                  onClick={() => void reanalyze()}
+                  disabled={busy}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Re-analisar
+                </button>
+              )}
+            </div>
+          ) : aStatus === 'error' ? (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+              <p className="text-[13px] font-semibold text-rose-700 mb-1">Erro na análise</p>
+              <p className="text-[12px] text-rose-600 mb-3">{analysis?.error_message}</p>
+              <button
+                onClick={() => void reanalyze()}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-4 py-2 text-[13px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-50"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Re-analisar
+              </button>
+            </div>
+          ) : dims.length > 0 && analysis ? (
+            <div>
+              <StageDecision analysis={analysis} dims={dims} cohortStageScores={cohortStageScores} />
+              {stageDims.length > 0 && (
+                <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
+              )}
+              <ScoutCard
+                name={app.candidate_name}
+                subtitle={jobTitle}
+                overall={analysis?.score ?? overallFromDimensions(dims) ?? 0}
+                dimensions={dims}
+                badge={
+                  analysis?.recommendation
+                    ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
+                    : null
+                }
+                pending={pendingAreas.length > 0 ? pendingAreas : undefined}
+              />
+              {analysis?.reasoning && (
+                <p className="mt-5 text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+                  {analysis.reasoning}
+                </p>
+              )}
+            </div>
+          ) : analysis ? (
+            <div>
+              <StageDecision analysis={analysis} dims={[]} cohortStageScores={cohortStageScores} />
+              {stageDims.length > 0 && (
+                <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
+              )}
+              <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
                 {analysis.reasoning}
               </p>
-            )}
-          </div>
-        ) : analysis ? (
-          <div>
-            <StageDecision analysis={analysis} dims={[]} cohortStageScores={cohortStageScores} />
-            {stageDims.length > 0 && (
-              <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
-            )}
-            <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-              {analysis.reasoning}
-            </p>
-          </div>
-        ) : null}
-      </div>
+            </div>
+          ) : null}
+        </TabsContent>
 
-      {/* Linha do tempo */}
-      <div className="border-t border-gray-100 pt-6 mt-6">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-4">
-          Linha do tempo
-        </p>
-        <ol className="space-y-4">
-          {timeline.map((entry, i) => (
-            <li key={entry.key} className="relative flex gap-3 pl-1">
-              <div className="flex flex-col items-center">
-                <span
-                  className={cn(
-                    'mt-1 h-2 w-2 flex-shrink-0 rounded-full',
-                    i === timeline.length - 1 ? 'bg-sky-500' : 'bg-gray-300',
-                  )}
-                />
-                {i < timeline.length - 1 && <span className="w-px flex-1 bg-gray-200 mt-1" />}
-              </div>
-              <div className="pb-1 min-w-0">
-                <p className="text-[13px] font-semibold text-[#1d1d1f] leading-tight">
-                  {entry.label}
-                </p>
-                <p className="text-[11px] text-[#8a8a8f] mt-0.5">{formatEventDate(entry.date)}</p>
-                {entry.note && (
-                  <p className="mt-1 text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
-                    {entry.note}
+        {/* O que o candidato respondeu no formulário, na ordem de leitura */}
+        <TabsContent value="respostas" className="mt-0">
+          {answersLoading ? (
+            <p className="text-[13px] text-[#8a8a8f]">Carregando respostas...</p>
+          ) : !hasAnswerContent ? (
+            <p className="text-[14px] text-[#8a8a8f] leading-relaxed">
+              Esse candidato ainda não preencheu o formulário.
+            </p>
+          ) : (
+            <div className="space-y-7">
+              {app.why_interested && (
+                <section>
+                  <div className="mb-3 flex items-center gap-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+                      Por que está interessado
+                    </p>
+                    <span className="h-px flex-1 bg-gray-100" />
+                  </div>
+                  <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+                    {app.why_interested}
                   </p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
+                </section>
+              )}
+
+              {answerGroups.map((group) => (
+                <section key={group.source}>
+                  <div className="mb-3 flex items-center gap-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+                      {group.label}
+                    </p>
+                    <span className="h-px flex-1 bg-gray-100" />
+                  </div>
+                  <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
+                    {group.items.map((item) => (
+                      <div key={item.id} className="px-5 py-4">
+                        <p className="mb-2 text-[13px] font-medium leading-snug text-[#6b6b70]">
+                          {item.question_snapshot}
+                        </p>
+                        <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+                          {item.answer}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Linha do tempo */}
+        <TabsContent value="historico" className="mt-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-4">
+            Linha do tempo
+          </p>
+          <ol className="space-y-4">
+            {timeline.map((entry, i) => (
+              <li key={entry.key} className="relative flex gap-3 pl-1">
+                <div className="flex flex-col items-center">
+                  <span
+                    className={cn(
+                      'mt-1 h-2 w-2 flex-shrink-0 rounded-full',
+                      i === timeline.length - 1 ? 'bg-sky-500' : 'bg-gray-300',
+                    )}
+                  />
+                  {i < timeline.length - 1 && <span className="w-px flex-1 bg-gray-200 mt-1" />}
+                </div>
+                <div className="pb-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-[#1d1d1f] leading-tight">
+                    {entry.label}
+                  </p>
+                  <p className="text-[11px] text-[#8a8a8f] mt-0.5">{formatEventDate(entry.date)}</p>
+                  {entry.note && (
+                    <p className="mt-1 text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
+                      {entry.note}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </TabsContent>
+      </Tabs>
 
       {/* Zona de exclusão: reprocessar do zero nos testes */}
       <div className="border-t border-gray-100 pt-6 mt-6">

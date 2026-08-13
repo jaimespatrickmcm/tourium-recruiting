@@ -238,10 +238,21 @@ Deno.serve(async (req) => {
   // Candidatura que já existia (veio do link, do e-mail ou da corrida): completa
   // com os dados do formulário. A recém-criada já nasceu com tudo isso.
   if (!createdNow) {
+    // Preencher o formulário É a etapa de fit cultural. Quem ainda está em
+    // triagem avança sozinho, senão o recrutador avançaria depois e a pessoa
+    // receberia de novo o convite pra preencher o que já preencheu.
+    const { data: current } = await admin
+      .from('applications')
+      .select('status')
+      .eq('id', applicationId)
+      .maybeSingle();
+    const promote = current?.status === 'triagem';
+
     const update: Record<string, unknown> = {
       city: city || null,
       form_completed_at: new Date().toISOString(),
     };
+    if (promote) update.status = 'fit_cultural';
     if (phone) update.candidate_phone = phone;
     // Só liga o flag; nunca desliga um já marcado.
     if (aiSuspected) {
@@ -254,6 +265,23 @@ Deno.serve(async (req) => {
       .eq('id', applicationId);
     if (updateError) {
       return jsonResponse({ error: updateError.message ?? 'Falha ao atualizar aplicação' }, 500);
+    }
+
+    if (promote) {
+      // Registra na linha do tempo pra o recrutador ver que quem moveu foi o
+      // próprio preenchimento, não alguém do time.
+      const { error: eventError } = await admin.from('application_events').insert({
+        application_id: applicationId,
+        company_id: company.id,
+        actor_id: null,
+        type: 'stage_change',
+        from_status: 'triagem',
+        to_status: 'fit_cultural',
+        note: null,
+      });
+      if (eventError) {
+        console.error('[submit-application-form] evento de etapa:', eventError.message);
+      }
     }
   }
 
