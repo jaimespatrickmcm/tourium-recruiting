@@ -212,6 +212,7 @@ function AnswerRow({
   category,
   answer,
   score,
+  unscored,
   open,
   onToggle,
 }: {
@@ -219,6 +220,10 @@ function AnswerRow({
   category: string;
   answer: string | null;
   score: QuestionScore | undefined;
+  // Pergunta de coleta de dado (salário, regime, anos de experiência, origem da
+  // vaga). Sem isso a linha aparecia sem nota e sem explicação, e quem lê ficava
+  // sem saber se a IA esqueceu ou se aquilo não vale nota mesmo.
+  unscored: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -235,7 +240,7 @@ function AnswerRow({
           <span className="whitespace-nowrap rounded-full border border-line-soft bg-canvas px-2 py-0.5 text-caption text-ink-muted">
             {category}
           </span>
-          {score && (
+          {score ? (
             <span
               className={cn(
                 'text-callout font-bold tabular-nums',
@@ -244,7 +249,9 @@ function AnswerRow({
             >
               {score.score}
             </span>
-          )}
+          ) : unscored ? (
+            <span className="whitespace-nowrap text-caption text-ink-subtle">não pontua</span>
+          ) : null}
           <ChevronDown
             className={cn(
               'h-4 w-4 text-ink-subtle transition-transform duration-200',
@@ -1644,6 +1651,7 @@ function CandidateDetail({
   const { user } = useAuth();
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [answers, setAnswers] = useState<AppAnswer[]>([]);
+  const [unscoredRefs, setUnscoredRefs] = useState<Set<string>>(new Set());
   const [answersLoading, setAnswersLoading] = useState(true);
   // Linhas abertas na aba Respostas. Tudo começa fechado: quem lê abre só o que
   // interessa.
@@ -1737,7 +1745,28 @@ function CandidateDetail({
     if (error) {
       console.error('[JobDetail] answers load error:', error);
     }
-    setAnswers((data as AppAnswer[]) ?? []);
+    const rows = (data as AppAnswer[]) ?? [];
+    setAnswers(rows);
+
+    // Quais dessas perguntas são coleta de dado e ficam fora da nota. Vem do
+    // banco em vez de regra por formato: "Com qual dessas pessoas você mais se
+    // identifica?" também é múltipla escolha e pontua, "Qual regime de contrato
+    // você prefere?" também é e não pontua. Só o cadastro sabe a diferença.
+    const refIds = [...new Set(rows.map((r) => r.ref_id).filter(Boolean))] as string[];
+    if (refIds.length > 0) {
+      const [cq, jq] = await Promise.all([
+        supabase.from('company_questions').select('id, scored').in('id', refIds),
+        supabase.from('job_questions').select('id, scored').in('id', refIds),
+      ]);
+      const off = new Set<string>();
+      for (const q of [...(cq.data ?? []), ...(jq.data ?? [])]) {
+        if (q.scored === false) off.add(q.id);
+      }
+      setUnscoredRefs(off);
+    } else {
+      setUnscoredRefs(new Set());
+    }
+
     setOpenAnswers(new Set());
     setAnswersLoading(false);
   }, [app.id]);
@@ -2329,14 +2358,18 @@ function CandidateDetail({
                   <ProfileAssessmentCard email={app.candidate_email} />
                 </div>
 
-                {analysis.cv_observations && (
+                {/* Sem currículo o bloco sumia da tela, e quem comparava dois
+                    candidatos achava que a análise tinha falhado num deles.
+                    Ausência de dado é informação: aparece dita. */}
+                {(analysis.cv_observations || !app.resume_path) && (
                   <div className="mb-6 border-t border-line-soft pt-6">
                     <p className="mb-2 flex items-center gap-2 text-eyebrow font-bold uppercase text-ink-subtle">
                       <FileText className="h-3.5 w-3.5" aria-hidden />
                       O que o currículo mostra
                     </p>
                     <p className="whitespace-pre-wrap text-footnote text-ink-muted">
-                      {analysis.cv_observations}
+                      {analysis.cv_observations ||
+                        'Este candidato não anexou currículo, então não há leitura de currículo aqui. As notas vieram só das respostas do formulário.'}
                     </p>
                   </div>
                 )}
@@ -2456,6 +2489,7 @@ function CandidateDetail({
                           category={group.label}
                           answer={item.answer}
                           score={item.score}
+                          unscored={item.ref_id ? unscoredRefs.has(item.ref_id) : false}
                           open={openAnswers.has(item.id)}
                           onToggle={() => toggleAnswer(item.id)}
                         />
