@@ -51,6 +51,10 @@ type EvidenceStage = 'cv' | 'form';
 
 type EvidencePoint = { point: string; evidence: string };
 
+// Nota por pergunta. n = o número que aparece no prompt (PERGUNTA 1, 2, 3...).
+type QuestionScoreRaw = { n: number; score: number; rationale: string };
+type QuestionScore = { ref_id: string | null; score: number; rationale: string };
+
 type AnalysisResult = {
   score: number;
   recommendation: 'strong_hire' | 'hire' | 'maybe' | 'no_hire';
@@ -63,6 +67,7 @@ type AnalysisResult = {
   stage_dimensions: StageDimension[];
   strengths: EvidencePoint[];
   concerns: EvidencePoint[];
+  question_scores_raw: QuestionScoreRaw[];
 };
 
 const STAGE_VERDICTS = ['avancar', 'segurar', 'cortar'] as const;
@@ -108,6 +113,42 @@ function computeStageScore(dims: StageDimension[], fallback: number): number {
   return Math.max(0, Math.min(100, Math.round(sum / weightTotal)));
 }
 
+// Casa a nota que o modelo deu (por número) com o ref_id da pergunta, pra a UI
+// mostrar a nota ao lado da resposta certa.
+function resolveQuestionScores(
+  raw: QuestionScoreRaw[],
+  questions: ScoredQuestion[],
+): QuestionScore[] {
+  return raw
+    .filter((r) => r.n >= 1 && r.n <= questions.length)
+    .map((r) => ({
+      ref_id: questions[r.n - 1].refId,
+      score: r.score,
+      rationale: r.rationale,
+    }));
+}
+
+// Fit da etapa no formulário = média das notas por pergunta, com a obrigatória
+// pesando o dobro. Nota por pergunta é julgada contra uma régua explícita, então
+// varia muito menos que um número holístico, e a média ainda deixa erro de uma
+// resposta pesar só o que deve, em vez de contaminar a leitura inteira.
+function scoreFromQuestions(
+  raw: QuestionScoreRaw[],
+  questions: ScoredQuestion[],
+): number | null {
+  const usable = raw.filter((r) => r.n >= 1 && r.n <= questions.length);
+  if (usable.length === 0) return null;
+  let sum = 0;
+  let weight = 0;
+  for (const r of usable) {
+    const w = questions[r.n - 1].required ? 2 : 1;
+    sum += r.score * w;
+    weight += w;
+  }
+  if (weight === 0) return null;
+  return Math.max(0, Math.min(100, Math.round(sum / weight)));
+}
+
 // A etapa é um portão, não a contratação: só corta quem está claramente abaixo.
 function verdictFromScore(score: number): StageVerdict {
   if (score >= 60) return 'avancar';
@@ -146,6 +187,12 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const SCORED_SOURCES = ['profile', 'culture', 'reasoning', 'curiosity', 'job_question'];
 
+// Perguntas na mesma ordem em que entram no prompt. O índice (1, 2, 3...) é o
+// identificador que o modelo usa pra devolver a nota de cada uma: pedir pra ele
+// repetir UUID dá erro de digitação, número não.
+type ScoredQuestion = { refId: string | null; source: string; required: boolean };
+type FormAnswers = { text: string; questions: ScoredQuestion[] };
+
 // Carrega as respostas do formulário + o critério interno (rubrica) de cada
 // pergunta, e monta um bloco de texto pro prompt. Null se não houver respostas.
 // O critério vem preferencialmente do snapshot congelado no submit
@@ -156,7 +203,7 @@ async function loadFormAnswers(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any,
   applicationId: string,
-): Promise<string | null> {
+): Promise<FormAnswers | null> {
   const { data: answers } = await admin
     .from('application_answers')
     .select('source, ref_id, question_snapshot, answer, guidance_snapshot, rubric_snapshot')
@@ -208,8 +255,26 @@ async function loadFormAnswers(
     for (const q of data ?? []) rubricById.set(q.id, { guidance: q.guidance, scoring_rubric: q.scoring_rubric });
   }
 
+  // Quais perguntas são obrigatórias (cobrem must-have): pesam o dobro na média.
+  const requiredById = new Map<string, boolean>();
+  const allRefIds = scored
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((a: any) => a.ref_id)
+    .filter(Boolean);
+  if (allRefIds.length > 0) {
+    const [cq, jq] = await Promise.all([
+      admin.from('company_questions').select('id, required').in('id', allRefIds),
+      admin.from('job_questions').select('id, required').in('id', allRefIds),
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const q of cq.data ?? []) requiredById.set(q.id, q.required === true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const q of jq.data ?? []) requiredById.set(q.id, q.required === true);
+  }
+
+  const questions: ScoredQuestion[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const blocks = scored.map((a: any) => {
+  const blocks = scored.map((a: any, i: number) => {
     const label = SOURCE_LABEL[a.source] ?? a.source;
     const hasSnapshot = a.guidance_snapshot !== null || a.rubric_snapshot !== null;
     const rub = hasSnapshot
@@ -220,12 +285,15 @@ async function loadFormAnswers(
     const criterio =
       [rub?.guidance, rub?.scoring_rubric].filter(Boolean).join(' | ').slice(0, MAX_RUBRIC_CHARS) ||
       '(sem critério cadastrado)';
-    return `[${label}] Pergunta: ${String(a.question_snapshot ?? '').slice(0, 400)}
+    const required = a.ref_id ? requiredById.get(a.ref_id) === true : false;
+    questions.push({ refId: a.ref_id ?? null, source: a.source, required });
+    return `PERGUNTA ${i + 1} [${label}]${required ? ' [OBRIGATÓRIA]' : ''}
+Enunciado: ${String(a.question_snapshot ?? '').slice(0, 400)}
 Resposta: ${String(a.answer ?? '').slice(0, MAX_ANSWER_CHARS)}
 Critério interno (como pontuar nesta empresa): ${criterio}`;
   });
 
-  return blocks.join('\n\n');
+  return { text: blocks.join('\n\n'), questions };
 }
 
 function reqList(items: unknown): string {
@@ -362,6 +430,11 @@ REGRAS:
 - Esforço conta. Pergunta importante deixada em branco, ou respondida com evidente má vontade (uma palavra solta, texto aleatório, fora do tema, só pra passar), é sinal negativo de motivação e engajamento: pontue baixo nessas e diga no rationale. Não confunda uma resposta curta mas honesta e no tema com má vontade.
 - Responda em português
 
+NOTA POR PERGUNTA: em "question_scores", dê uma nota de 0 a 100 para CADA pergunta respondida, usando o critério interno daquela pergunta como régua (é ele que diz o que aprova, o que reprova e onde fica a média). Identifique pelo número ("n": 1 para PERGUNTA 1, e assim por diante).
+- Julgue a resposta contra o critério DAQUELA pergunta, não contra o candidato ideal imaginário nem contra as outras respostas.
+- "rationale": uma frase dizendo por que essa nota, citando o que a resposta trouxe ou deixou de trazer. É o que o recrutador vai ler ao lado da resposta, então seja concreto e sem jargão.
+- Valem as mesmas regras: capacidade acima de rótulo, e nada de exigir vocabulário específico.
+
 PONTOS FORTES E PONTOS DE ATENÇÃO: entregue "strengths" (2 a 4) e "concerns" (1 a 3). É o que explica o scout pro recrutador, então cada item tem duas partes:
 - "point": a leitura, em uma frase direta (ex.: "Roda o ciclo de metas de ponta a ponta").
 - "evidence": o que sustenta, citando o que a pessoa DE FATO disse ou fez (ex.: "desdobrou metas de 4 unidades pra 10+ filiais, com rito semanal com donos e revisão mensal com a diretoria"). Sem evidência concreta, não escreva o ponto.
@@ -382,6 +455,7 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
   "stage_dimensions": [
     { "area": "<dimensão do estágio>", "score": <0-100 ou null se sem dados>, "rationale": "<1-2 frases>" }
   ],
+  "question_scores": [ { "n": <número da pergunta>, "score": <0-100>, "rationale": "<uma frase>" } ],
   "strengths": [ { "point": "<uma frase>", "evidence": "<o que o candidato disse ou fez>" } ],
   "concerns": [ { "point": "<uma frase>", "evidence": "<o que faltou, e o que investigar>" } ]
 }`;
@@ -443,6 +517,17 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
         }))
         .filter((p) => p.point.length > 0);
 
+    const questionScoresRaw: QuestionScoreRaw[] = (Array.isArray(parsed.question_scores)
+      ? parsed.question_scores
+      : [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((q: any) => ({
+        n: Number(q?.n),
+        score: clampScore(q?.score),
+        rationale: String(q?.rationale ?? '').trim(),
+      }))
+      .filter((q: QuestionScoreRaw) => Number.isFinite(q.n) && q.n > 0);
+
     const stageNoteRaw = parsed.stage_note;
     const stageNote =
       typeof stageNoteRaw === 'string' && stageNoteRaw.trim().length > 0 ? stageNoteRaw.trim() : '';
@@ -459,6 +544,7 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       stage_dimensions,
       strengths: parsePoints(parsed.strengths),
       concerns: parsePoints(parsed.concerns),
+      question_scores_raw: questionScoresRaw,
     };
   } catch {
     return null;
@@ -555,6 +641,7 @@ Deno.serve(async (req) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resumeText = await extractResumeText(admin, (app as any).resume_path ?? null);
   const formAnswers = await loadFormAnswers(admin, payload.applicationId);
+  const formQuestions = formAnswers?.questions ?? [];
   // Estágio de evidência: com respostas do formulário é análise completa; sem, é só currículo.
   const evidenceStage: EvidenceStage = formAnswers ? 'form' : 'cv';
 
@@ -571,7 +658,7 @@ Deno.serve(async (req) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     whyInterested: (app as any).why_interested,
     resumeText,
-    formAnswers,
+    formAnswers: formAnswers?.text ?? null,
   });
 
   try {
@@ -607,7 +694,12 @@ Deno.serve(async (req) => {
 
     // Nota e veredito da etapa são CALCULADOS aqui, não escolhidos pelo modelo:
     // é o que impede a mesma candidatura de oscilar entre rodadas.
-    const stageScore = computeStageScore(result.stage_dimensions, result.stage_score);
+    // No formulário a nota vem da média das perguntas (ancorada em régua). No
+    // currículo não há perguntas, então segue pela média das dimensões.
+    const questionScores = resolveQuestionScores(result.question_scores_raw, formQuestions);
+    const fromQuestions = scoreFromQuestions(result.question_scores_raw, formQuestions);
+    const stageScore =
+      fromQuestions ?? computeStageScore(result.stage_dimensions, result.stage_score);
     const stageVerdict = verdictFromScore(stageScore);
 
     await admin.from('ai_analyses').upsert(
@@ -625,6 +717,7 @@ Deno.serve(async (req) => {
         stage_dimensions: result.stage_dimensions,
         strengths: result.strengths,
         concerns: result.concerns,
+        question_scores: questionScores,
         dna_version_used: dnaVersion,
         model_used: MODEL,
         cost_cents: costCents,

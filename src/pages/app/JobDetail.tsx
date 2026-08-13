@@ -41,7 +41,12 @@ import {
   SCOUT_AREAS,
   type StageDimension,
 } from '@/lib/scout-areas';
-import { parseEvidencePoints, type EvidencePoint } from '@/lib/evidence-points';
+import {
+  parseEvidencePoints,
+  parseQuestionScores,
+  type EvidencePoint,
+  type QuestionScore,
+} from '@/lib/evidence-points';
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { Textarea } from '@/components/ui/textarea';
@@ -82,6 +87,7 @@ type AppEvent = {
 type AppAnswer = {
   id: string;
   source: AnswerSource;
+  ref_id: string | null;
   question_snapshot: string;
   answer: string | null;
   created_at: string;
@@ -105,6 +111,85 @@ const ANSWER_SOURCE_LABELS: Record<AnswerSource, string> = {
   reasoning: 'Raciocínio lógico',
   candidate_info: 'Dados',
 };
+
+// Cor da nota por pergunta, por faixa. Mesma leitura rápida do resto do painel:
+// verde manda bem, azul ok, âmbar atenção, rosa fraco.
+function questionScoreTone(score: number): string {
+  if (score >= 70) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (score >= 50) return 'bg-sky-50 text-sky-700 border-sky-200';
+  if (score >= 30) return 'bg-amber-50 text-amber-700 border-amber-200';
+  return 'bg-rose-50 text-rose-700 border-rose-200';
+}
+
+// Uma pergunta do formulário. Fechada mostra o enunciado e a nota; aberta revela
+// a resposta do candidato e, quando existe, o porquê da nota.
+function AnswerRow({
+  question,
+  answer,
+  score,
+  open,
+  onToggle,
+}: {
+  question: string;
+  answer: string | null;
+  score: QuestionScore | undefined;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50/70"
+      >
+        <p className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-[#1d1d1f]">
+          {question}
+        </p>
+        <span className="flex flex-shrink-0 items-center gap-2 pt-0.5">
+          {score && (
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold tabular-nums',
+                questionScoreTone(score.score),
+              )}
+            >
+              {score.score}
+            </span>
+          )}
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-[#8a8a8f] transition-transform',
+              open && 'rotate-180',
+            )}
+          />
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-3 px-5 pb-5 pl-5">
+          <div className="border-l-2 border-gray-200 pl-4">
+            <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+              {answer}
+            </p>
+          </div>
+
+          {score && score.rationale.length > 0 && (
+            <div className="rounded-xl bg-gray-50/70 p-3.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+                Por que essa nota
+              </p>
+              <p className="mt-1.5 text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
+                {score.rationale}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Retorno da edge function notify-stage-change: o que rolou de comunicação com o
 // candidato depois da virada de etapa.
@@ -1283,6 +1368,9 @@ function CandidateDetail({
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [answers, setAnswers] = useState<AppAnswer[]>([]);
   const [answersLoading, setAnswersLoading] = useState(true);
+  // Linhas abertas na aba Respostas. Tudo começa fechado: quem lê abre só o que
+  // interessa.
+  const [openAnswers, setOpenAnswers] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
@@ -1366,15 +1454,25 @@ function CandidateDetail({
     setAnswersLoading(true);
     const { data, error } = await supabase
       .from('application_answers')
-      .select('id, source, question_snapshot, answer, created_at')
+      .select('id, source, ref_id, question_snapshot, answer, created_at')
       .eq('application_id', app.id)
       .order('created_at', { ascending: true });
     if (error) {
       console.error('[JobDetail] answers load error:', error);
     }
     setAnswers((data as AppAnswer[]) ?? []);
+    setOpenAnswers(new Set());
     setAnswersLoading(false);
   }, [app.id]);
+
+  const toggleAnswer = useCallback((id: string) => {
+    setOpenAnswers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     void loadAnswers();
@@ -1546,12 +1644,33 @@ function CandidateDetail({
   const next = NEXT_STAGE[app.status];
   const isFinal = app.status === 'contratado' || app.status === 'reprovado';
 
+  // Nota por pergunta, indexada pelo ref_id que casa com application_answers.
+  // Análise antiga (ou sem question_scores) devolve mapa vazio e as respostas
+  // aparecem sem nota, sem quebrar nada.
+  const questionScoreByRef = new Map<string, QuestionScore>();
+  for (const qs of parseQuestionScores(analysis?.question_scores)) {
+    if (qs.ref_id) questionScoreByRef.set(qs.ref_id, qs);
+  }
+
   // Respostas agrupadas por origem, na ordem de leitura. Grupo vazio some.
-  const answerGroups = ANSWER_SOURCE_ORDER.map((source) => ({
-    source,
-    label: ANSWER_SOURCE_LABELS[source],
-    items: answers.filter((a) => a.source === source && (a.answer ?? '').trim().length > 0),
-  })).filter((group) => group.items.length > 0);
+  const answerGroups = ANSWER_SOURCE_ORDER.map((source) => {
+    const items = answers
+      .filter((a) => a.source === source && (a.answer ?? '').trim().length > 0)
+      .map((a) => ({
+        ...a,
+        score: a.ref_id ? questionScoreByRef.get(a.ref_id) : undefined,
+      }));
+    const scored = items.filter((i) => i.score);
+    return {
+      source,
+      label: ANSWER_SOURCE_LABELS[source],
+      items,
+      average:
+        scored.length > 0
+          ? Math.round(scored.reduce((sum, i) => sum + (i.score?.score ?? 0), 0) / scored.length)
+          : null,
+    };
+  }).filter((group) => group.items.length > 0);
   const answersCount = answerGroups.reduce((total, group) => total + group.items.length, 0);
   const hasAnswerContent = answersCount > 0 || Boolean(app.why_interested);
 
@@ -1940,18 +2059,23 @@ function CandidateDetail({
                     <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
                       {group.label}
                     </p>
+                    {group.average !== null && (
+                      <span className="text-[11px] font-semibold tabular-nums text-[#8a8a8f]">
+                        média {group.average}
+                      </span>
+                    )}
                     <span className="h-px flex-1 bg-gray-100" />
                   </div>
                   <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
                     {group.items.map((item) => (
-                      <div key={item.id} className="px-5 py-4">
-                        <p className="mb-2 text-[13px] font-medium leading-snug text-[#6b6b70]">
-                          {item.question_snapshot}
-                        </p>
-                        <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-                          {item.answer}
-                        </p>
-                      </div>
+                      <AnswerRow
+                        key={item.id}
+                        question={item.question_snapshot}
+                        answer={item.answer}
+                        score={item.score}
+                        open={openAnswers.has(item.id)}
+                        onToggle={() => toggleAnswer(item.id)}
+                      />
                     ))}
                   </div>
                 </section>

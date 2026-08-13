@@ -201,6 +201,7 @@ export type Database = {
           stage_dimensions: Json | null;
           strengths: Json | null;
           concerns: Json | null;
+          question_scores: Json | null;
           dna_version_used: number | null;
           model_used: string | null;
           cost_cents: number | null;
