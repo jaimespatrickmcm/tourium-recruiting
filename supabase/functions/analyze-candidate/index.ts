@@ -261,12 +261,18 @@ PASSO 1D, LEIA COMO UM HUNTER EXPERIENTE, NÃO COMO UM CONFERENTE DE PALAVRAS. E
 Se o gabarito vier escrito em jargão, traduza o jargão pra capacidade antes de comparar.
 
 PASSO 1E, NÃO PENALIZE O QUE NÃO FOI PERGUNTADO. Nem toda pergunta existe em todo formulário. Se não há pergunta que investigue uma área, ela NÃO recebe nota baixa: ela fica FORA do array (ausência de pergunta não é ausência de qualidade). Só trate como sinal negativo quando a pergunta EXISTIU e a pessoa deixou em branco ou respondeu de qualquer jeito.
-Caso mais comum e mais injusto: "motivacao". Só pontue motivação se alguma pergunta pediu de fato o interesse NESTA empresa ou NESTA vaga. Se o formulário nunca perguntou isso, motivação fica FORA do array. NUNCA escreva que faltou conexão com a empresa se ninguém perguntou sobre a empresa: isso é cobrar do candidato uma resposta que não foi solicitada.
+PASSO 1E-BIS, MOTIVAÇÃO SE MEDE PELO CONJUNTO, NÃO POR UMA PERGUNTA. Julgar motivação por uma resposta de "por que esta empresa" é frágil e injusto. O sinal real é o CUIDADO que a pessoa teve com o formulário inteiro:
+- Respondeu tudo ou deixou várias em branco? Quem investe tempo em todas demonstra interesse.
+- As respostas têm substância (contexto, exemplo, número, nome de projeto) ou são de uma linha, evasivas, fora do tema?
+- Há esmero na construção (estrutura, clareza, cuidado com o que está escrevendo) ou displicência (tudo genérico, copiado, respondido de qualquer jeito só pra passar)?
+- Formulário longo respondido com capricho do começo ao fim é motivação ALTA, mesmo que ninguém tenha perguntado "por que aqui".
+NUNCA escreva que faltou conexão com a empresa se nenhuma pergunta investigou isso: seria cobrar uma resposta que não foi pedida. Se houver pergunta sobre o interesse na empresa, ela entra como UM sinal a mais, nunca como o único.
 
-PASSO 1F, CALIBRE O VEREDITO COMO QUEM CONTRATA, NÃO COMO QUEM ELIMINA. "cortar" é para quem realmente não serve: falta a capacidade central da vaga, ou há red flag concreta. Não é para quem respondeu curto.
-- Resposta curta ou sem números NÃO equivale a ausência de capacidade, ainda mais quando o histórico mostra a pessoa exercendo exatamente aquilo. Formulário é amostra, não é a carreira da pessoa.
-- Se o histórico é forte e as respostas deixaram dúvida sobre profundidade, o veredito é "segurar": a conversa resolve em vinte minutos o que o formulário não resolveu. Cortar alguém com trajetória sólida por causa de texto enxuto é o erro mais caro de uma triagem, porque é invisível: você nunca descobre quem perdeu.
-- Reserve "cortar" para quando você conseguiria justificar a recusa olhando no olho da pessoa.
+PASSO 1F, O VEREDITO DECIDE A PRÓXIMA ETAPA, NÃO A CONTRATAÇÃO. A pergunta que você responde aqui é "essa pessoa merece a próxima conversa?", e NÃO "eu contrataria hoje?". Confundir os dois é o erro que mais reprova bom candidato, porque nenhum formulário sustenta uma decisão de contratação.
+- "avancar": a evidência sustenta as capacidades centrais da vaga, mesmo que uma ou outra resposta tenha ficado rasa. Dúvida que uma entrevista resolve NÃO é motivo pra segurar: é exatamente pra isso que a entrevista existe. Trajetória sólida no que a vaga pede, com impacto concreto demonstrado, é avançar.
+- "segurar": genuinamente em cima do muro. A evidência é ambígua sobre alguma capacidade central, não apenas rasa em detalhe.
+- "cortar": falta a capacidade central da vaga, ou há red flag concreta. Você conseguiria justificar a recusa olhando no olho da pessoa.
+Contas concretas: se a maioria das respostas substantivas mostra domínio real e só uma ou duas ficaram genéricas, é "avancar", não "segurar". Resposta curta ou sem número NÃO equivale a ausência de capacidade, ainda mais quando o histórico mostra a pessoa exercendo aquilo. Formulário é amostra, não é a carreira da pessoa. Cortar ou segurar alguém com trajetória sólida por causa de texto enxuto é o erro mais caro da triagem, porque é invisível: você nunca descobre quem perdeu.
 
 PASSO 2, AVALIE SÓ COM EVIDÊNCIA. Regra dura: NÃO preencha lacunas, não invente, não assuma nada que não esteja escrito. Pontue apenas com base no que o candidato de fato forneceu (currículo e respostas). Se falta evidência pra uma área, seja conservador e diga no rationale que faltou base. Uma avaliação assertiva depende de nunca chutar.
 
@@ -284,7 +290,7 @@ O "score" geral continua sendo a leitura acumulada das 5 áreas. No estágio só
 
 SCOUT GERAL ("dimensions", 0-100 cada, sempre NO NÍVEL DA VAGA): pontue APENAS as áreas que a evidência DESTE estágio sustenta. Área sem evidência fica FORA do array, sem nota nenhuma.
 - Estágio SÓ CURRÍCULO: pontue somente "execucao" (entrega e experiência concreta vs o que esta vaga pede no nível dela) e "potencial" (curiosidade, trajetória, evolução, projetos próprios). NÃO inclua cultura, comunicacao nem motivacao.
-- Estágio COM FORMULÁRIO: pontue as áreas que as respostas sustentam ("cultura": alinhamento real com a cultura da empresa; "execucao"; "comunicacao": clareza e estrutura da escrita; "motivacao": genuinidade e especificidade do interesse nesta vaga; "potencial"), refinando com as respostas o que o currículo já indicava. Se nenhuma pergunta do formulário investigou uma dessas áreas, deixe a área de FORA em vez de dar nota baixa: o formulário não perguntar não é defeito do candidato.
+- Estágio COM FORMULÁRIO: pontue as áreas que as respostas sustentam ("cultura": alinhamento real com a cultura da empresa; "execucao"; "comunicacao": clareza e estrutura da escrita; "motivacao": engajamento medido pelo CONJUNTO das respostas (completude, substância e capricho), conforme o passo 1E-BIS; "potencial"), refinando com as respostas o que o currículo já indicava. Se nenhuma pergunta do formulário investigou uma dessas áreas, deixe a área de FORA em vez de dar nota baixa: o formulário não perguntar não é defeito do candidato.
 
 SCOUT DA ETAPA ("stage_dimensions"): as dimensões específicas que ESTE estágio consegue medir de fato. Cada uma com score 0-100 OU null quando não há dado (e o rationale diz o que faltou). Nunca chute.
 - Estágio SÓ CURRÍCULO, avalie estas 5:
@@ -295,7 +301,7 @@ SCOUT DA ETAPA ("stage_dimensions"): as dimensões específicas que ESTE estági
   - "localizacao": cidade/região que aparece no currículo vs o local e modelo de trabalho da vaga (campo de local do gabarito). Gabarito sem local OU currículo sem cidade: null.
 - Estágio COM FORMULÁRIO, avalie estas 4 a partir das respostas:
   - "cultura": alinhamento com a cultura da empresa que as respostas mostram de verdade.
-  - "motivacao": genuinidade e especificidade do interesse nesta vaga.
+  - "motivacao": engajamento pelo conjunto das respostas: respondeu tudo, com substância e capricho, ou foi displicente. Ver passo 1E-BIS.
   - "comunicacao": clareza e estrutura da escrita.
   - "raciocinio": qualidade do raciocínio nas respostas de cenário e lógica.
 
