@@ -555,10 +555,10 @@ export function ApplicationForm() {
     return (
       <main className="min-h-screen flex items-center justify-center bg-white px-6">
         <div className="max-w-md text-center">
-          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-[#1d1d1f] mb-3">
+          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-ink mb-3">
             Esse formulário chega por convite
           </h1>
-          <p className="text-[15px] text-[#6b6b70] mb-8">
+          <p className="text-callout text-ink-muted mb-8">
             Quando você avança no processo da {job.companyName}, a gente te manda um link individual
             por email pra responder essas perguntas. Confere sua caixa de entrada, ou candidate-se
             primeiro na página da vaga.
@@ -575,7 +575,7 @@ export function ApplicationForm() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[#8a8a8f] text-sm">
+      <div className="min-h-screen flex items-center justify-center text-ink-subtle text-sm">
         Carregando...
       </div>
     );
@@ -585,10 +585,10 @@ export function ApplicationForm() {
     return (
       <main className="min-h-screen flex items-center justify-center bg-white px-6">
         <div className="max-w-md text-center">
-          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-[#1d1d1f] mb-3">
+          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-ink mb-3">
             Não conseguimos carregar o formulário
           </h1>
-          <p className="text-[15px] text-[#6b6b70]">
+          <p className="text-callout text-ink-muted">
             Deu um problema ao buscar as perguntas. Recarregue a página em instantes. Se continuar,
             volte pelo link que você recebeu.
           </p>
@@ -601,10 +601,10 @@ export function ApplicationForm() {
     return (
       <main className="min-h-screen flex items-center justify-center bg-white px-6">
         <div className="max-w-md text-center">
-          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-[#1d1d1f] mb-3">
+          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-ink mb-3">
             Vaga não encontrada
           </h1>
-          <p className="text-[15px] text-[#6b6b70]">
+          <p className="text-callout text-ink-muted">
             Essa vaga não existe ou não está mais aceitando candidaturas.
           </p>
         </div>
@@ -618,16 +618,16 @@ export function ApplicationForm() {
       <main className="relative min-h-screen bg-white">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[480px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.10),transparent_60%)]" />
         <div className="relative max-w-2xl mx-auto px-6 py-24 text-center">
-          <div className="inline-flex h-16 w-16 rounded-2xl holo-gradient items-center justify-center mb-6">
+          <div className="inline-flex h-16 w-16 rounded-card holo-gradient items-center justify-center mb-6">
             <CheckCircle2 className="h-8 w-8 text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="font-satoshi font-bold text-[36px] tracking-[-0.6px] text-[#1d1d1f] mb-3">
+          <h1 className="font-satoshi font-bold text-[36px] tracking-[-0.6px] text-ink mb-3">
             Tudo certo
           </h1>
-          <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto mb-8">
-            Suas respostas chegaram na <strong className="text-[#1d1d1f]">{job.companyName}</strong>.
+          <p className="text-body text-ink-muted max-w-md mx-auto mb-8">
+            Suas respostas chegaram na <strong className="text-ink">{job.companyName}</strong>.
             O time agora tem bem mais contexto pra avaliar seu fit pra{' '}
-            <strong className="text-[#1d1d1f]">{job.title}</strong>.
+            <strong className="text-ink">{job.title}</strong>.
           </p>
           <div className="flex justify-center">
             <BrandCtaLink to="/candidato" size="default">
@@ -646,11 +646,11 @@ export function ApplicationForm() {
         <div className="pointer-events-none absolute inset-0 holo-gradient opacity-[0.08]" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.14),transparent_65%)]" />
 
-        <header className="relative border-b border-gray-100 bg-white/60 backdrop-blur">
+        <header className="relative border-b border-line-soft bg-white/60 backdrop-blur">
           <div className="max-w-3xl mx-auto px-6 py-6 flex items-center justify-between">
             <Link
               to={`/careers/${companySlug}/${jobSlug}`}
-              className="font-satoshi font-bold text-[20px] tracking-[-0.4px] text-[#1d1d1f]"
+              className="font-satoshi font-bold text-[20px] tracking-[-0.4px] text-ink"
             >
               {job.companyName}
             </Link>
@@ -659,15 +659,15 @@ export function ApplicationForm() {
 
         <div className="relative flex-1 flex items-center justify-center px-6 py-16">
           <div className="max-w-xl text-center">
-            <p className="text-[12px] font-bold uppercase tracking-wider text-sky-600 mb-4">
+            <p className="text-caption font-bold uppercase tracking-wider text-sky-600 mb-4">
               {job.companyName}
             </p>
-            <h1 className="font-satoshi font-bold text-[34px] md:text-[48px] tracking-[-0.8px] leading-[1.08] text-[#1d1d1f] mb-5">
+            <h1 className="font-satoshi font-bold text-[34px] md:text-[48px] tracking-[-0.8px] leading-[1.08] text-ink mb-5">
               {restoredDraft
                 ? 'Suas respostas estão salvas'
                 : `Você avançou no processo pra ${job.title}`}
             </h1>
-            <p className="text-[16px] md:text-[17px] text-[#6b6b70] leading-relaxed mb-8 max-w-md mx-auto">
+            <p className="text-body md:text-[17px] text-ink-muted leading-relaxed mb-8 max-w-md mx-auto">
               {restoredDraft
                 ? 'Você já tinha começado por aqui. Guardamos tudo neste aparelho, é só continuar de onde parou.'
                 : 'Agora o time quer te conhecer de verdade. São perguntas na tela, uma por vez, no seu ritmo. Reserve uns 15 minutos num lugar tranquilo.'}
@@ -696,21 +696,21 @@ export function ApplicationForm() {
           <div className="flex items-center justify-between mb-2">
             <Link
               to={`/careers/${companySlug}/${jobSlug}`}
-              className="font-satoshi font-bold text-[16px] tracking-[-0.3px] text-[#1d1d1f]"
+              className="font-satoshi font-bold text-body tracking-[-0.3px] text-ink"
             >
               {job.companyName}
             </Link>
             <span className="flex items-center gap-3">
-              <span className="hidden sm:inline text-[12px] text-[#a8a8ad]">
+              <span className="hidden sm:inline text-caption text-[#a8a8ad]">
                 Respostas salvas neste aparelho
               </span>
-              <span className="text-[12px] font-medium text-[#6b6b70]">
-                <span className="text-[#1d1d1f] font-bold">{stepIndex + 1}</span> de {steps.length}
+              <span className="text-caption font-medium text-ink-muted">
+                <span className="text-ink font-bold">{stepIndex + 1}</span> de {steps.length}
               </span>
             </span>
           </div>
           <div
-            className="h-1 bg-gray-100 rounded-full overflow-hidden"
+            className="h-1 bg-surface-sunken rounded-full overflow-hidden"
             role="progressbar"
             aria-valuenow={stepIndex + 1}
             aria-valuemin={1}
@@ -730,16 +730,16 @@ export function ApplicationForm() {
           {current && (
             <div key={stepIndex}>
               <div className="flex items-center gap-2 mb-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
+                <p className="text-eyebrow font-bold uppercase text-sky-600">
                   {current.sectionLabel}
                 </p>
                 {current.type === 'question' && current.required && (
-                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-eyebrow font-bold uppercase text-amber-700">
                     Obrigatória
                   </span>
                 )}
               </div>
-              <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-[#1d1d1f] mb-2.5 max-w-xl">
+              <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-ink mb-2.5 max-w-xl">
                 <QuestionText
                   text={current.question}
                   token={
@@ -749,7 +749,7 @@ export function ApplicationForm() {
                   }
                 />
               </h2>
-              <p className="text-[14px] text-[#8a8a8f] leading-relaxed mb-6 max-w-lg">
+              <p className="text-callout text-ink-subtle leading-relaxed mb-6 max-w-lg">
                 {current.helper}
               </p>
 
@@ -766,7 +766,7 @@ export function ApplicationForm() {
                       goNext();
                     }
                   }}
-                  className="h-12 rounded-xl border-gray-200 text-[16px]"
+                  className="h-12 rounded-tile border-line-soft text-body"
                 />
               ) : current.format === 'number' ? (
                 // type="text" de propósito: type="number" briga com "5.000",
@@ -786,7 +786,7 @@ export function ApplicationForm() {
                       goNext();
                     }
                   }}
-                  className="h-12 rounded-xl border-gray-200 text-[16px] max-w-xs"
+                  className="h-12 rounded-tile border-line-soft text-body max-w-xs"
                 />
               ) : current.format === 'single_select' || current.format === 'multi_select' ? (
                 <div
@@ -802,17 +802,17 @@ export function ApplicationForm() {
                         role={current.format === 'single_select' ? 'radio' : 'checkbox'}
                         aria-checked={selected}
                         onClick={() => toggleOption(current, option)}
-                        className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition-colors ${
+                        className={`w-full flex items-center gap-3 rounded-tile border px-4 py-3 text-left text-callout transition-colors ${
                           selected
-                            ? 'border-sky-400 bg-sky-50 text-[#1d1d1f]'
-                            : 'border-gray-200 bg-white text-[#1d1d1f] hover:border-sky-200 hover:bg-sky-50/40'
+                            ? 'border-sky-400 bg-sky-50 text-ink'
+                            : 'border-line-soft bg-white text-ink hover:border-sky-200 hover:bg-sky-50/40'
                         }`}
                       >
                         <span
-                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold ${
+                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-caption font-bold ${
                             selected
                               ? 'border-sky-400 bg-sky-600 text-white'
-                              : 'border-gray-300 bg-gray-50 text-[#6b6b70]'
+                              : 'border-line bg-canvas text-ink-muted'
                           }`}
                         >
                           {OPTION_LETTERS[oi] ?? '#'}
@@ -838,17 +838,17 @@ export function ApplicationForm() {
                       goNext();
                     }
                   }}
-                  className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
+                  className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
                 />
               )}
 
               {current.type === 'question' &&
                 (current.required ? (
-                  <p className="text-[12px] text-amber-700 mt-2">
+                  <p className="text-caption text-amber-700 mt-2">
                     Essa é obrigatória pra seguir.
                   </p>
                 ) : (
-                  <p className="text-[12px] text-[#8a8a8f] mt-2">
+                  <p className="text-caption text-ink-subtle mt-2">
                     Dá pra pular. Mas responder ajuda bastante na sua avaliação.
                   </p>
                 ))}
@@ -858,13 +858,13 @@ export function ApplicationForm() {
       </div>
 
       {/* Footer nav */}
-      <div className="relative border-t border-gray-100 bg-white/70 backdrop-blur">
+      <div className="relative border-t border-line-soft bg-white/70 backdrop-blur">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <button
             type="button"
             onClick={goBack}
             disabled={submitting}
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1.5"
+            className="inline-flex items-center gap-1.5 text-footnote font-medium text-ink-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 py-1.5"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
@@ -923,8 +923,8 @@ function QuestionText({ text, token }: { text: string; token?: string }) {
 function PoweredByNoren() {
   return (
     <div className="flex justify-center py-4">
-      <span className="text-[11px] text-[#a8a8ad]">
-        Powered by <span className="font-semibold text-[#8a8a8f]">Noren</span>
+      <span className="text-caption text-[#a8a8ad]">
+        Powered by <span className="font-semibold text-ink-subtle">Noren</span>
       </span>
     </div>
   );

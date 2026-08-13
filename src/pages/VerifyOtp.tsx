@@ -114,20 +114,20 @@ export function VerifyOtp() {
         <div className="text-center mb-8">
           <Link
             to="/"
-            className="inline-block font-satoshi font-bold text-[28px] tracking-[-0.6px] text-[#1d1d1f]"
+            className="inline-block font-satoshi font-bold text-[28px] tracking-[-0.6px] text-ink"
           >
             Noren
           </Link>
         </div>
 
-        <div className="bg-white rounded-[28px] border border-gray-200 shadow-[0_20px_60px_-20px_rgba(15,15,30,0.12)] p-8 md:p-10">
+        <div className="bg-white rounded-panel border border-line-soft shadow-e3 p-8 md:p-10">
           <div className="mb-7">
-            <h1 className="font-satoshi font-bold text-[26px] tracking-[-0.4px] text-[#1d1d1f] leading-tight mb-2">
+            <h1 className="font-satoshi font-bold text-[26px] tracking-[-0.4px] text-ink leading-tight mb-2">
               Confirme seu acesso
             </h1>
-            <p className="text-[15px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Mandamos um código de 8 dígitos pra{' '}
-              <strong className="text-[#1d1d1f]">{email}</strong>. Cole ou digite aqui.
+              <strong className="text-ink">{email}</strong>. Cole ou digite aqui.
             </p>
           </div>
 
@@ -140,29 +140,29 @@ export function VerifyOtp() {
               autoFocus
             >
               <InputOTPGroup>
-                <InputOTPSlot index={0} className="h-12 w-11 rounded-xl text-xl font-bold" />
-                <InputOTPSlot index={1} className="h-12 w-11 rounded-xl text-xl font-bold" />
-                <InputOTPSlot index={2} className="h-12 w-11 rounded-xl text-xl font-bold" />
-                <InputOTPSlot index={3} className="h-12 w-11 rounded-xl text-xl font-bold" />
+                <InputOTPSlot index={0} className="h-12 w-11 rounded-tile text-xl font-bold" />
+                <InputOTPSlot index={1} className="h-12 w-11 rounded-tile text-xl font-bold" />
+                <InputOTPSlot index={2} className="h-12 w-11 rounded-tile text-xl font-bold" />
+                <InputOTPSlot index={3} className="h-12 w-11 rounded-tile text-xl font-bold" />
               </InputOTPGroup>
               <InputOTPSeparator />
               <InputOTPGroup>
-                <InputOTPSlot index={4} className="h-12 w-11 rounded-xl text-xl font-bold" />
-                <InputOTPSlot index={5} className="h-12 w-11 rounded-xl text-xl font-bold" />
-                <InputOTPSlot index={6} className="h-12 w-11 rounded-xl text-xl font-bold" />
-                <InputOTPSlot index={7} className="h-12 w-11 rounded-xl text-xl font-bold" />
+                <InputOTPSlot index={4} className="h-12 w-11 rounded-tile text-xl font-bold" />
+                <InputOTPSlot index={5} className="h-12 w-11 rounded-tile text-xl font-bold" />
+                <InputOTPSlot index={6} className="h-12 w-11 rounded-tile text-xl font-bold" />
+                <InputOTPSlot index={7} className="h-12 w-11 rounded-tile text-xl font-bold" />
               </InputOTPGroup>
             </InputOTP>
 
             {verifying && (
-              <p className="text-[13px] text-[#8a8a8f]">Verificando...</p>
+              <p className="text-footnote text-ink-subtle">Verificando...</p>
             )}
 
             <button
               type="button"
               disabled={cooldown > 0 || resending}
               onClick={resend}
-              className="text-[14px] text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="text-callout text-ink-muted hover:text-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {cooldown > 0
                 ? `Reenviar em ${cooldown}s`
@@ -171,11 +171,11 @@ export function VerifyOtp() {
                 : 'Reenviar código'}
             </button>
 
-            <p className="text-[14px] text-[#8a8a8f] text-center pt-2 border-t w-full">
+            <p className="text-callout text-ink-subtle text-center pt-2 border-t w-full">
               Email errado?{' '}
               <Link
                 to={flow === 'signup' ? '/signup' : '/login'}
-                className="text-[#1d1d1f] font-semibold hover:underline"
+                className="text-ink font-semibold hover:underline"
               >
                 Voltar
               </Link>

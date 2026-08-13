@@ -39,10 +39,10 @@ export function Pillars() {
   return (
     <section id="produto" className="w-full py-20 md:py-28 px-5">
       <div className="max-w-5xl mx-auto text-center">
-        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-[#1d1d1f] max-w-3xl mx-auto">
+        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-ink max-w-3xl mx-auto">
           O que muda quando a Noren entra
         </h2>
-        <p className="mt-5 text-[17px] md:text-[19px] text-[#6b6b70] leading-[1.5] max-w-2xl mx-auto font-medium">
+        <p className="mt-5 text-[17px] md:text-[19px] text-ink-muted leading-[1.5] max-w-2xl mx-auto font-medium">
           ATS clássico cuida da vaga e para na contratação. A Noren cuida do
           ciclo inteiro: análise com o seu contexto, processo que anda com um
           clique e evolução registrada depois que a pessoa entra.
@@ -53,7 +53,7 @@ export function Pillars() {
             <Reveal
               key={p.title}
               delay={i * 80}
-              className="bg-white rounded-[24px] border border-gray-200 p-7 hover:shadow-md transition-shadow"
+              className="bg-white rounded-card border border-line-soft p-7 hover:shadow-md transition-shadow"
             >
               <div
                 className="h-10 w-10 rounded-lg flex items-center justify-center mb-5"
@@ -61,8 +61,8 @@ export function Pillars() {
               >
                 <p.Icon className="h-5 w-5" style={{ color: p.color }} strokeWidth={2.2} />
               </div>
-              <h3 className="font-satoshi font-bold text-[20px] text-[#1d1d1f]">{p.title}</h3>
-              <p className="mt-2 text-[15px] text-[#6b6b70] leading-[1.5]">{p.body}</p>
+              <h3 className="font-satoshi font-bold text-[20px] text-ink">{p.title}</h3>
+              <p className="mt-2 text-callout text-ink-muted leading-[1.5]">{p.body}</p>
             </Reveal>
           ))}
         </div>

@@ -48,11 +48,11 @@ export function BenefitsPicker({
     <div className="space-y-6">
       {/* Selecionados */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2.5">
+        <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-2.5">
           Selecionados ({value.length})
         </p>
         {value.length === 0 ? (
-          <p className="text-[13px] text-[#6b6b70]">
+          <p className="text-footnote text-ink-muted">
             Nada escolhido ainda. Clica nos itens abaixo ou escreve o seu.
           </p>
         ) : (
@@ -61,9 +61,9 @@ export function BenefitsPicker({
               <span
                 key={item}
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium',
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-footnote font-medium',
                   isCustomBenefit(item)
-                    ? 'border-gray-300 bg-gray-50 text-[#1d1d1f]'
+                    ? 'border-line bg-canvas text-ink'
                     : 'border-sky-200 bg-sky-50 text-sky-800',
                 )}
               >
@@ -86,7 +86,7 @@ export function BenefitsPicker({
       <div className="space-y-4">
         {BENEFIT_CATALOG.map((group) => (
           <div key={group.group}>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+            <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-2">
               {group.group}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -99,10 +99,10 @@ export function BenefitsPicker({
                     aria-pressed={selected}
                     onClick={() => toggle(item)}
                     className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors',
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-footnote font-medium transition-colors',
                       selected
                         ? 'border-sky-300 bg-sky-100 text-sky-800'
-                        : 'border-gray-200 bg-white text-[#6b6b70] hover:border-gray-400 hover:text-[#1d1d1f]',
+                        : 'border-line-soft bg-white text-ink-muted hover:border-line hover:text-ink',
                     )}
                   >
                     {selected ? (
@@ -121,7 +121,7 @@ export function BenefitsPicker({
 
       {/* Customizado */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+        <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-2">
           Tem algo que não está na lista?
         </p>
         <div className="flex gap-2">
@@ -136,13 +136,13 @@ export function BenefitsPicker({
               }
             }}
             placeholder="Ex.: Sexta curta, almoço do time toda quinta"
-            className="h-10 flex-1 rounded-xl border border-gray-200 px-3 text-[14px] text-[#1d1d1f] outline-none placeholder:text-[#a1a1a6] focus:border-sky-400"
+            className="h-10 flex-1 rounded-tile border border-line-soft px-3 text-callout text-ink outline-none placeholder:text-[#a1a1a6] focus:border-brand"
           />
           <button
             type="button"
             onClick={submitCustom}
             disabled={!custom.trim()}
-            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-white px-4 py-2 text-footnote font-semibold text-ink transition-colors hover:border-line disabled:opacity-40"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             Adicionar

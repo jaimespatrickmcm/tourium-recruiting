@@ -12,10 +12,10 @@ export function Stats() {
   return (
     <section id="numeros" className="w-full py-20 md:py-28 px-5">
       <div className="max-w-5xl mx-auto text-center">
-        <h2 className="font-satoshi font-bold text-[28px] md:text-[40px] leading-[1.2] tracking-[-0.4px] text-[#1d1d1f] max-w-3xl mx-auto">
+        <h2 className="font-satoshi font-bold text-[28px] md:text-[40px] leading-[1.2] tracking-[-0.4px] text-ink max-w-3xl mx-auto">
           O que a Noren promete entregar.
         </h2>
-        <p className="mt-4 text-[15px] md:text-[16px] text-[#8a8a8f] max-w-2xl mx-auto">
+        <p className="mt-4 text-callout md:text-body text-ink-subtle max-w-2xl mx-auto">
           Números reais do v1. Sem KPI inflado, sem "10x ROI" sem lastro.
         </p>
 
@@ -25,7 +25,7 @@ export function Stats() {
               <p className="holo-gradient-text font-satoshi font-black text-[44px] md:text-[60px] leading-none tracking-[-0.8px]">
                 {s.value}
               </p>
-              <p className="mt-3 text-[14px] md:text-[15px] text-[#6b6b70] font-medium">
+              <p className="mt-3 text-callout md:text-callout text-ink-muted font-medium">
                 {s.label}
               </p>
             </Reveal>

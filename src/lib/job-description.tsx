@@ -43,7 +43,7 @@ export function parseDescriptionSections(raw: string): DescriptionSection[] {
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return text.split(/\*\*(.+?)\*\*/g).map((chunk, i) =>
     i % 2 === 1 ? (
-      <strong key={`${keyPrefix}-b${i}`} className="font-semibold text-[#1d1d1f]">
+      <strong key={`${keyPrefix}-b${i}`} className="font-semibold text-ink">
         {chunk}
       </strong>
     ) : (
@@ -64,7 +64,7 @@ export function DescriptionBody({ body }: { body: string }) {
     blocks.push(
       <ul key={key} className="space-y-2 my-3">
         {bullets.map((item, i) => (
-          <li key={i} className="flex gap-2.5 text-[15px] leading-[1.65] text-[#4a4a52]">
+          <li key={i} className="flex gap-2.5 text-callout leading-[1.65] text-[#4a4a52]">
             <span className="mt-[9px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-sky-400" />
             <span>{renderInline(item, `${key}-${i}`)}</span>
           </li>
@@ -79,7 +79,7 @@ export function DescriptionBody({ body }: { body: string }) {
   const flushParagraph = (key: string) => {
     if (paragraph.length === 0) return;
     blocks.push(
-      <p key={key} className="my-3 text-[15px] leading-[1.7] text-[#4a4a52]">
+      <p key={key} className="my-3 text-callout leading-[1.7] text-[#4a4a52]">
         {paragraph.map((line, i) => (
           <span key={`${key}-l${i}`}>
             {i > 0 && <br />}

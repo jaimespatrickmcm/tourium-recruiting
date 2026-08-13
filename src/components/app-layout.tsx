@@ -8,7 +8,7 @@ import { JobNewModal } from '@/components/modals/job-new-modal';
 export function AppLayout() {
   return (
     <ModalProvider>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-canvas">
         <main className="pb-32">
           <Outlet />
         </main>

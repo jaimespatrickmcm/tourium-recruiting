@@ -15,7 +15,7 @@ export function Hero() {
           className="w-max mx-auto holo-gradient rounded-full p-[1.5px] mb-8"
         >
           <div className="bg-white rounded-full px-4 py-1.5">
-            <span className="holo-gradient-text text-[13px] font-semibold tracking-wide">
+            <span className="holo-gradient-text text-footnote font-semibold tracking-wide">
               Gestão de pessoas com IA, de ponta a ponta
             </span>
           </div>
@@ -25,7 +25,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-          className="font-satoshi font-black text-[40px] sm:text-[56px] md:text-[68px] leading-[1.08] tracking-[-0.8px] text-[#1d1d1f] max-w-4xl mx-auto"
+          className="font-satoshi font-black text-[40px] sm:text-[56px] md:text-[68px] leading-[1.08] tracking-[-0.8px] text-ink max-w-4xl mx-auto"
         >
           Corte até <span className="holo-gradient-text">80%</span> do trabalho de gestão de pessoas, do recrutamento em diante.
         </motion.h1>
@@ -34,7 +34,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-7 text-[17px] md:text-[20px] text-[#6b6b70] leading-[1.5] max-w-2xl mx-auto font-medium"
+          className="mt-7 text-[17px] md:text-[20px] text-ink-muted leading-[1.5] max-w-2xl mx-auto font-medium"
         >
           A Noren analisa cada candidato sozinha, pontua por área, move o
           processo seletivo com um clique e acompanha a evolução de quem você
@@ -49,7 +49,7 @@ export function Hero() {
         >
           <Link
             to="/signup"
-            className="holo-gradient rounded-full inline-flex items-center gap-2 pl-6 pr-3 py-3 text-white font-semibold text-[16px] hover:opacity-95 transition-opacity shadow-lg shadow-sky-500/30"
+            className="holo-gradient rounded-full inline-flex items-center gap-2 pl-6 pr-3 py-3 text-white font-semibold text-body hover:opacity-95 transition-opacity shadow-lg shadow-sky-500/30"
           >
             Criar conta grátis
             <span className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center">
@@ -58,7 +58,7 @@ export function Hero() {
           </Link>
           <a
             href="#como-funciona"
-            className="inline-flex items-center rounded-full border border-gray-200 bg-white px-6 py-3.5 text-[16px] font-semibold text-[#1d1d1f] hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center rounded-full border border-line-soft bg-white px-6 py-3.5 text-body font-semibold text-ink hover:bg-canvas transition-colors"
           >
             Ver como funciona
           </a>
@@ -74,13 +74,13 @@ export function Hero() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center gap-3 bg-white border border-gray-200 rounded-full pl-3 pr-5 py-2 shadow-md"
+          className="flex items-center gap-3 bg-white border border-line-soft rounded-full pl-3 pr-5 py-2 shadow-md"
         >
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 animate-ping opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-[13px] text-[#6b6b70] font-medium">
+          <span className="text-footnote text-ink-muted font-medium">
             Em design partners. Trial gratuito enquanto está em v1.
           </span>
         </motion.div>
@@ -94,7 +94,7 @@ function DashboardMockup() {
     <div className="relative">
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-10 top-10 h-[80%] rounded-[40px] blur-3xl"
+        className="pointer-events-none absolute inset-x-10 top-10 h-[80%] rounded-panel blur-3xl"
         style={{
           background:
             'radial-gradient(60% 60% at 50% 50%, rgba(14,165,233,0.20), rgba(56,189,248,0.14) 55%, transparent 80%)',
@@ -108,7 +108,7 @@ function DashboardMockup() {
         initial={{ opacity: 0, y: 30, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mx-auto max-w-3xl rounded-[28px] bg-white border border-gray-200 shadow-[0_30px_80px_-20px_rgba(15,15,30,0.18)] p-5 md:p-7"
+        className="relative mx-auto max-w-3xl rounded-panel bg-white border border-line-soft shadow-e3 p-5 md:p-7"
       >
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
@@ -116,7 +116,7 @@ function DashboardMockup() {
             <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
           </div>
-          <div className="flex items-center gap-2 text-[12px] text-[#8a8a8f] font-medium">
+          <div className="flex items-center gap-2 text-caption text-ink-subtle font-medium">
             <Sparkles className="h-3.5 w-3.5 text-sky-500" />
             noren.app/acme
           </div>
@@ -135,10 +135,10 @@ function DashboardMockup() {
           <MiniStat label="Match cultural" value="73%" delta="média top 10" delay={0.8} />
         </div>
 
-        <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-gray-50 to-white p-5">
+        <div className="rounded-card border border-line-soft bg-gradient-to-br from-gray-50 to-white p-5">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[13px] font-semibold text-[#1d1d1f]">Distribuição de scores, últimos 30 dias</span>
-            <span className="text-[12px] text-[#8a8a8f] font-medium">8 vagas ativas</span>
+            <span className="text-footnote font-semibold text-ink">Distribuição de scores, últimos 30 dias</span>
+            <span className="text-caption text-ink-subtle font-medium">8 vagas ativas</span>
           </div>
           <DistributionChart />
         </div>
@@ -184,11 +184,11 @@ function MiniStat({ label, value, delta, delay }: { label: string; value: string
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-xl border border-gray-100 bg-white p-3"
+      className="rounded-tile border border-line-soft bg-white p-3"
     >
-      <p className="text-[11px] text-[#8a8a8f] font-medium uppercase tracking-wide">{label}</p>
-      <p className="text-[20px] md:text-[22px] font-bold text-[#1d1d1f] mt-1 leading-none">{value}</p>
-      <p className="text-[11px] text-emerald-600 font-semibold mt-1.5">{delta}</p>
+      <p className="text-caption text-ink-subtle font-medium uppercase tracking-wide">{label}</p>
+      <p className="text-[20px] md:text-[22px] font-bold text-ink mt-1 leading-none">{value}</p>
+      <p className="text-caption text-emerald-600 font-semibold mt-1.5">{delta}</p>
     </motion.div>
   );
 }
@@ -246,18 +246,18 @@ function FloatingCard({
       initial={{ opacity: 0, scale: 0.85, y: 14 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={`items-center gap-3 bg-white border border-gray-200 rounded-2xl pl-2.5 pr-4 py-2.5 shadow-[0_10px_30px_-10px_rgba(15,15,30,0.18)] ${className}`}
+      className={`items-center gap-3 bg-white border border-line-soft rounded-card pl-2.5 pr-4 py-2.5 shadow-e2 ${className}`}
     >
       <motion.div
-        className={`h-9 w-9 rounded-xl ${bg} flex items-center justify-center`}
+        className={`h-9 w-9 rounded-tile ${bg} flex items-center justify-center`}
         animate={{ y: [0, -3, 0] }}
         transition={{ duration: 3.5, delay, repeat: Infinity, ease: 'easeInOut' }}
       >
         {icon}
       </motion.div>
       <div className="text-left">
-        <p className="text-[13px] font-semibold text-[#1d1d1f] leading-tight">{title}</p>
-        <p className="text-[11px] text-[#8a8a8f] leading-tight mt-0.5">{subtitle}</p>
+        <p className="text-footnote font-semibold text-ink leading-tight">{title}</p>
+        <p className="text-caption text-ink-subtle leading-tight mt-0.5">{subtitle}</p>
       </div>
     </motion.div>
   );
@@ -265,11 +265,11 @@ function FloatingCard({
 
 function MobileStat({ icon, bg, title, subtitle }: { icon: React.ReactNode; bg: string; title: string; subtitle: string }) {
   return (
-    <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-3 py-2.5">
-      <div className={`h-9 w-9 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>{icon}</div>
+    <div className="flex items-center gap-3 bg-white border border-line-soft rounded-card px-3 py-2.5">
+      <div className={`h-9 w-9 rounded-tile ${bg} flex items-center justify-center flex-shrink-0`}>{icon}</div>
       <div className="text-left">
-        <p className="text-[13px] font-semibold text-[#1d1d1f] leading-tight">{title}</p>
-        <p className="text-[11px] text-[#8a8a8f] leading-tight mt-0.5">{subtitle}</p>
+        <p className="text-footnote font-semibold text-ink leading-tight">{title}</p>
+        <p className="text-caption text-ink-subtle leading-tight mt-0.5">{subtitle}</p>
       </div>
     </div>
   );

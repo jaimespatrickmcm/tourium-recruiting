@@ -54,17 +54,17 @@ export function ProfileAssessmentCard({ email }: { email: string }) {
   const grit = rows.find((r) => r.method === 'grit')?.result as GritResult | undefined;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="rounded-card border border-line-soft bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <Brain className="h-4 w-4 text-sky-600" />
-        <p className="text-[12px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+        <p className="text-caption font-bold uppercase tracking-wider text-ink-subtle">
           Análise de perfil comportamental
         </p>
       </div>
 
       {disc && (
         <div className="mb-3">
-          <p className="text-[14px] text-[#1d1d1f]">
+          <p className="text-callout text-ink">
             <span className="font-semibold">DISC:</span>{' '}
             {DISC_PROFILE_CONTENT[disc.primary].name} predominante (
             {disc.pair.map((p: DiscProfileKey) => DISC_PROFILE_CONTENT[p].sigla).join('')})
@@ -73,7 +73,7 @@ export function ProfileAssessmentCard({ email }: { email: string }) {
             {(Object.keys(disc.percents) as DiscProfileKey[])
               .sort((a, b) => disc.points[b] - disc.points[a])
               .map((p) => (
-                <span key={p} className="text-[12px] text-[#6b6b70]">
+                <span key={p} className="text-caption text-ink-muted">
                   {DISC_PROFILE_CONTENT[p].sigla} {disc.percents[p].toFixed(0)}%
                 </span>
               ))}
@@ -83,10 +83,10 @@ export function ProfileAssessmentCard({ email }: { email: string }) {
 
       {bigfive && (
         <div className="mb-3">
-          <p className="text-[13px] font-semibold text-[#1d1d1f] mb-1">Big Five</p>
+          <p className="text-footnote font-semibold text-ink mb-1">Big Five</p>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
             {(Object.keys(bigfive.means) as BigFiveDimension[]).map((dim) => (
-              <span key={dim} className="text-[12px] text-[#6b6b70]">
+              <span key={dim} className="text-caption text-ink-muted">
                 {BIGFIVE_DIMENSION_INFO[dim].label}: {bigfive.means[dim].toFixed(1)}
               </span>
             ))}
@@ -95,7 +95,7 @@ export function ProfileAssessmentCard({ email }: { email: string }) {
       )}
 
       {grit && (
-        <p className="text-[14px] text-[#1d1d1f]">
+        <p className="text-callout text-ink">
           <span className="font-semibold">Garra:</span> {grit.garraPct}%
         </p>
       )}

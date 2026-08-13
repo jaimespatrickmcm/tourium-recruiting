@@ -39,22 +39,22 @@ const faqs = [
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-card border border-line-soft overflow-hidden">
       <button
         className="w-full flex items-start justify-between gap-4 p-5 text-left"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
-        <span className="text-[15px] md:text-[16px] font-semibold text-[#1d1d1f] leading-[1.4] flex-grow">
+        <span className="text-callout md:text-body font-semibold text-ink leading-[1.4] flex-grow">
           {q}
         </span>
-        <span className="h-8 w-8 rounded-full bg-[#1d1d1f] flex items-center justify-center flex-shrink-0 mt-0.5">
+        <span className="h-8 w-8 rounded-full bg-ink flex items-center justify-center flex-shrink-0 mt-0.5">
           {open ? <Minus className="h-4 w-4 text-white" /> : <Plus className="h-4 w-4 text-white" />}
         </span>
       </button>
       {open && (
         <div className="px-5 pb-5 pr-16">
-          <p className="text-[14px] md:text-[15px] text-[#6b6b70] leading-[1.6]">{a}</p>
+          <p className="text-callout md:text-callout text-ink-muted leading-[1.6]">{a}</p>
         </div>
       )}
     </div>
@@ -65,7 +65,7 @@ export function Faq() {
   return (
     <section id="faq" className="w-full py-20 md:py-28 px-5">
       <div className="max-w-3xl mx-auto">
-        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-center text-[#1d1d1f] mb-12">
+        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-center text-ink mb-12">
           FAQ
         </h2>
 

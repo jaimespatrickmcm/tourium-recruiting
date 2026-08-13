@@ -13,6 +13,7 @@ import { Dna } from '@/pages/app/Dna';
 import { Questions } from '@/pages/app/Questions';
 import { Jobs } from '@/pages/app/Jobs';
 import { JobDetail } from '@/pages/app/JobDetail';
+import { Candidates } from '@/pages/app/Candidates';
 import { Team } from '@/pages/app/Team';
 import { TeamDetail } from '@/pages/app/TeamDetail';
 import { CandidateAccess } from '@/pages/candidate/Access';
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
       { path: 'perguntas', element: <Questions /> },
       { path: 'jobs', element: <Jobs /> },
       { path: 'jobs/:id', element: <JobDetail /> },
+      { path: 'candidatos', element: <Candidates /> },
       { path: 'time', element: <Team /> },
       { path: 'time/:id', element: <TeamDetail /> },
       { path: 'company', element: <Navigate to="/app/empresa" replace /> },

@@ -99,7 +99,7 @@ function KindChip({ kind }: { kind: QuestionKind }) {
   const label = KIND_LABEL[kind];
   const cls =
     kind === 'profile'
-      ? 'bg-gray-50 text-gray-700 border-gray-200'
+      ? 'bg-canvas text-gray-700 border-line-soft'
       : kind === 'culture'
         ? 'bg-sky-50 text-sky-700 border-sky-200'
         : kind === 'curiosity'
@@ -107,7 +107,7 @@ function KindChip({ kind }: { kind: QuestionKind }) {
           : 'bg-violet-50 text-violet-700 border-violet-200';
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-eyebrow font-bold uppercase ${cls}`}
     >
       {label}
     </span>
@@ -344,26 +344,26 @@ export function QuestionGeneratorModal({
         if (!v) handleClose();
       }}
     >
-      <DialogContent className="max-w-2xl p-0 rounded-[24px] border-gray-200 shadow-[0_30px_80px_-20px_rgba(15,15,30,0.25)] overflow-hidden gap-0 flex flex-col [&>button]:hidden">
+      <DialogContent className="max-w-2xl p-0 rounded-card border-line-soft shadow-e3 overflow-hidden gap-0 flex flex-col [&>button]:hidden">
         <DialogTitle className="sr-only">{headerLabel}</DialogTitle>
         <DialogDescription className="sr-only">
           Escolha um método, gere e revise perguntas padrão em até {totalSteps} passos.
         </DialogDescription>
 
         {/* Header */}
-        <div className="shrink-0 px-8 pt-6 pb-4 border-b border-gray-100">
+        <div className="shrink-0 px-8 pt-6 pb-4 border-b border-line-soft">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+            <p className="text-eyebrow font-bold uppercase text-ink-subtle">
               {headerLabel}
             </p>
             <div className="flex items-center gap-3">
-              <p className="text-[12px] font-medium text-[#6b6b70]">
-                Passo <span className="text-[#1d1d1f] font-bold">{stepNum}</span> de {totalSteps}
+              <p className="text-caption font-medium text-ink-muted">
+                Passo <span className="text-ink font-bold">{stepNum}</span> de {totalSteps}
               </p>
               <button
                 type="button"
                 onClick={handleClose}
-                className="h-8 w-8 rounded-full flex items-center justify-center text-[#6b6b70] hover:bg-gray-100 hover:text-[#1d1d1f] transition-colors"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors"
                 aria-label="Fechar"
               >
                 <X className="h-4 w-4" />
@@ -371,7 +371,7 @@ export function QuestionGeneratorModal({
             </div>
           </div>
           <div
-            className="h-1 bg-gray-100 rounded-full overflow-hidden"
+            className="h-1 bg-surface-sunken rounded-full overflow-hidden"
             role="progressbar"
             aria-valuenow={stepNum}
             aria-valuemin={1}
@@ -388,10 +388,10 @@ export function QuestionGeneratorModal({
         <div className="flex-1 min-h-0 overflow-y-auto px-8 py-7">
           {phase === 'method' && (
             <div>
-              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f] mb-2">
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
                 {isJob ? 'Como criar as perguntas da vaga?' : 'Como criar suas perguntas?'}
               </h2>
-              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 {isJob
                   ? 'Perguntas técnicas específicas dessa vaga. Todo candidato da vaga responde as mesmas.'
                   : 'Perguntas sobre o candidato, cultura, curiosidade e raciocínio. Todo candidato responde as mesmas.'}
@@ -436,7 +436,7 @@ export function QuestionGeneratorModal({
               </div>
 
               {generationError && (
-                <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[12px] text-red-800">
+                <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-caption text-red-800">
                   {generationError}
                 </div>
               )}
@@ -445,15 +445,15 @@ export function QuestionGeneratorModal({
 
           {phase === 'notes' && (
             <div>
-              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f] mb-2">
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
                 Gerar do zero com IA
               </h2>
-              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 A IA vai propor perguntas de cultura e raciocínio a partir do DNA da empresa. Se
                 quiser, deixe uma nota do que priorizar.
               </p>
 
-              <label className="block text-[12px] font-semibold text-[#1d1d1f] mb-2">
+              <label className="block text-caption font-semibold text-ink mb-2">
                 Notas pra IA (opcional)
               </label>
               <Textarea
@@ -461,14 +461,14 @@ export function QuestionGeneratorModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={5}
-                className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
+                className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
               />
-              <p className="text-[11px] mt-1.5 text-[#8a8a8f]">
+              <p className="text-caption mt-1.5 text-ink-subtle">
                 Deixe em branco pra usar só a cultura já cadastrada no DNA.
               </p>
 
               {generationError && (
-                <div className="mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[12px] text-red-800">
+                <div className="mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-caption text-red-800">
                   {generationError}
                 </div>
               )}
@@ -477,14 +477,14 @@ export function QuestionGeneratorModal({
 
           {phase === 'generating' && (
             <div className="min-h-[300px] flex items-center justify-center">
-              <div className="flex items-center gap-3 text-[#6b6b70]">
+              <div className="flex items-center gap-3 text-ink-muted">
                 <div className="relative">
                   <Sparkles className="h-5 w-5 text-sky-500" />
                   <div className="absolute inset-0 animate-ping">
                     <Sparkles className="h-5 w-5 text-sky-400 opacity-40" />
                   </div>
                 </div>
-                <p className="text-[14px]">Gerando perguntas com base na sua empresa...</p>
+                <p className="text-callout">Gerando perguntas com base na sua empresa...</p>
               </div>
             </div>
           )}
@@ -492,7 +492,7 @@ export function QuestionGeneratorModal({
           {phase === 'review' && (
             <div>
               <div className="flex items-start justify-between gap-4 mb-2">
-                <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f]">
+                <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink">
                   Revisar perguntas
                 </h2>
                 {cameFromAi && (
@@ -500,7 +500,7 @@ export function QuestionGeneratorModal({
                     type="button"
                     onClick={() => void runGenerate(genMethod as Exclude<GenMethod, null>)}
                     disabled={generating}
-                    className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-40 shrink-0 mt-2"
+                    className="inline-flex items-center gap-1.5 text-caption font-semibold text-ink-muted hover:text-ink transition-colors disabled:opacity-40 shrink-0 mt-2"
                   >
                     {generating ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -511,7 +511,7 @@ export function QuestionGeneratorModal({
                   </button>
                 )}
               </div>
-              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 Edite o texto, a resposta esperada e a régua de pontuação. Apague o que não quiser.
                 Só salva ao aprovar.
               </p>
@@ -532,7 +532,7 @@ export function QuestionGeneratorModal({
               <button
                 type="button"
                 onClick={addManual}
-                className="mt-4 inline-flex items-center gap-2 text-[13px] font-semibold text-sky-700 hover:text-sky-900 transition-colors"
+                className="mt-4 inline-flex items-center gap-2 text-footnote font-semibold text-sky-700 hover:text-sky-900 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 Adicionar manual
@@ -542,7 +542,7 @@ export function QuestionGeneratorModal({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-8 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+        <div className="shrink-0 px-8 py-5 border-t border-line-soft flex items-center justify-between bg-canvas">
           <button
             onClick={() => {
               if (phase === 'notes') {
@@ -557,7 +557,7 @@ export function QuestionGeneratorModal({
               phase === 'method' ||
               (phase === 'review' && startManual)
             }
-            className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
+            className="inline-flex items-center gap-2 text-footnote font-medium text-ink-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
@@ -596,16 +596,16 @@ function MethodCard({
     <button
       type="button"
       onClick={onClick}
-      className="group w-full text-left rounded-2xl border border-gray-200 bg-white p-4 flex items-start gap-4 hover:border-sky-300 hover:bg-sky-50/30 transition-colors"
+      className="group w-full text-left rounded-card border border-line-soft bg-white p-4 flex items-start gap-4 hover:border-sky-300 hover:bg-sky-50/30 transition-colors"
     >
-      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 group-hover:bg-sky-100 transition-colors">
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-tile bg-sky-50 text-sky-600 group-hover:bg-sky-100 transition-colors">
         {icon}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
+        <span className="block font-satoshi font-bold text-body tracking-[-0.2px] text-ink">
           {title}
         </span>
-        <span className="block text-[13px] text-[#6b6b70] leading-relaxed mt-0.5">
+        <span className="block text-footnote text-ink-muted leading-relaxed mt-0.5">
           {description}
         </span>
       </span>
@@ -630,9 +630,9 @@ function DraftQuestionRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4">
+    <div className="rounded-card border border-line-soft bg-canvas p-4">
       <div className="flex items-start gap-3">
-        <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0 mt-1">
+        <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-caption font-bold shrink-0 mt-1">
           {index + 1}
         </span>
         <div className="flex-1 min-w-0">
@@ -651,10 +651,10 @@ function DraftQuestionRow({
               type="button"
               onClick={() => onChange({ required: !draft.required })}
               aria-pressed={draft.required}
-              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-eyebrow font-bold uppercase transition-colors ${
                 draft.required
                   ? 'border-amber-200 bg-amber-50 text-amber-700'
-                  : 'border-gray-200 bg-white text-[#8a8a8f] hover:text-[#1d1d1f]'
+                  : 'border-line-soft bg-white text-ink-subtle hover:text-ink'
               }`}
             >
               Obrigatória
@@ -665,11 +665,11 @@ function DraftQuestionRow({
             onChange={(e) => onChange({ question: e.target.value })}
             rows={2}
             placeholder="O que o candidato lê..."
-            className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
+            className="rounded-lg border-line-soft bg-white text-callout leading-relaxed resize-none"
           />
           {isSelectFormat(draft.format) && (
             <div className="mt-2">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+              <label className="block text-eyebrow font-bold uppercase text-ink-subtle mb-1.5">
                 Opções (uma por linha)
               </label>
               <Textarea
@@ -677,9 +677,9 @@ function DraftQuestionRow({
                 onChange={(e) => onChange({ options: e.target.value.split('\n') })}
                 rows={Math.min(Math.max(draft.options.length + 1, 3), 8)}
                 placeholder={'Figma\nCanva\nPhotoshop'}
-                className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                className="rounded-lg border-line-soft bg-white text-footnote leading-relaxed resize-none"
               />
-              <p className="text-[11px] text-[#8a8a8f] mt-1">
+              <p className="text-caption text-ink-subtle mt-1">
                 {draft.format === 'multi_select'
                   ? 'O candidato pode marcar mais de uma.'
                   : 'O candidato escolhe uma.'}
@@ -691,7 +691,7 @@ function DraftQuestionRow({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-white hover:text-[#1d1d1f] transition-colors"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-ink-subtle hover:bg-white hover:text-ink transition-colors"
             aria-label={expanded ? 'Recolher critérios' : 'Ver critérios internos'}
             aria-expanded={expanded}
           >
@@ -702,7 +702,7 @@ function DraftQuestionRow({
           <button
             type="button"
             onClick={onRemove}
-            className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-red-50 hover:text-red-600 transition-colors"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-ink-subtle hover:bg-red-50 hover:text-red-600 transition-colors"
             aria-label="Remover pergunta"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -711,9 +711,9 @@ function DraftQuestionRow({
       </div>
 
       {expanded && (
-        <div className="mt-3 space-y-3 border-t border-gray-200/70 pt-3">
+        <div className="mt-3 space-y-3 border-t border-line-soft/70 pt-3">
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+            <label className="block text-eyebrow font-bold uppercase text-ink-subtle mb-1.5">
               Resposta esperada (interno)
             </label>
             <Textarea
@@ -721,11 +721,11 @@ function DraftQuestionRow({
               onChange={(e) => onChange({ guidance: e.target.value })}
               rows={2}
               placeholder="O que uma boa resposta demonstra..."
-              className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+              className="rounded-lg border-line-soft bg-white text-footnote leading-relaxed resize-none"
             />
           </div>
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+            <label className="block text-eyebrow font-bold uppercase text-ink-subtle mb-1.5">
               Como pontuar (interno)
             </label>
             <Textarea
@@ -733,7 +733,7 @@ function DraftQuestionRow({
               onChange={(e) => onChange({ scoring_rubric: e.target.value })}
               rows={2}
               placeholder="Como dar nota de 0 a 100..."
-              className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+              className="rounded-lg border-line-soft bg-white text-footnote leading-relaxed resize-none"
             />
           </div>
         </div>
@@ -761,7 +761,7 @@ function FormatSelect({
       value={value}
       onChange={(e) => onChange(normalizeFormat(e.target.value))}
       aria-label="Formato da resposta"
-      className="rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#6b6b70] hover:text-[#1d1d1f] transition-colors cursor-pointer"
+      className="rounded-full border border-line-soft bg-white px-2.5 py-0.5 text-eyebrow font-bold uppercase text-ink-muted hover:text-ink transition-colors cursor-pointer"
     >
       {FORMATS.map((f) => (
         <option key={f} value={f}>
@@ -780,7 +780,7 @@ function KindToggle({
   onChange: (kind: QuestionKind) => void;
 }) {
   return (
-    <div className="inline-flex flex-wrap items-center rounded-full border border-gray-200 bg-white p-0.5">
+    <div className="inline-flex flex-wrap items-center rounded-full border border-line-soft bg-white p-0.5">
       {KINDS.map((key) => {
         const active = value === key;
         return (
@@ -788,8 +788,8 @@ function KindToggle({
             key={key}
             type="button"
             onClick={() => onChange(key)}
-            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-colors ${
-              active ? 'bg-sky-600 text-white' : 'text-[#8a8a8f] hover:text-[#1d1d1f]'
+            className={`px-2.5 py-0.5 rounded-full text-eyebrow font-bold uppercase transition-colors ${
+              active ? 'bg-sky-600 text-white' : 'text-ink-subtle hover:text-ink'
             }`}
             aria-pressed={active}
           >

@@ -57,7 +57,7 @@ export function CandidateProfile() {
       </div>
 
       {/* Identity from LinkedIn */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-tile border border-line-soft p-6">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
           Vindo do LinkedIn
         </p>
@@ -66,11 +66,11 @@ export function CandidateProfile() {
             <img
               src={candidate.picture_url}
               alt={candidate.full_name ?? candidate.email}
-              className="h-16 w-16 rounded-full border border-gray-200"
+              className="h-16 w-16 rounded-full border border-line-soft"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-400">
+            <div className="h-16 w-16 rounded-full bg-surface-sunken flex items-center justify-center text-lg font-bold text-gray-400">
               {(candidate.full_name ?? candidate.email)[0]?.toUpperCase()}
             </div>
           )}
@@ -82,7 +82,7 @@ export function CandidateProfile() {
       </div>
 
       {/* Editable */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-tile border border-line-soft p-6 space-y-4">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
           Complete o perfil
         </p>
@@ -99,7 +99,7 @@ export function CandidateProfile() {
             value={linkedinUrl}
             onChange={(e) => setLinkedinUrl(e.target.value)}
             placeholder="https://www.linkedin.com/in/seu-nome/"
-            className="w-full h-10 px-3 rounded-lg border border-gray-300 text-sm"
+            className="w-full h-10 px-3 rounded-lg border border-line text-sm"
           />
           <p className="text-xs text-gray-500 mt-1">
             HR usa esse link pra ver seu perfil completo. Cola a URL exata do seu LinkedIn.
@@ -113,7 +113,7 @@ export function CandidateProfile() {
             onChange={(e) => setAbout(e.target.value)}
             placeholder="O que você faz, anos de experiência, o que te move profissionalmente. Texto curto, autêntico."
             rows={5}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm leading-relaxed resize-none"
+            className="w-full px-3 py-2 rounded-lg border border-line text-sm leading-relaxed resize-none"
           />
         </div>
 
@@ -127,7 +127,7 @@ export function CandidateProfile() {
         </button>
       </div>
 
-      <div className="bg-gray-100 rounded-xl p-4 text-xs text-gray-600">
+      <div className="bg-surface-sunken rounded-tile p-4 text-xs text-gray-600">
         <strong>Próximas waves:</strong> upload de CV (extração automática), lista de aplicações,
         respostas a perguntas customizadas por vaga.
       </div>

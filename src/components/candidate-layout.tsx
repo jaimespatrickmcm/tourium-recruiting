@@ -19,7 +19,7 @@ export function CandidateLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-canvas">
       <header className="border-b bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link to="/candidato" className="text-lg font-bold">
@@ -30,7 +30,7 @@ export function CandidateLayout() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-surface-sunken"
             >
               <LogOut className="h-4 w-4" />
               Sair
@@ -47,8 +47,8 @@ export function CandidateLayout() {
                   cn(
                     'shrink-0 px-3 py-2.5 text-sm font-semibold border-b-2 transition-colors',
                     isActive
-                      ? 'border-sky-600 text-[#1d1d1f]'
-                      : 'border-transparent text-[#6b6b70] hover:text-[#1d1d1f]',
+                      ? 'border-sky-600 text-ink'
+                      : 'border-transparent text-ink-muted hover:text-ink',
                   )
                 }
               >

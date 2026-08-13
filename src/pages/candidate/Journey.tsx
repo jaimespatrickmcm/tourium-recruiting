@@ -46,7 +46,7 @@ type TimelineItem = {
 const GOAL_STATUS: Record<GoalStatus, { label: string; chip: string }> = {
   em_andamento: { label: 'Em andamento', chip: 'bg-sky-50 border-sky-100 text-sky-800' },
   concluida: { label: 'Concluída', chip: 'bg-emerald-50 border-emerald-100 text-emerald-800' },
-  pausada: { label: 'Pausada', chip: 'bg-gray-100 border-gray-200 text-gray-600' },
+  pausada: { label: 'Pausada', chip: 'bg-surface-sunken border-line-soft text-gray-600' },
 };
 
 function shortDate(iso: string): string {
@@ -123,13 +123,13 @@ export function CandidateJourney() {
   }, [authLoading, fetchAll]);
 
   if (authLoading || loading) {
-    return <div className="text-sm text-[#6b6b70]">Carregando...</div>;
+    return <div className="text-sm text-ink-muted">Carregando...</div>;
   }
 
   if (error) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-[#1d1d1f]">{error}</p>
+        <p className="text-sm text-ink">{error}</p>
         <button
           type="button"
           onClick={() => void fetchAll()}
@@ -145,11 +145,11 @@ export function CandidateJourney() {
     return (
       <div className="space-y-5">
         <div>
-          <h1 className="font-satoshi text-2xl font-bold text-[#1d1d1f] mb-1">Minha jornada</h1>
-          <p className="text-sm text-[#6b6b70]">Sua evolução profissional dentro das empresas.</p>
+          <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minha jornada</h1>
+          <p className="text-sm text-ink-muted">Sua evolução profissional dentro das empresas.</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-          <p className="text-sm text-[#6b6b70]">
+        <div className="bg-white rounded-card border border-line-soft p-8 text-center">
+          <p className="text-sm text-ink-muted">
             Sua jornada começa no dia em que uma empresa que usa a Noren te contratar. A partir
             daí, suas avaliações e seu plano de desenvolvimento ficam disponíveis aqui.
           </p>
@@ -215,8 +215,8 @@ export function CandidateJourney() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-satoshi text-2xl font-bold text-[#1d1d1f] mb-1">Minha jornada</h1>
-        <p className="text-sm text-[#6b6b70]">
+        <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minha jornada</h1>
+        <p className="text-sm text-ink-muted">
           {companyName
             ? `Sua evolução na ${companyName}, na visão de quem acompanha seu trabalho.`
             : 'Sua evolução profissional, na visão de quem acompanha seu trabalho.'}
@@ -235,8 +235,8 @@ export function CandidateJourney() {
           className="max-w-md mx-auto sm:mx-0"
         />
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <p className="text-sm text-[#6b6b70]">
+        <div className="bg-white rounded-card border border-line-soft p-6">
+          <p className="text-sm text-ink-muted">
             Ainda não há avaliações registradas. Assim que a primeira for feita, seu scout card
             aparece aqui com seus scores por área.
           </p>
@@ -244,21 +244,21 @@ export function CandidateJourney() {
       )}
 
       {/* Plano de desenvolvimento */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
-        <h2 className="font-satoshi font-bold text-[17px] text-[#1d1d1f] mb-4">
+      <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
+        <h2 className="font-satoshi font-bold text-[17px] text-ink mb-4">
           Plano de desenvolvimento
         </h2>
         {goals.length === 0 ? (
-          <p className="text-sm text-[#6b6b70]">Nenhuma meta cadastrada por enquanto.</p>
+          <p className="text-sm text-ink-muted">Nenhuma meta cadastrada por enquanto.</p>
         ) : (
           <ul className="space-y-3">
             {goals.map((goal) => (
-              <li key={goal.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <li key={goal.id} className="rounded-tile border border-line-soft bg-canvas p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#1d1d1f]">{goal.title}</p>
+                  <p className="text-sm font-semibold text-ink">{goal.title}</p>
                   <span
                     className={cn(
-                      'shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
+                      'shrink-0 rounded-full border px-2.5 py-0.5 text-caption font-semibold',
                       GOAL_STATUS[goal.status].chip,
                     )}
                   >
@@ -266,12 +266,12 @@ export function CandidateJourney() {
                   </span>
                 </div>
                 {goal.description && (
-                  <p className="text-[13px] text-[#6b6b70] mt-1 leading-relaxed">
+                  <p className="text-footnote text-ink-muted mt-1 leading-relaxed">
                     {goal.description}
                   </p>
                 )}
                 {(goal.due_date || goal.completed_at) && (
-                  <p className="text-[12px] text-[#8a8a8f] mt-1.5">
+                  <p className="text-caption text-ink-subtle mt-1.5">
                     {goal.completed_at
                       ? `Concluída em ${fullDate(goal.completed_at)}`
                       : `Prazo: ${fullDate(goal.due_date!)}`}
@@ -284,8 +284,8 @@ export function CandidateJourney() {
       </div>
 
       {/* Timeline */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
-        <h2 className="font-satoshi font-bold text-[17px] text-[#1d1d1f] mb-4">Linha do tempo</h2>
+      <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
+        <h2 className="font-satoshi font-bold text-[17px] text-ink mb-4">Linha do tempo</h2>
         <ol className="space-y-3">
           {timeline.map((item, i) => (
             <li key={`${item.date}-${i}`} className="flex items-baseline gap-3">
@@ -297,8 +297,8 @@ export function CandidateJourney() {
                   item.tone === 'gray' && 'bg-gray-300',
                 )}
               />
-              <span className="text-sm text-[#1d1d1f]">{item.text}</span>
-              <span className="ml-auto shrink-0 text-[12px] text-[#8a8a8f]">
+              <span className="text-sm text-ink">{item.text}</span>
+              <span className="ml-auto shrink-0 text-caption text-ink-subtle">
                 {fullDate(item.date)}
               </span>
             </li>

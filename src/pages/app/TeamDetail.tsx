@@ -70,15 +70,15 @@ export function TeamDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white p-8 text-[#8a8a8f] text-sm">Carregando...</div>
+      <div className="min-h-screen bg-white p-8 text-ink-subtle text-sm">Carregando...</div>
     );
   }
 
   if (notFound || !collaborator) {
     return (
       <div className="min-h-screen bg-white p-8">
-        <p className="text-[#6b6b70] mb-4">Colaborador não encontrado.</p>
-        <Link to="/app/time" className="text-sky-600 text-[14px] hover:underline">
+        <p className="text-ink-muted mb-4">Colaborador não encontrado.</p>
+        <Link to="/app/time" className="text-sky-600 text-callout hover:underline">
           Voltar pro time
         </Link>
       </div>
@@ -128,15 +128,15 @@ export function TeamDetail() {
           <div>
             <Link
               to="/app/time"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#8a8a8f] hover:text-[#1d1d1f] transition-colors mb-4"
+              className="inline-flex items-center gap-1.5 text-footnote font-medium text-ink-subtle hover:text-ink transition-colors mb-4"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Time
             </Link>
-            <h1 className="font-satoshi font-bold text-[32px] md:text-[40px] tracking-[-0.7px] leading-[1.1] text-[#1d1d1f]">
+            <h1 className="font-satoshi font-bold text-[32px] md:text-[40px] tracking-[-0.7px] leading-[1.1] text-ink">
               {collaborator.full_name}
             </h1>
-            <p className="text-[15px] text-[#6b6b70] mt-2">
+            <p className="text-callout text-ink-muted mt-2">
               {collaborator.role_title ? `${collaborator.role_title} · ` : ''}
               desde {formatDatePtBR(collaborator.hired_at)}
             </p>
@@ -144,7 +144,7 @@ export function TeamDetail() {
           <button
             type="button"
             onClick={() => void toggleStatus()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white text-[13px] font-semibold text-[#1d1d1f] hover:border-gray-400 transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-line-soft bg-white text-footnote font-semibold text-ink hover:border-line transition-colors whitespace-nowrap"
           >
             {collaborator.status === 'ativo' ? (
               <>
@@ -173,11 +173,11 @@ export function TeamDetail() {
                 badge={collaborator.status === 'desligado' ? 'Desligado' : null}
               />
             ) : (
-              <div className="rounded-[24px] border border-gray-200 bg-white p-8 text-center">
-                <p className="text-[15px] font-semibold text-[#1d1d1f] mb-1">
+              <div className="rounded-card border border-line-soft bg-white p-8 text-center">
+                <p className="text-callout font-semibold text-ink mb-1">
                   Sem avaliações ainda
                 </p>
-                <p className="text-[13px] text-[#6b6b70] leading-relaxed">
+                <p className="text-footnote text-ink-muted leading-relaxed">
                   Registra a primeira avaliação ao lado e o scout card aparece aqui.
                 </p>
               </div>
@@ -261,11 +261,11 @@ function AssessmentSection({
   }
 
   return (
-    <section className="rounded-[24px] border border-gray-200 bg-white p-6">
-      <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-[#1d1d1f] mb-1">
+    <section className="rounded-card border border-line-soft bg-white p-6">
+      <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-ink mb-1">
         Registrar avaliação
       </h2>
-      <p className="text-[13px] text-[#6b6b70] mb-5">
+      <p className="text-footnote text-ink-muted mb-5">
         Dá uma nota de 0 a 100 por área. Cada avaliação vira um ponto na evolução do scout card.
       </p>
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -273,7 +273,7 @@ function AssessmentSection({
           <div key={a.key} className="flex items-center gap-3">
             <Label
               htmlFor={`score-${a.key}`}
-              className="w-28 shrink-0 text-[13px] font-medium text-[#6b6b70]"
+              className="w-28 shrink-0 text-footnote font-medium text-ink-muted"
             >
               {a.label}
             </Label>
@@ -290,7 +290,7 @@ function AssessmentSection({
           </div>
         ))}
         <div className="pt-2 space-y-1.5">
-          <Label htmlFor="assessment-note" className="text-[13px] font-medium text-[#6b6b70]">
+          <Label htmlFor="assessment-note" className="text-footnote font-medium text-ink-muted">
             Nota (opcional)
           </Label>
           <Textarea
@@ -381,31 +381,31 @@ function GoalsSection({
   }
 
   return (
-    <section className="rounded-[24px] border border-gray-200 bg-white p-6">
+    <section className="rounded-card border border-line-soft bg-white p-6">
       <div className="flex items-start justify-between gap-3 mb-1">
-        <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-[#1d1d1f]">
+        <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-ink">
           Plano de desenvolvimento
         </h2>
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white text-[12px] font-semibold text-[#1d1d1f] hover:border-gray-400 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line-soft bg-white text-caption font-semibold text-ink hover:border-line transition-colors whitespace-nowrap"
         >
           <Plus className="h-3.5 w-3.5" />
           Nova meta
         </button>
       </div>
-      <p className="text-[13px] text-[#6b6b70] mb-5">
+      <p className="text-footnote text-ink-muted mb-5">
         Metas de evolução ligadas às áreas do scout card.
       </p>
 
       {showForm && (
         <form
           onSubmit={handleAdd}
-          className="mb-5 rounded-2xl border border-gray-200 bg-gray-50/50 p-4 space-y-3"
+          className="mb-5 rounded-card border border-line-soft bg-canvas p-4 space-y-3"
         >
           <div className="space-y-1.5">
-            <Label htmlFor="goal-title" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="goal-title" className="text-footnote font-semibold text-ink">
               Título
             </Label>
             <Input
@@ -418,14 +418,14 @@ function GoalsSection({
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 space-y-1.5">
-              <Label htmlFor="goal-area" className="text-[13px] font-semibold text-[#1d1d1f]">
+              <Label htmlFor="goal-area" className="text-footnote font-semibold text-ink">
                 Área (opcional)
               </Label>
               <select
                 id="goal-area"
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">Sem área</option>
                 {SCOUT_AREAS.map((a) => (
@@ -436,7 +436,7 @@ function GoalsSection({
               </select>
             </div>
             <div className="flex-1 space-y-1.5">
-              <Label htmlFor="goal-due" className="text-[13px] font-semibold text-[#1d1d1f]">
+              <Label htmlFor="goal-due" className="text-footnote font-semibold text-ink">
                 Prazo (opcional)
               </Label>
               <Input
@@ -456,11 +456,11 @@ function GoalsSection({
       )}
 
       {goals.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center">
-          <div className="inline-flex h-10 w-10 rounded-xl bg-gray-100 items-center justify-center mb-3">
-            <Target className="h-5 w-5 text-[#6b6b70]" strokeWidth={1.5} />
+        <div className="rounded-card border border-dashed border-line-soft p-8 text-center">
+          <div className="inline-flex h-10 w-10 rounded-tile bg-surface-sunken items-center justify-center mb-3">
+            <Target className="h-5 w-5 text-ink-muted" strokeWidth={1.5} />
           </div>
-          <p className="text-[14px] text-[#6b6b70]">
+          <p className="text-callout text-ink-muted">
             Nenhuma meta ainda. Cria a primeira pra dar direção ao desenvolvimento.
           </p>
         </div>
@@ -469,29 +469,29 @@ function GoalsSection({
           {goals.map((goal) => {
             const style = GOAL_STATUS_STYLE[goal.status];
             return (
-              <div key={goal.id} className="rounded-2xl border border-gray-200 p-4">
+              <div key={goal.id} className="rounded-card border border-line-soft p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-semibold text-[#1d1d1f]">{goal.title}</p>
+                    <p className="text-callout font-semibold text-ink">{goal.title}</p>
                     {goal.description && (
-                      <p className="text-[13px] text-[#6b6b70] mt-0.5">{goal.description}</p>
+                      <p className="text-footnote text-ink-muted mt-0.5">{goal.description}</p>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span
                         className={cn(
-                          'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider',
+                          'inline-flex items-center rounded-full border px-2.5 py-0.5 text-eyebrow font-bold uppercase',
                           style.className,
                         )}
                       >
                         {style.label}
                       </span>
                       {goal.area && (
-                        <span className="inline-flex items-center rounded-full bg-gray-100 border border-gray-200 px-2.5 py-0.5 text-[11px] font-semibold text-[#6b6b70]">
+                        <span className="inline-flex items-center rounded-full bg-surface-sunken border border-line-soft px-2.5 py-0.5 text-caption font-semibold text-ink-muted">
                           {areaLabel(goal.area)}
                         </span>
                       )}
                       {goal.due_date && (
-                        <span className="text-[11px] text-[#8a8a8f]">
+                        <span className="text-caption text-ink-subtle">
                           prazo {formatDatePtBR(goal.due_date)}
                         </span>
                       )}
@@ -554,7 +554,7 @@ function GoalAction({ label, onClick }: { label: string; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="text-[12px] font-semibold text-sky-700 hover:text-sky-900 transition-colors"
+      className="text-caption font-semibold text-sky-700 hover:text-sky-900 transition-colors"
     >
       {label}
     </button>
@@ -607,8 +607,8 @@ function TimelineSection({
   ].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
-    <section className="rounded-[24px] border border-gray-200 bg-white p-6">
-      <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-[#1d1d1f] mb-5">
+    <section className="rounded-card border border-line-soft bg-white p-6">
+      <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-ink mb-5">
         Linha do tempo
       </h2>
       <div>
@@ -618,9 +618,9 @@ function TimelineSection({
               <span className="absolute left-[5px] top-4 bottom-0 w-px bg-gray-200" />
             )}
             <span className="absolute left-0 top-1.5 h-[11px] w-[11px] rounded-full holo-gradient" />
-            <p className="text-[14px] font-medium text-[#1d1d1f] leading-snug">{event.title}</p>
-            {event.detail && <p className="text-[12px] text-[#6b6b70] mt-0.5">{event.detail}</p>}
-            <p className="text-[12px] text-[#8a8a8f] mt-0.5">{formatDatePtBR(event.date)}</p>
+            <p className="text-callout font-medium text-ink leading-snug">{event.title}</p>
+            {event.detail && <p className="text-caption text-ink-muted mt-0.5">{event.detail}</p>}
+            <p className="text-caption text-ink-subtle mt-0.5">{formatDatePtBR(event.date)}</p>
           </div>
         ))}
       </div>
