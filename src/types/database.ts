@@ -310,6 +310,9 @@ export type Database = {
           guidance: string | null;
           scoring_rubric: string | null;
           required: boolean;
+          // false = coleta de dado (salario, regime, anos de experiencia,
+          // origem da vaga): vira contexto na analise, nunca nota.
+          scored: boolean;
           format: QuestionFormat;
           options: Json | null;
           created_at: string;
@@ -333,6 +336,7 @@ export type Database = {
           guidance: string | null;
           scoring_rubric: string | null;
           required: boolean;
+          scored: boolean;
           format: QuestionFormat;
           options: Json | null;
           created_at: string;
