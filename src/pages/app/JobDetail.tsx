@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Compass,
   Upload,
+  Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -346,28 +347,84 @@ type ScoreBand = { label: string; hint: string };
 
 // Dá referência à nota crua: uma faixa nomeada + o que ela significa no processo.
 /**
- * Palavra que acompanha a nota. Mesmos cortes de toneForScore e de
- * verdictFromScore. As frases falam da PRÓXIMA ETAPA, nunca de contratar:
- * nenhuma etapa antes da entrevista decide isso.
+ * Escala do scout. Cinco faixas, e cada uma cabe INTEIRA dentro de um veredito:
+ * os cortes 60 e 40 são fronteira de faixa e fronteira de veredito ao mesmo
+ * tempo. Sem isso um mesmo rótulo apareceria ora com "Avançar" ora com
+ * "Avaliar melhor", que foi o tipo de contradição que a gente passou o dia
+ * caçando.
  *
- * Os rótulos subiram um degrau, e isso sai da matemática da própria régua, não
- * de gosto. As rubricas cadastradas dizem "0-30 fraco, 40-60 ok, 70-85 forte,
- * 90-100 topo". A nota da etapa é a MÉDIA de ~20 dessas. Quem responde "forte"
- * em tudo tira 77; quem responde "ok" em tudo tira 50. Ninguém é forte em vinte
- * perguntas seguidas, então um candidato muito bom pousa entre 62 e 72, e 80+ é
- * quase teto. Chamar 65 de "bom" e reservar "forte" pra 80 media uma régua
- * contra a outra e fazia gente ótima parecer morna.
+ * De onde vêm os cortes, em três âncoras que se confirmam:
  *
- * A distribuição real dos 45 candidatos de currículo confirma: mediana 65,
- * percentil 75 em 76, percentil 90 em 80, máximo 90.
+ * 1. A MATEMÁTICA DA RÉGUA. As rubricas cadastradas dizem "0-30 fraco, 40-60
+ *    ok, 70-85 forte, 90-100 topo", e a nota é a MÉDIA de ~20 delas. Quem
+ *    responde "ok" em tudo tira 50; quem responde "forte" em tudo tira 77.
+ *    Ninguém é forte em vinte perguntas seguidas, então 80 é praticamente teto
+ *    e 90+ não existe na prática. Uma escala 0-100 lida como prova de escola
+ *    faz um 58 parecer nota vermelha quando ele é, de fato, um bom candidato.
+ *
+ * 2. A DISTRIBUIÇÃO REAL dos 49 candidatos analisados: 12% em 80+, 39% entre
+ *    60 e 79, 27% entre 50 e 59, 8% entre 40 e 49, 14% abaixo de 40. O topo
+ *    fica raro de verdade e o meio fica povoado, que é o que se espera de uma
+ *    escala honesta.
+ *
+ * 3. A LEITURA DE QUEM RECRUTA: a Thais tira 58-61 e é candidata que emprega em
+ *    várias empresas. Uma escala que a chama de fraca está errada sobre o
+ *    mundo, não sobre ela.
+ *
+ * Cuidado ao mexer: os números de currículo e os de formulário podem não estar
+ * na mesma escala (a mediana de currículo é 65 e a de formulário parece mais
+ * baixa). Com poucas análises de formulário ainda não dá pra calibrar as duas
+ * separado. Quando houver ~20, vale medir de novo antes de mudar os cortes.
  */
+const SCORE_SCALE: { min: number; label: string; hint: string }[] = [
+  { min: 80, label: 'Excepcional', hint: 'Raro. Forte em quase tudo que a vaga pede.' },
+  { min: 60, label: 'Muito bom', hint: 'Acima do que a vaga pede na maioria dos pontos.' },
+  { min: 50, label: 'Bom', hint: 'Entrega o que a vaga pede, com pontos ainda em aberto.' },
+  { min: 40, label: 'Parcial', hint: 'Atende em parte. As lacunas são reais.' },
+  { min: 0, label: 'Abaixo', hint: 'Distante do que a vaga pede neste momento.' },
+];
+
 function scoreBand(score: number): ScoreBand {
-  if (score >= 80)
-    return { label: 'Excepcional', hint: 'Raro. Forte em quase tudo que a vaga pede.' };
-  if (score >= 60) return { label: 'Forte', hint: 'Aderente ao que a vaga pede. Vale seguir.' };
-  if (score >= 40)
-    return { label: 'Mediano', hint: 'Tem o que investigar antes de decidir a próxima etapa.' };
-  return { label: 'Abaixo', hint: 'Distante do que a vaga pede neste momento.' };
+  const found = SCORE_SCALE.find((b) => score >= b.min) ?? SCORE_SCALE[SCORE_SCALE.length - 1];
+  return { label: found.label, hint: found.hint };
+}
+
+/**
+ * Legenda da escala, atrás do ícone de informação ao lado da nota. Existe
+ * porque uma nota de 0 a 100 sem legenda é lida como prova de escola, e aí um
+ * 58 vira "vermelho" na cabeça de quem lê, mesmo sendo um bom candidato.
+ */
+function ScaleLegend({ current }: { current: string }) {
+  return (
+    <div className="mt-3 rounded-card border border-line-soft bg-canvas p-4">
+      <p className="mb-2.5 text-footnote text-ink-muted">
+        A nota é a média das perguntas, e cada pergunta é julgada por uma régua onde uma resposta
+        forte vale entre 70 e 85. Como ninguém responde forte a tudo, 80 já é quase teto: entre os
+        49 candidatos analisados até agora, só 12% passaram disso.
+      </p>
+      <ul className="space-y-1">
+        {SCORE_SCALE.map((b, i) => {
+          const next = i === 0 ? 100 : SCORE_SCALE[i - 1].min - 1;
+          const active = b.label === current;
+          return (
+            <li
+              key={b.label}
+              className={cn(
+                'flex gap-2.5 rounded-control px-2 py-1 text-caption',
+                active ? 'bg-surface font-semibold text-ink' : 'text-ink-muted',
+              )}
+            >
+              <span className="w-16 shrink-0 tabular-nums">
+                {b.min} a {next}
+              </span>
+              <span className="w-24 shrink-0">{b.label}</span>
+              <span className="min-w-0 flex-1">{b.hint}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -418,6 +475,7 @@ function StageDecision({
 
   const tone = toneForScore(stageScore);
   const verdictTone = verdict ? (VERDICT_TONE[verdict] ?? 'neutral') : tone;
+  const [scaleOpen, setScaleOpen] = useState(false);
 
   // Hierarquia deliberada, de cima pra baixo:
   //   1. o numero e o veredito — a decisao, legivel a um metro de distancia
@@ -445,6 +503,15 @@ function StageDecision({
           <div className="mb-2 flex flex-wrap items-center gap-2">
             {verdict && <Chip tone={verdictTone}>{VERDICT_LABELS[verdict] ?? verdict}</Chip>}
             <Chip tone="neutral">{band.label}</Chip>
+            <button
+              type="button"
+              onClick={() => setScaleOpen((v) => !v)}
+              aria-expanded={scaleOpen}
+              aria-label="O que essa nota significa"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-ink-subtle transition-colors hover:bg-canvas hover:text-ink"
+            >
+              <Info className="h-3.5 w-3.5" aria-hidden />
+            </button>
             {stage && (
               <span className="text-caption text-ink-subtle">
                 {EVIDENCE_STAGE_LABELS[stage] ?? stage}
@@ -452,6 +519,8 @@ function StageDecision({
             )}
           </div>
           <p className="text-callout text-ink">{analysis.stage_note || band.hint}</p>
+
+          {scaleOpen && <ScaleLegend current={band.label} />}
         </div>
       </div>
 
