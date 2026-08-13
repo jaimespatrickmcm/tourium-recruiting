@@ -5,6 +5,7 @@ import { Login } from '@/pages/Login';
 import { VerifyOtp } from '@/pages/VerifyOtp';
 import { PublicCareer } from '@/pages/PublicCareer';
 import { ApplicationForm } from '@/pages/ApplicationForm';
+import { ProfileAssessment } from '@/pages/ProfileAssessment';
 import { AppLayout } from '@/components/app-layout';
 import { Dashboard } from '@/pages/app/Dashboard';
 import { Empresa } from '@/pages/app/Empresa';
@@ -23,6 +24,8 @@ export const router = createBrowserRouter([
   { path: '/', element: <Landing /> },
   { path: '/careers/:companySlug/:jobSlug', element: <PublicCareer /> },
   { path: '/careers/:companySlug/:jobSlug/form', element: <ApplicationForm /> },
+  // Teste de perfil comportamental (benefício pós-candidatura, público)
+  { path: '/perfil/analise', element: <ProfileAssessment /> },
   {
     path: '/signup',
     element: (

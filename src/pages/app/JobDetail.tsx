@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { ProfileAssessmentCard } from '@/components/profile-assessment-card';
 import { invokeEdge } from '@/lib/functions';
 import { useCompany } from '@/hooks/use-company';
 import { useAuth } from '@/hooks/use-auth';
@@ -1941,6 +1942,10 @@ function CandidateDetail({
               </p>
             </div>
           )}
+
+          <div className="mb-6 empty:mb-0 empty:hidden">
+            <ProfileAssessmentCard email={app.candidate_email} />
+          </div>
 
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] flex items-center gap-2">

@@ -365,6 +365,26 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['application_answers']['Row']>;
         Relationships: [];
       };
+      profile_assessments: {
+        Row: {
+          id: string;
+          email: string;
+          method: 'disc' | 'bigfive' | 'grit';
+          answers: Json;
+          result: Json;
+          consent_at: string;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['profile_assessments']['Row']> & {
+          email: string;
+          method: 'disc' | 'bigfive' | 'grit';
+          answers: Json;
+          result: Json;
+          consent_at: string;
+        };
+        Update: Partial<Database['public']['Tables']['profile_assessments']['Row']>;
+        Relationships: [];
+      };
       applicant_profiles: {
         Row: {
           email: string;
