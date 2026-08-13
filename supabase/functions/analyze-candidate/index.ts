@@ -252,6 +252,27 @@ function computePotential(
 }
 
 // A etapa é um portão, não a contratação: só corta quem está claramente abaixo.
+// O modelo insiste em abrir a stage_note com a decisão ("Cortar nesta etapa:
+// faltou método..."), mesmo proibido no prompt. Como o veredito de verdade é
+// calculado DEPOIS, pela nota, essa frase aparecia contradizendo a decisão na
+// própria tela: o chip dizia "Avaliar melhor" e a frase embaixo dizia "Cortar".
+// Aqui a gente corta o prefixo de decisão e fica só com a justificativa.
+// Exige DOIS-PONTOS de propósito, não ponto final: "Cortar nesta etapa: ..." é
+// prefixo de decisão, mas "Avançar em análise de dados é o ponto forte dela."
+// é uma frase legítima que começa com a mesma palavra, e aceitar ponto final
+// aqui comia a frase inteira.
+const VERDICT_WORDS =
+  /^\s*(cortar|avan[çc]ar|seguir|aprovar|reprovar|eliminar|manter|segurar|avaliar melhor|n[ãa]o recomendo|recomendo)\b[^:.]{0,40}:\s*/i;
+
+function stripVerdictFromNote(note: string): string {
+  if (!note) return '';
+  const cleaned = note.replace(VERDICT_WORDS, '').trim();
+  if (!cleaned) return note.trim();
+  // Devolve a primeira letra em maiúscula: tirar o prefixo costuma deixar a
+  // frase começando em minúscula ("faltou método...").
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 function verdictFromScore(score: number): StageVerdict {
   if (score >= 60) return 'avancar';
   if (score >= 40) return 'avaliar_melhor';
@@ -532,7 +553,7 @@ O que dá pra ler de cada fonte:
 ESTÁGIO DE EVIDÊNCIA: ${args.evidenceStage === 'cv' ? 'SÓ CURRÍCULO (o candidato ainda não respondeu o formulário)' : 'COM RESPOSTAS DO FORMULÁRIO'}.
 Entregue a NOTA DA ETAPA, que é a decisão de avançar ou não NESTE estágio, calibrada ao que dá pra saber agora. Ela é diferente do score geral:
 - "stage_score" (0-100): o fit considerando só o que ESTE estágio permite avaliar. No estágio SÓ CURRÍCULO, baseie em execução, potencial e aderência aos requisitos (must-have e responsabilidades), e NÃO rebaixe por cultura ou motivação que ainda não deu pra ver. Um bom currículo pro nível da vaga pode ter stage_score alto mesmo com cultura/motivação ainda em aberto. No estágio COM FORMULÁRIO, use toda a evidência. O stage_score responde "vale avançar pra próxima etapa?".
-- "stage_note": 1 frase curta dizendo por que avançar, investigar melhor ou cortar neste estágio.
+- "stage_note": 1 frase curta com o QUE PESOU na leitura deste estágio: o que sustenta o candidato e o que ficou em aberto. NUNCA escreva a decisão. É proibido começar com ou conter "cortar", "avançar", "aprovar", "reprovar", "seguir", "eliminar", "não recomendo", "vale contratar". Quem decide é o código, pela nota calculada, e ele decide DEPOIS de você: se você escrever uma decisão aqui, ela vai contradizer a decisão real na tela do recrutador. Certo: "Base sólida em planejamento e cadência, com método de pricing e previsibilidade de funil ainda sem evidência." Errado: "Cortar nesta etapa: faltou método."
 NÃO existe nota geral pra você dar, e NÃO existe recomendação de contratação: a nota da etapa e o scout geral são calculados aqui a partir das notas por pergunta e das áreas. Você julga a evidência; quem soma é o código. Nunca escreva se a pessoa deve ser contratada: esta etapa decide se ela avança pra próxima conversa, não se ela entra na empresa.
 
 SCOUT GERAL ("dimensions", 0-100 cada, sempre NO NÍVEL DA VAGA): pontue APENAS as áreas que a evidência DESTE estágio sustenta. Área sem evidência fica FORA do array, sem nota nenhuma.
@@ -746,8 +767,9 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       : null;
 
     const stageNoteRaw = parsed.stage_note;
-    const stageNote =
-      typeof stageNoteRaw === 'string' && stageNoteRaw.trim().length > 0 ? stageNoteRaw.trim() : '';
+    const stageNote = stripVerdictFromNote(
+      typeof stageNoteRaw === 'string' ? stageNoteRaw.trim() : '',
+    );
 
     return {
       reasoning: String(parsed.reasoning),
