@@ -8,7 +8,6 @@ import type { ApplicationStatus, Json } from '@/types/database';
 
 export type ApplicationAnalysis = {
   score: number | null;
-  recommendation: string | null;
   reasoning: string | null;
   cv_observations: string | null;
   cv_feedback: Json | null;
@@ -63,7 +62,7 @@ export function useApplications(jobId: string | undefined) {
       .select(
         `
         id, company_id, candidate_id, candidate_name, candidate_email, why_interested, status, created_at, ai_suspected, form_completed_at, resume_path, linkedin_url, highlight_answer, highlight_matched,
-        ai_analysis:ai_analyses(score, recommendation, reasoning, cv_observations, cv_feedback, evidence_stage, stage_score, stage_verdict, stage_note, dimensions, stage_dimensions, strengths, concerns, question_scores, potential_breakdown, leadership_signal, status, error_message, ran_at)
+        ai_analysis:ai_analyses(score, reasoning, cv_observations, cv_feedback, evidence_stage, stage_score, stage_verdict, stage_note, dimensions, stage_dimensions, strengths, concerns, question_scores, potential_breakdown, leadership_signal, status, error_message, ran_at)
       `,
       )
       .eq('job_id', jobId)

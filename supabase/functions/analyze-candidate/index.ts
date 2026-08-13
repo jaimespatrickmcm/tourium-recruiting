@@ -77,12 +77,9 @@ type QuestionScoreRaw = { n: number; score: number; rationale: string };
 type QuestionScore = { ref_id: string | null; score: number; rationale: string };
 
 type AnalysisResult = {
-  score: number;
-  recommendation: 'strong_hire' | 'hire' | 'maybe' | 'no_hire';
   reasoning: string;
   cv_observations: string | null;
   stage_score: number;
-  stage_verdict: StageVerdict;
   stage_note: string;
   dimensions: DimensionScore[];
   stage_dimensions: StageDimension[];
@@ -93,14 +90,6 @@ type AnalysisResult = {
   potential_breakdown: PotentialBreakdown | null;
   leadership_signal: LeadershipSignal | null;
 };
-
-const STAGE_VERDICTS = ['avancar', 'avaliar_melhor', 'cortar'] as const;
-
-function normalizeVerdict(value: unknown): StageVerdict {
-  return (STAGE_VERDICTS as readonly string[]).includes(value as string)
-    ? (value as StageVerdict)
-    : 'avaliar_melhor';
-}
 
 // Peso de cada dimensão no fit da etapa. O modelo julga as evidências (que é o
 // que ele faz bem) e o CÓDIGO calcula a nota e o veredito. Antes o modelo
@@ -210,6 +199,19 @@ function deriveDimensions(
   });
 }
 
+// Scout geral: média das áreas de HOJE. Era um número solto que o modelo
+// escolhia, e por isso podia discordar das próprias barras desenhadas embaixo
+// dele. Agora é calculado do que está na tela, então não tem como divergir.
+// POTENCIAL fica de fora de propósito: é projeção de quanto a pessoa ainda
+// sobe, não leitura do que ela é hoje. Misturar os dois inflaria o júnior
+// promissor e afundaria o sênior pronto, que é o contrário do que o número
+// serve pra dizer.
+function scoreFromDimensions(dims: DimensionScore[]): number | null {
+  const today = dims.filter((d) => d.area !== 'potencial');
+  if (today.length === 0) return null;
+  return Math.round(today.reduce((sum, d) => sum + d.score, 0) / today.length);
+}
+
 // Pesos do potencial por nível. No estágio não existe trajetória pra medir (a
 // pessoa não tem carreira), e o que separa quem vai voar é AQUISIÇÃO: curso,
 // certificação, habilidade aprendida por conta própria, projeto pessoal. No
@@ -257,15 +259,6 @@ function verdictFromScore(score: number): StageVerdict {
 }
 
 const MODEL = 'gpt-5';
-
-const RECOMMENDATIONS = ['strong_hire', 'hire', 'maybe', 'no_hire'] as const;
-type Recommendation = (typeof RECOMMENDATIONS)[number];
-
-function normalizeRecommendation(value: unknown): Recommendation {
-  return (RECOMMENDATIONS as readonly string[]).includes(value as string)
-    ? (value as Recommendation)
-    : 'maybe';
-}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -509,9 +502,8 @@ O que dá pra ler de cada fonte:
 ESTÁGIO DE EVIDÊNCIA: ${args.evidenceStage === 'cv' ? 'SÓ CURRÍCULO (o candidato ainda não respondeu o formulário)' : 'COM RESPOSTAS DO FORMULÁRIO'}.
 Entregue a NOTA DA ETAPA, que é a decisão de avançar ou não NESTE estágio, calibrada ao que dá pra saber agora. Ela é diferente do score geral:
 - "stage_score" (0-100): o fit considerando só o que ESTE estágio permite avaliar. No estágio SÓ CURRÍCULO, baseie em execução, potencial e aderência aos requisitos (must-have e responsabilidades), e NÃO rebaixe por cultura ou motivação que ainda não deu pra ver. Um bom currículo pro nível da vaga pode ter stage_score alto mesmo com cultura/motivação ainda em aberto. No estágio COM FORMULÁRIO, use toda a evidência. O stage_score responde "vale avançar pra próxima etapa?".
-- "stage_verdict": um de "avancar", "segurar", "cortar", a recomendação pra ESTA etapa.
-- "stage_note": 1 frase curta dizendo por que avançar, segurar ou cortar neste estágio.
-O "score" geral continua sendo a leitura acumulada das 5 áreas. No estágio só currículo ele é parcial: pesa mais potencial e execução, e cultura/motivação ficam conservadoras (não confunda score geral parcial com stage_score).
+- "stage_note": 1 frase curta dizendo por que avançar, investigar melhor ou cortar neste estágio.
+NÃO existe nota geral pra você dar, e NÃO existe recomendação de contratação: a nota da etapa e o scout geral são calculados aqui a partir das notas por pergunta e das áreas. Você julga a evidência; quem soma é o código. Nunca escreva se a pessoa deve ser contratada: esta etapa decide se ela avança pra próxima conversa, não se ela entra na empresa.
 
 SCOUT GERAL ("dimensions", 0-100 cada, sempre NO NÍVEL DA VAGA): pontue APENAS as áreas que a evidência DESTE estágio sustenta. Área sem evidência fica FORA do array, sem nota nenhuma.
 - Estágio SÓ CURRÍCULO: pontue somente "execucao" (entrega e experiência concreta vs o que esta vaga pede no nível dela) e "potencial" (curiosidade, trajetória, evolução, projetos próprios). NÃO inclua cultura, comunicacao nem motivacao.
@@ -574,10 +566,7 @@ Em "concerns", escreva o que investigar na próxima conversa, não sentença. "N
 
 OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
 {
-  "score": <inteiro 0-100>,
-  "recommendation": <"strong_hire" | "hire" | "maybe" | "no_hire">,
   "stage_score": <inteiro 0-100>,
-  "stage_verdict": <"avancar" | "segurar" | "cortar">,
   "stage_note": "<1 frase>",
   "reasoning": "<2-3 parágrafos>",
   "cv_observations": <"resumo factual do currículo em 3-6 frases" | null se não houver currículo>,
@@ -722,12 +711,9 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       typeof stageNoteRaw === 'string' && stageNoteRaw.trim().length > 0 ? stageNoteRaw.trim() : '';
 
     return {
-      score: clampScore(parsed.score),
-      recommendation: normalizeRecommendation(parsed.recommendation),
       reasoning: String(parsed.reasoning),
       cv_observations: cvObservations,
       stage_score: clampScore(parsed.stage_score),
-      stage_verdict: normalizeVerdict(parsed.stage_verdict),
       stage_note: stageNote,
       dimensions,
       stage_dimensions,
@@ -915,12 +901,18 @@ Deno.serve(async (req) => {
               : d,
           );
     const stageVerdict = verdictFromScore(stageScore);
+    // Scout geral sai das áreas, não do modelo: assim o número nunca discorda
+    // das barras logo abaixo dele. `recommendation` vai a null de propósito:
+    // era veredito de contratação escolhido livremente pelo modelo, aparecia ao
+    // lado do fit da etapa e dizia o contrário dele ("Avançar" embaixo de "Não
+    // contratar"). Nesta etapa a pergunta é se a pessoa segue no processo.
+    const overallScore = scoreFromDimensions(dimensions);
 
     await admin.from('ai_analyses').upsert(
       {
         application_id: payload.applicationId,
-        score: result.score,
-        recommendation: result.recommendation,
+        score: overallScore,
+        recommendation: null,
         reasoning: result.reasoning,
         cv_observations: resumeText ? result.cv_observations : null,
         evidence_stage: evidenceStage,
@@ -954,7 +946,7 @@ Deno.serve(async (req) => {
       evidence_stage: evidenceStage,
       stage_score: stageScore,
       stage_verdict: stageVerdict,
-      score: result.score,
+      score: overallScore,
       dimensions,
       stage_dimensions: result.stage_dimensions,
       question_scores: questionScores,

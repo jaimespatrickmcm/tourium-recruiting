@@ -85,7 +85,13 @@ export function parseDimensions(raw: unknown): DimensionScore[] {
   return SCOUT_AREAS.filter((a) => byArea.has(a.key)).map((a) => byArea.get(a.key)!);
 }
 
+// Nota do scout geral: média das áreas de HOJE. Potencial fica de fora porque é
+// projeção de quanto a pessoa ainda sobe, não leitura do que ela é agora.
+// Misturar os dois inflaria o júnior promissor e afundaria o sênior pronto, que
+// é o oposto do que este número existe pra dizer. Precisa bater com
+// scoreFromDimensions do edge function analyze-candidate.
 export function overallFromDimensions(dims: DimensionScore[]): number | null {
-  if (dims.length === 0) return null;
-  return Math.round(dims.reduce((sum, d) => sum + d.score, 0) / dims.length);
+  const today = dims.filter((d) => d.area !== 'potencial');
+  if (today.length === 0) return null;
+  return Math.round(today.reduce((sum, d) => sum + d.score, 0) / today.length);
 }
