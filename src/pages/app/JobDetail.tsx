@@ -46,8 +46,10 @@ import {
 import {
   parseEvidencePoints,
   parseQuestionScores,
+  parseCvFeedback,
   type EvidencePoint,
   type QuestionScore,
+  type CvFeedback,
 } from '@/lib/evidence-points';
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
@@ -327,13 +329,17 @@ function scoreBand(score: number): ScoreBand {
 
 const VERDICT_LABELS: Record<string, string> = {
   avancar: 'Avançar',
-  segurar: 'Segurar',
+  // O candidato segue no processo, o time só precisa investigar antes de cravar.
+  avaliar_melhor: 'Avaliar melhor',
   cortar: 'Cortar',
+  // Análises antigas gravaram 'segurar', que dizia pouco sobre o que fazer.
+  segurar: 'Avaliar melhor',
 };
 const VERDICT_TONE: Record<string, Tone> = {
   avancar: 'positive',
-  segurar: 'warning',
+  avaliar_melhor: 'warning',
   cortar: 'critical',
+  segurar: 'warning',
 };
 const EVIDENCE_STAGE_LABELS: Record<string, string> = {
   cv: 'Baseado só no currículo',
@@ -341,7 +347,7 @@ const EVIDENCE_STAGE_LABELS: Record<string, string> = {
 };
 
 // Decisão da etapa: o fit calibrado ao estágio (só CV vs com formulário), com
-// veredito de avançar/segurar/cortar e comparação com quem está no mesmo estágio.
+// veredito de avançar, avaliar melhor ou cortar, e comparação no mesmo estágio.
 // Diferente do scout geral (5 áreas), que fica logo abaixo.
 function StageDecision({
   analysis,
@@ -489,6 +495,63 @@ function EvidencePoints({
                   <p className="text-footnote font-semibold text-ink">{item.point}</p>
                   {item.evidence && (
                     <p className="mt-0.5 text-footnote text-ink-muted">{item.evidence}</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// Feedback do currículo como documento: o que ele já comunica bem e o que
+// mudaria a leitura de quem abre o arquivo. Não é juízo sobre a pessoa, e o
+// candidato vê o mesmo conteúdo na área dele.
+function CvFeedbackBlock({ feedback }: { feedback: CvFeedback }) {
+  return (
+    <div className="mb-6 border-t border-line-soft pt-6">
+      <p className="mb-1 flex items-center gap-2 text-eyebrow font-bold uppercase text-ink-subtle">
+        <FileText className="h-3.5 w-3.5" aria-hidden />
+        Currículo: o que dá pra melhorar
+      </p>
+      <p className="mb-4 text-caption text-ink-subtle">
+        Leitura do currículo como documento, não do candidato. Esse mesmo texto fica visível pra
+        ele na área do candidato.
+      </p>
+
+      {feedback.strengths.length > 0 && (
+        <section className="mb-4">
+          <p className="mb-2 text-footnote font-semibold text-ink">O que já funciona</p>
+          <ul className="space-y-1.5">
+            {feedback.strengths.map((item, i) => (
+              <li key={`cv-forte-${i}`} className="flex gap-2.5">
+                <span
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-positive"
+                  aria-hidden
+                />
+                <span className="min-w-0 text-footnote text-ink-muted">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {feedback.improvements.length > 0 && (
+        <section>
+          <p className="mb-2 text-footnote font-semibold text-ink">O que ajustar</p>
+          <ul className="space-y-3.5">
+            {feedback.improvements.map((item, i) => (
+              <li key={`cv-ajuste-${i}`} className="flex gap-2.5">
+                <span
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-warning"
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <p className="text-footnote font-semibold text-ink">{item.point}</p>
+                  {item.why && (
+                    <p className="mt-0.5 text-footnote text-ink-muted">{item.why}</p>
                   )}
                 </div>
               </li>
@@ -1735,6 +1798,9 @@ function CandidateDetail({
   // vazias e o bloco não aparece.
   const strengths = aStatus === 'completed' ? parseEvidencePoints(analysis?.strengths) : [];
   const concerns = aStatus === 'completed' ? parseEvidencePoints(analysis?.concerns) : [];
+  // Leitura do currículo como documento. Fica nulo quando não veio anexo e em
+  // análises antigas, e nesse caso o bloco some.
+  const cvFeedback = aStatus === 'completed' ? parseCvFeedback(analysis?.cv_feedback) : null;
   // Áreas gerais que a etapa atual ainda não consegue avaliar (ex.: cultura só
   // depois do formulário de fit). Mostradas como pendentes, nunca inventadas.
   const pendingAreas = SCOUT_AREAS.filter((a) => !dims.some((d) => d.area === a.key)).map(
@@ -2133,6 +2199,8 @@ function CandidateDetail({
                     </p>
                   </div>
                 )}
+
+                {cvFeedback && <CvFeedbackBlock feedback={cvFeedback} />}
 
                 {analysis.reasoning && (
                   <div className="border-t border-line-soft pt-6">

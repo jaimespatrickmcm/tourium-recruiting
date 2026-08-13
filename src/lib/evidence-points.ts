@@ -26,6 +26,53 @@ export function parseEvidencePoints(raw: unknown): EvidencePoint[] {
   return out;
 }
 
+// Feedback sobre o currículo (coluna jsonb cv_feedback em ai_analyses). É
+// leitura do documento, não da pessoa: o que o currículo já comunica bem e o
+// que mudaria a leitura de quem abre o arquivo. Fica nulo quando o candidato
+// não anexou currículo e em análises antigas, então o parser é defensivo:
+// formato inesperado ou conteúdo vazio vira null e a UI não renderiza nada.
+export type CvFeedback = {
+  strengths: string[];
+  improvements: { point: string; why: string }[];
+};
+
+function parseStringList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (trimmed.length === 0) continue;
+    out.push(trimmed);
+  }
+  return out;
+}
+
+export function parseCvFeedback(raw: unknown): CvFeedback | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const { strengths, improvements } = raw as Record<string, unknown>;
+
+  const parsedStrengths = parseStringList(strengths);
+
+  const parsedImprovements: CvFeedback['improvements'] = [];
+  if (Array.isArray(improvements)) {
+    for (const item of improvements) {
+      if (!item || typeof item !== 'object') continue;
+      const { point, why } = item as Record<string, unknown>;
+      if (typeof point !== 'string') continue;
+      const trimmedPoint = point.trim();
+      if (trimmedPoint.length === 0) continue;
+      parsedImprovements.push({
+        point: trimmedPoint,
+        why: typeof why === 'string' ? why.trim() : '',
+      });
+    }
+  }
+
+  if (parsedStrengths.length === 0 && parsedImprovements.length === 0) return null;
+  return { strengths: parsedStrengths, improvements: parsedImprovements };
+}
+
 // Nota por pergunta (coluna jsonb question_scores em ai_analyses). Cada item
 // amarra numa resposta pelo ref_id e traz a justificativa da nota. Análises
 // antigas não têm a coluna preenchida, então o parser segue defensivo: formato

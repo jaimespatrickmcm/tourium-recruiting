@@ -46,10 +46,13 @@ type DimensionScore = { area: ScoutArea; score: number; rationale: string };
 // Scout da etapa: dimensões específicas do estágio. score null = sem dados.
 type StageDimension = { area: string; score: number | null; rationale: string };
 
-type StageVerdict = 'avancar' | 'segurar' | 'cortar';
+type StageVerdict = 'avancar' | 'avaliar_melhor' | 'cortar';
 type EvidenceStage = 'cv' | 'form';
 
 type EvidencePoint = { point: string; evidence: string };
+
+// Devolutiva do currículo, a única parte da análise que o candidato vê.
+type CvFeedback = { strengths: string[]; improvements: { point: string; why: string }[] };
 
 // Nota por pergunta. n = o número que aparece no prompt (PERGUNTA 1, 2, 3...).
 type QuestionScoreRaw = { n: number; score: number; rationale: string };
@@ -68,20 +71,21 @@ type AnalysisResult = {
   strengths: EvidencePoint[];
   concerns: EvidencePoint[];
   question_scores_raw: QuestionScoreRaw[];
+  cv_feedback: CvFeedback | null;
 };
 
-const STAGE_VERDICTS = ['avancar', 'segurar', 'cortar'] as const;
+const STAGE_VERDICTS = ['avancar', 'avaliar_melhor', 'cortar'] as const;
 
 function normalizeVerdict(value: unknown): StageVerdict {
   return (STAGE_VERDICTS as readonly string[]).includes(value as string)
     ? (value as StageVerdict)
-    : 'segurar';
+    : 'avaliar_melhor';
 }
 
 // Peso de cada dimensão no fit da etapa. O modelo julga as evidências (que é o
 // que ele faz bem) e o CÓDIGO calcula a nota e o veredito. Antes o modelo
 // escolhia o número e o veredito livremente, e a mesma candidatura oscilava
-// entre 38 e 58, cortar e segurar, entre rodadas. Régua fixa acaba com isso e
+// entre 38 e 58, entre rodadas. Régua fixa acaba com isso e
 // ainda deixa a decisão auditável.
 const STAGE_WEIGHTS: Record<string, number> = {
   // Estágio currículo: o que a vaga exige pesa mais que contexto logístico.
@@ -152,7 +156,7 @@ function scoreFromQuestions(
 // A etapa é um portão, não a contratação: só corta quem está claramente abaixo.
 function verdictFromScore(score: number): StageVerdict {
   if (score >= 60) return 'avancar';
-  if (score >= 40) return 'segurar';
+  if (score >= 40) return 'avaliar_melhor';
   return 'cortar';
 }
 
@@ -394,10 +398,10 @@ PASSO 1E-BIS, MOTIVAÇÃO SE MEDE PELO CONJUNTO, NÃO POR UMA PERGUNTA. Julgar m
 NUNCA escreva que faltou conexão com a empresa se nenhuma pergunta investigou isso: seria cobrar uma resposta que não foi pedida. Se houver pergunta sobre o interesse na empresa, ela entra como UM sinal a mais, nunca como o único.
 
 PASSO 1F, O VEREDITO DECIDE A PRÓXIMA ETAPA, NÃO A CONTRATAÇÃO. A pergunta que você responde aqui é "essa pessoa merece a próxima conversa?", e NÃO "eu contrataria hoje?". Confundir os dois é o erro que mais reprova bom candidato, porque nenhum formulário sustenta uma decisão de contratação.
-- "avancar": a evidência sustenta as capacidades centrais da vaga, mesmo que uma ou outra resposta tenha ficado rasa. Dúvida que uma entrevista resolve NÃO é motivo pra segurar: é exatamente pra isso que a entrevista existe. Trajetória sólida no que a vaga pede, com impacto concreto demonstrado, é avançar.
-- "segurar": genuinamente em cima do muro. A evidência é ambígua sobre alguma capacidade central, não apenas rasa em detalhe.
+- "avancar": a evidência sustenta as capacidades centrais da vaga, mesmo que uma ou outra resposta tenha ficado rasa. Dúvida que uma entrevista resolve NÃO tira ninguém do avançar: é exatamente pra isso que a entrevista existe. Trajetória sólida no que a vaga pede, com impacto concreto demonstrado, é avançar.
+- "avaliar_melhor": o candidato SEGUE no processo, mas falta evidência pra decidir. A dúvida é sobre alguma capacidade central estar presente ou não, e não apenas sobre o detalhe da resposta. Talvez valha uma entrevista, mas o time precisa investigar antes de cravar.
 - "cortar": falta a capacidade central da vaga, ou há red flag concreta. Você conseguiria justificar a recusa olhando no olho da pessoa.
-Contas concretas: se a maioria das respostas substantivas mostra domínio real e só uma ou duas ficaram genéricas, é "avancar", não "segurar". Resposta curta ou sem número NÃO equivale a ausência de capacidade, ainda mais quando o histórico mostra a pessoa exercendo aquilo. Formulário é amostra, não é a carreira da pessoa. Cortar ou segurar alguém com trajetória sólida por causa de texto enxuto é o erro mais caro da triagem, porque é invisível: você nunca descobre quem perdeu.
+Contas concretas: se a maioria das respostas substantivas mostra domínio real e só uma ou duas ficaram genéricas, é "avancar", não "avaliar_melhor". Resposta curta ou sem número NÃO equivale a ausência de capacidade, ainda mais quando o histórico mostra a pessoa exercendo aquilo. Formulário é amostra, não é a carreira da pessoa. Rebaixar alguém com trajetória sólida por causa de texto enxuto é o erro mais caro da triagem, porque é invisível: você nunca descobre quem perdeu.
 
 PASSO 2, AVALIE SÓ COM EVIDÊNCIA. Regra dura: NÃO preencha lacunas, não invente, não assuma nada que não esteja escrito. Pontue apenas com base no que o candidato de fato forneceu (currículo e respostas). Se falta evidência pra uma área, seja conservador e diga no rationale que faltou base. Uma avaliação assertiva depende de nunca chutar.
 
@@ -447,6 +451,13 @@ NOTA POR PERGUNTA: em "question_scores", dê uma nota de 0 a 100 para CADA pergu
 - PERGUNTA DE MARCAR OPÇÕES: julgue APENAS as opções escolhidas, comparando com o que a vaga precisa. O candidato não digita nada nesse formato, então é ERRO tirar ponto por "não justificou", "não deu exemplo", "não detalhou" ou "faltou contexto". Se as opções certas estão marcadas, a nota é alta, ponto.
 - O ENUNCIADO E A RÉGUA PODEM ESTAR ENVIESADOS. Muitas perguntas foram escritas cobrando um método, uma métrica ou uma ferramenta pelo nome (OKR, KR, CAC, LTV, payback, SQL). Quando isso acontecer, traduza para a capacidade que está sendo medida e credite o EQUIVALENTE que o candidato descreveu: quem desdobrou metas em indicadores com rito e correção de rota atendeu o item de "OKR"; quem modelou margem, DRE, prazo médio ou payback do jeito do negócio dele atendeu o item de "unit economics"; quem monta painel em BI ou planilha atendeu o item de "SQL". Não escreva no rationale que faltou a sigla: diga o que faltou de CAPACIDADE, se é que faltou.
 
+DEVOLUTIVA DO CURRÍCULO ("cv_feedback"): só quando houver texto de currículo; sem currículo, retorne null. Esta é a ÚNICA parte da análise que o CANDIDATO vai ler, então escreva pra ele, não sobre ele.
+- Avalie o currículo COMO PEÇA de comunicação, não a pessoa. Aqui não se julga se ela serve pra vaga: julga-se se o documento mostra bem o que ela fez.
+- "strengths": 1 a 3 frases sobre o que o currículo já faz bem (ex.: trajetória clara, resultado com número, escopo explícito).
+- "improvements": 2 a 4 itens, cada um com "point" (o ajuste concreto, no imperativo gentil) e "why" (a diferença que faz na leitura de quem recruta). Ex.: point "Troque 'responsável por gestão de indicadores' por o que mudou com isso", why "quem lê bate o olho em resultado, e número segura a atenção antes da segunda linha".
+- Só sugira o que dá pra fazer com a informação que a pessoa tem. Nada de mandar inventar métrica que ela não viveu.
+- Tom de quem quer ajudar, direto e sem paternalismo. Nada de elogio vazio nem de lista genérica de dicas de currículo: cada ponto tem que citar algo do currículo dela.
+
 PONTOS FORTES E PONTOS DE ATENÇÃO: entregue "strengths" (2 a 4) e "concerns" (1 a 3). É o que explica o scout pro recrutador, então cada item tem duas partes:
 - "point": a leitura, em uma frase direta (ex.: "Roda o ciclo de metas de ponta a ponta").
 - "evidence": o que sustenta, citando o que a pessoa DE FATO disse ou fez (ex.: "desdobrou metas de 4 unidades pra 10+ filiais, com rito semanal com donos e revisão mensal com a diretoria"). Sem evidência concreta, não escreva o ponto.
@@ -468,6 +479,7 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
     { "area": "<dimensão do estágio>", "score": <0-100 ou null se sem dados>, "rationale": "<1-2 frases>" }
   ],
   "question_scores": [ { "n": <número da pergunta>, "score": <0-100>, "rationale": "<uma frase>" } ],
+  "cv_feedback": { "strengths": ["<frase>"], "improvements": [ { "point": "<ajuste concreto>", "why": "<a diferença que faz>" } ] },
   "strengths": [ { "point": "<uma frase>", "evidence": "<o que o candidato disse ou fez>" } ],
   "concerns": [ { "point": "<uma frase>", "evidence": "<o que faltou, e o que investigar>" } ]
 }`;
@@ -540,6 +552,23 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       }))
       .filter((q: QuestionScoreRaw) => Number.isFinite(q.n) && q.n > 0);
 
+    const rawCv = parsed.cv_feedback;
+    const cvFeedback: CvFeedback | null =
+      rawCv && typeof rawCv === 'object'
+        ? {
+            strengths: (Array.isArray(rawCv.strengths) ? rawCv.strengths : [])
+              .map((t: unknown) => String(t ?? '').trim())
+              .filter((t: string) => t.length > 0),
+            improvements: (Array.isArray(rawCv.improvements) ? rawCv.improvements : [])
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .map((i: any) => ({
+                point: String(i?.point ?? '').trim(),
+                why: String(i?.why ?? '').trim(),
+              }))
+              .filter((i: { point: string }) => i.point.length > 0),
+          }
+        : null;
+
     const stageNoteRaw = parsed.stage_note;
     const stageNote =
       typeof stageNoteRaw === 'string' && stageNoteRaw.trim().length > 0 ? stageNoteRaw.trim() : '';
@@ -557,6 +586,7 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       strengths: parsePoints(parsed.strengths),
       concerns: parsePoints(parsed.concerns),
       question_scores_raw: questionScoresRaw,
+      cv_feedback: cvFeedback,
     };
   } catch {
     return null;
@@ -730,6 +760,7 @@ Deno.serve(async (req) => {
         strengths: result.strengths,
         concerns: result.concerns,
         question_scores: questionScores,
+        cv_feedback: resumeText ? result.cv_feedback : null,
         dna_version_used: dnaVersion,
         model_used: MODEL,
         cost_cents: costCents,
