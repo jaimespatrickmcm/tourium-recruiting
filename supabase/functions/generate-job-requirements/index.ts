@@ -46,7 +46,7 @@ Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
 VAGA: ${args.jobTitle}
 Descrição e exigências: ${args.jobDescription ?? '(não informado)'}
 
-PASSO 1, CALIBRE A SENIORIDADE pelo título e pela descrição (estágio, júnior, pleno, sênior, lead). Os requisitos mudam com o nível. Estágio ou júnior NÃO exige anos de experiência, portfólio de campanhas pagas nem liderança: foca em fundamentos, familiaridade básica com as ferramentas, vontade de aprender e como a pessoa pensa. Sênior ou lead pede autonomia, decisões difíceis e impacto amplo. Não peça de um estágio o que se pede de um sênior.
+PASSO 1, CALIBRE A SENIORIDADE pelo título e pela descrição (estágio, júnior, pleno, sênior, liderança). Os requisitos mudam com o nível. Estágio ou júnior NÃO exige anos de experiência, portfólio de campanhas pagas nem liderança: foca em fundamentos, familiaridade básica com as ferramentas, vontade de aprender e como a pessoa pensa. Sênior ou liderança pede autonomia, decisões difíceis e impacto amplo. Não peça de um estágio o que se pede de um sênior.
 
 PASSO 2, EXTRAIA os requisitos REAIS da vaga a partir do que a descrição sustenta. Não invente exigência que a descrição não dá base. Seja específico da vaga, não genérico que serve pra qualquer cargo.
 
@@ -62,7 +62,7 @@ PASSO 3, NÃO TRANSFORME O SETOR EM REQUISITO. A vaga é pra atuar DENTRO da emp
 - Ferramenta e método podem ser específicos. Setor, não.
 
 Entregue JSON com estes campos:
-- "seniority": um de estagio, junior, pleno, senior, lead.
+- "seniority": um de estagio, junior, pleno, senior, lideranca. Use exatamente essas palavras, sem termo em inglês: "lead" em português de negócio significa prospect e confunde numa vaga comercial.
 - "location": local e modelo de trabalho da vaga, extraído do título/descrição (ex.: "Presencial em Belo Horizonte", "Remoto", "Híbrido em São Paulo"). Se a descrição não diz, string vazia. Não invente local.
 - "summary": 1 a 2 frases do que a vaga precisa de fato.
 - "must_have": 3 a 6 competências obrigatórias, calibradas ao nível. O que a pessoa PRECISA ter pra dar conta.
