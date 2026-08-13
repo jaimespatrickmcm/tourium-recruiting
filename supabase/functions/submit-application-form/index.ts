@@ -30,6 +30,8 @@ type AnswerInput = {
 
 type Payload = {
   applicationId?: string;
+  /** Token individual do convite (mesmo do application-prefill). Obrigatório. */
+  token?: string;
   companySlug: string;
   jobSlug: string;
   candidateInfo?: {
@@ -67,6 +69,14 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 Deno.serve(async (req) => {
@@ -159,65 +169,57 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Vaga não encontrada' }, 404);
   }
 
-  // Resolve application: usa a existente se o id bater com a vaga, senão cria.
-  let applicationId: string | null = null;
-
-  if (payload.applicationId) {
-    const { data: existing } = await admin
-      .from('applications')
-      .select('id, job_id')
-      .eq('id', payload.applicationId)
-      .maybeSingle();
-    if (existing && existing.job_id === job.id) {
-      applicationId = existing.id;
-    }
+  // O form é por convite: só aceita candidatura existente + token individual
+  // válido (mesma validação do application-prefill). O form não cria mais
+  // candidatura; quem chega aqui já se candidatou e avançou de etapa.
+  const inviteToken = (payload.token ?? '').trim();
+  if (!payload.applicationId || !inviteToken) {
+    return jsonResponse({ error: 'Esse formulário é acessado pelo link individual do seu email.' }, 401);
   }
 
-  if (!applicationId) {
-    if (!name || !email) {
-      return jsonResponse({ error: 'Nome e e-mail são obrigatórios' }, 400);
-    }
-    const { data: created, error: createError } = await admin
-      .from('applications')
-      .insert({
-        job_id: job.id,
-        company_id: company.id,
-        candidate_name: name,
-        candidate_email: email,
-        candidate_phone: phone || null,
-        city: city || null,
-        form_completed_at: new Date().toISOString(),
-        ai_suspected: aiSuspected,
-        ai_flags: aiSuspected ? { canary_hits: canaryHits, detected_at: new Date().toISOString() } : null,
-      })
-      .select('id')
-      .single();
-    if (createError || !created) {
-      if (createError?.code === '23505') {
-        return jsonResponse({ error: 'Você já se candidatou a essa vaga com esse e-mail.' }, 409);
-      }
-      return jsonResponse({ error: createError?.message ?? 'Falha ao salvar aplicação' }, 500);
-    }
-    applicationId = created.id;
-  } else {
-    // Atualiza a application existente com os campos do formulário completo.
-    const update: Record<string, unknown> = {
-      city: city || null,
-      form_completed_at: new Date().toISOString(),
-    };
-    if (phone) update.candidate_phone = phone;
-    // Só liga o flag; nunca desliga um já marcado.
-    if (aiSuspected) {
-      update.ai_suspected = true;
-      update.ai_flags = { canary_hits: canaryHits, detected_at: new Date().toISOString() };
-    }
-    const { error: updateError } = await admin
-      .from('applications')
-      .update(update)
-      .eq('id', applicationId);
-    if (updateError) {
-      return jsonResponse({ error: updateError.message ?? 'Falha ao atualizar aplicação' }, 500);
-    }
+  const { data: existing } = await admin
+    .from('applications')
+    .select('id, job_id, candidate_email')
+    .eq('id', payload.applicationId)
+    .maybeSingle();
+  if (!existing || existing.job_id !== job.id) {
+    return jsonResponse({ error: 'Candidatura não encontrada' }, 404);
+  }
+
+  const tokenHash = await sha256Hex(inviteToken);
+  const candidateEmail = (existing.candidate_email ?? '').trim().toLowerCase();
+  const { data: tokenRow, error: tokenError } = await admin
+    .from('applicant_tokens')
+    .select('id')
+    .eq('token_hash', tokenHash)
+    .eq('email', candidateEmail)
+    .maybeSingle();
+  if (tokenError) {
+    return jsonResponse({ error: 'Não conseguimos validar seu acesso agora.' }, 500);
+  }
+  if (!tokenRow) {
+    return jsonResponse({ error: 'Esse formulário é acessado pelo link individual do seu email.' }, 401);
+  }
+
+  const applicationId: string = existing.id;
+
+  // Atualiza a application existente com os campos do formulário completo.
+  const update: Record<string, unknown> = {
+    city: city || null,
+    form_completed_at: new Date().toISOString(),
+  };
+  if (phone) update.candidate_phone = phone;
+  // Só liga o flag; nunca desliga um já marcado.
+  if (aiSuspected) {
+    update.ai_suspected = true;
+    update.ai_flags = { canary_hits: canaryHits, detected_at: new Date().toISOString() };
+  }
+  const { error: updateError } = await admin
+    .from('applications')
+    .update(update)
+    .eq('id', applicationId);
+  if (updateError) {
+    return jsonResponse({ error: updateError.message ?? 'Falha ao atualizar aplicação' }, 500);
   }
 
   // Congela o critério interno (guidance + rubrica) de cada pergunta junto com
