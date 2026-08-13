@@ -153,6 +153,43 @@ function scoreFromQuestions(
   return Math.max(0, Math.min(100, Math.round(sum / weight)));
 }
 
+// Áreas do scout que dá pra CALCULAR a partir das notas por pergunta, em vez de
+// deixar o modelo chutar. Cultura, execução e potencial têm perguntas próprias;
+// comunicação e motivação são transversais (qualidade da escrita e cuidado com o
+// formulário inteiro) e continuam sendo leitura do modelo.
+const AREA_FROM_SOURCES: Record<string, string[]> = {
+  cultura: ['culture'],
+  execucao: ['job_question'],
+  potencial: ['reasoning', 'curiosity'],
+};
+
+// Substitui as áreas deriváveis pela média das perguntas daquela categoria.
+// Sem isso o scout ficava oscilando 15 pontos entre rodadas com os mesmos dados,
+// porque era um número holístico sem régua, ao contrário do fit da etapa.
+function deriveDimensions(
+  modelDims: DimensionScore[],
+  raw: QuestionScoreRaw[],
+  questions: ScoredQuestion[],
+): DimensionScore[] {
+  const usable = raw.filter((r) => r.n >= 1 && r.n <= questions.length);
+  if (usable.length === 0) return modelDims;
+
+  return modelDims.map((dim) => {
+    const sources = AREA_FROM_SOURCES[dim.area];
+    if (!sources) return dim;
+    const scores = usable
+      .filter((r) => sources.includes(questions[r.n - 1].source))
+      .map((r) => r.score);
+    if (scores.length === 0) return dim;
+    const media = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    return {
+      ...dim,
+      score: media,
+      rationale: `${dim.rationale} (média das ${scores.length} perguntas de ${dim.area})`.trim(),
+    };
+  });
+}
+
 // A etapa é um portão, não a contratação: só corta quem está claramente abaixo.
 function verdictFromScore(score: number): StageVerdict {
   if (score >= 60) return 'avancar';
@@ -743,6 +780,12 @@ Deno.serve(async (req) => {
     const fromQuestions = scoreFromQuestions(result.question_scores_raw, formQuestions);
     const stageScore =
       fromQuestions ?? computeStageScore(result.stage_dimensions, result.stage_score);
+    // No formulário, cultura, execução e potencial saem da média das perguntas
+    // da categoria. No currículo não há perguntas, então segue como o modelo deu.
+    const dimensions =
+      evidenceStage === 'form'
+        ? deriveDimensions(result.dimensions, result.question_scores_raw, formQuestions)
+        : result.dimensions;
     const stageVerdict = verdictFromScore(stageScore);
 
     await admin.from('ai_analyses').upsert(
@@ -756,7 +799,7 @@ Deno.serve(async (req) => {
         stage_score: stageScore,
         stage_verdict: stageVerdict,
         stage_note: result.stage_note || null,
-        dimensions: result.dimensions,
+        dimensions,
         stage_dimensions: result.stage_dimensions,
         strengths: result.strengths,
         concerns: result.concerns,
@@ -782,7 +825,7 @@ Deno.serve(async (req) => {
       stage_score: stageScore,
       stage_verdict: stageVerdict,
       score: result.score,
-      dimensions: result.dimensions,
+      dimensions,
       stage_dimensions: result.stage_dimensions,
       question_scores: questionScores,
       model_used: MODEL,

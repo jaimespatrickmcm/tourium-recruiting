@@ -425,6 +425,7 @@ export type Database = {
           required: boolean;
           format: QuestionFormat;
           options: Json | null;
+          min_selections: number;
         };
         Relationships: [];
       };
@@ -437,6 +438,7 @@ export type Database = {
           required: boolean;
           format: QuestionFormat;
           options: Json | null;
+          min_selections: number;
         };
         Relationships: [];
       };

@@ -41,16 +41,24 @@ type QuestionStep = {
   required: boolean;
   format: QuestionFormat;
   options: string[];
+  /** Multipla escolha: quantas opcoes o candidato precisa marcar pra seguir. */
+  minSelections: number;
 };
 
 type Step = CandidateStep | QuestionStep;
 
 // Helper visível abaixo do enunciado, por formato. Nas abertas cada seção tem
 // o seu texto; nos outros formatos a instrução do input é mais útil.
-function helperFor(format: QuestionFormat, openHelper: string): string {
+function helperFor(format: QuestionFormat, openHelper: string, minSelections = 1): string {
   if (format === 'number') return 'Pode responder só com o número.';
   if (format === 'single_select') return 'Escolha uma opção.';
-  if (format === 'multi_select') return 'Pode marcar mais de uma opção.';
+  if (format === 'multi_select') {
+    // Quando a pergunta pede mais de uma, o candidato precisa saber de cara,
+    // senão ele marca uma e trava no botão sem entender o motivo.
+    return minSelections > 1
+      ? `Marque pelo menos ${minSelections} opções.`
+      : 'Pode marcar mais de uma opção.';
+  }
   return openHelper;
 }
 
@@ -254,7 +262,7 @@ export function ApplicationForm() {
 
         const { data: jq, error: jqError } = await supabase
           .from('job_questions_public')
-          .select('id, question, position, required, format, options')
+          .select('id, question, position, required, format, options, min_selections')
           .eq('job_id', jobData.id)
           .order('position', { ascending: true });
         setJobQuestions(
@@ -270,8 +278,10 @@ export function ApplicationForm() {
               helper: helperFor(
                 format,
                 'Seja concreto. Exemplos do que você já fez valem mais que frases genéricas.',
+                q.min_selections ?? 1,
               ),
               required: q.required,
+              minSelections: q.min_selections ?? 1,
               format,
               options,
             };
@@ -280,7 +290,7 @@ export function ApplicationForm() {
 
         const { data: cq, error: cqError } = await supabase
           .from('company_questions_public')
-          .select('id, kind, question, position, required, format, options')
+          .select('id, kind, question, position, required, format, options, min_selections')
           .eq('company_id', company.id)
           .order('kind', { ascending: true })
           .order('position', { ascending: true });
@@ -309,8 +319,9 @@ export function ApplicationForm() {
               refId: q.id,
               sectionLabel: KIND_STEPS[kind].sectionLabel,
               question: q.question,
-              helper: helperFor(format, KIND_STEPS[kind].openHelper),
+              helper: helperFor(format, KIND_STEPS[kind].openHelper, q.min_selections ?? 1),
               required: q.required,
+              minSelections: q.min_selections ?? 1,
               format,
               options,
             };
@@ -476,7 +487,9 @@ export function ApplicationForm() {
     // Obrigatória bloqueia quando vazia. Opcional segue mesmo em branco.
     if (!current.required) return true;
     if (current.format === 'single_select' || current.format === 'multi_select') {
-      return (selections[current.refId ?? ''] ?? []).length > 0;
+      // Uma escolha isolada nao diz nada em algumas perguntas: quando a pergunta
+      // pede mais de uma, e o conjunto que revela o padrao.
+      return (selections[current.refId ?? ''] ?? []).length >= Math.max(1, current.minSelections);
     }
     return (answers[current.refId ?? ''] ?? '').trim().length > 0;
   })();
