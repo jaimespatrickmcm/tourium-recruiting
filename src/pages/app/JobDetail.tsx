@@ -109,7 +109,7 @@ const ANSWER_SOURCE_ORDER: AnswerSource[] = [
 ];
 
 const ANSWER_SOURCE_LABELS: Record<AnswerSource, string> = {
-  job_question: 'Sobre a vaga',
+  job_question: 'Técnica',
   profile: 'Sobre o candidato',
   culture: 'Cultura',
   curiosity: 'Curiosidade',
@@ -187,16 +187,21 @@ function Chip({
   );
 }
 
-// Uma pergunta do formulário. Fechada mostra o enunciado e a nota; aberta revela
-// a resposta do candidato e, quando existe, o porquê da nota.
+// Uma pergunta do formulário. Fechada mostra o enunciado, a categoria e a nota;
+// aberta revela a resposta do candidato e, quando existe, o porquê da nota.
+// A categoria fica visível fechada porque quem lê precisa saber de que tipo é a
+// pergunta pra julgar se a nota faz sentido. É metadado, entao vem neutra: a
+// nota continua sendo o elemento com peso.
 function AnswerRow({
   question,
+  category,
   answer,
   score,
   open,
   onToggle,
 }: {
   question: string;
+  category: string;
   answer: string | null;
   score: QuestionScore | undefined;
   open: boolean;
@@ -212,6 +217,9 @@ function AnswerRow({
       >
         <span className="min-w-0 flex-1 text-callout font-semibold text-ink">{question}</span>
         <span className="flex shrink-0 items-center gap-2 pt-0.5">
+          <span className="whitespace-nowrap rounded-full border border-line-soft bg-canvas px-2 py-0.5 text-caption text-ink-muted">
+            {category}
+          </span>
           {score && (
             <span
               className={cn(
@@ -1834,6 +1842,7 @@ function CandidateDetail({
       source,
       label: ANSWER_SOURCE_LABELS[source],
       items,
+      scoredCount: scored.length,
       average:
         scored.length > 0
           ? Math.round(scored.reduce((sum, i) => sum + (i.score?.score ?? 0), 0) / scored.length)
@@ -1841,6 +1850,23 @@ function CandidateDetail({
     };
   }).filter((group) => group.items.length > 0);
   const answersCount = answerGroups.reduce((total, group) => total + group.items.length, 0);
+
+  // Média de cada categoria lado a lado. É o que mostra se a régua está
+  // calibrada igual entre técnica, cultura e raciocínio, ou se uma delas está
+  // sistematicamente mais dura que as outras. Análise antiga não tem nota por
+  // pergunta: a lista fica vazia e o resumo some inteiro.
+  const answerCategoryAverages = answerGroups.flatMap((group) =>
+    group.average === null
+      ? []
+      : [
+          {
+            source: group.source,
+            label: group.label,
+            average: group.average,
+            scoredCount: group.scoredCount,
+          },
+        ],
+  );
   const hasAnswerContent = answersCount > 0 || Boolean(app.why_interested);
 
   const timeline: { key: string; label: string; date: string; note: string | null }[] = [
@@ -2243,6 +2269,39 @@ function CandidateDetail({
               </p>
             ) : (
               <div className="space-y-6">
+                {/* Régua por categoria. Faixa leve sobre o canvas, sem borda e
+                    sem sombra: é referência de leitura, não mais um card. */}
+                {answerCategoryAverages.length > 0 && (
+                  <section className="rounded-card bg-canvas px-4 py-3">
+                    <p className="mb-2 text-eyebrow font-bold uppercase text-ink-subtle">
+                      Média por categoria
+                    </p>
+                    <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+                      {answerCategoryAverages.map((cat) => (
+                        <div
+                          key={cat.source}
+                          className="flex items-baseline justify-between gap-2"
+                        >
+                          <span className="truncate text-footnote text-ink-muted">{cat.label}</span>
+                          <span className="flex shrink-0 items-baseline gap-1.5">
+                            <span
+                              className={cn(
+                                'text-footnote font-bold tabular-nums',
+                                TONE_TEXT[toneForScore(cat.average)],
+                              )}
+                            >
+                              {cat.average}
+                            </span>
+                            <span className="text-caption text-ink-subtle">
+                              ({cat.scoredCount} {cat.scoredCount === 1 ? 'pergunta' : 'perguntas'})
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 {app.why_interested && (
                   <section>
                     <p className="mb-2 text-eyebrow font-bold uppercase text-ink-subtle">
@@ -2261,13 +2320,16 @@ function CandidateDetail({
                         {group.label}
                       </p>
                       {group.average !== null && (
-                        <span
-                          className={cn(
-                            'text-caption font-bold tabular-nums',
-                            TONE_TEXT[toneForScore(group.average)],
-                          )}
-                        >
-                          {group.average}
+                        <span className="text-caption text-ink-subtle">
+                          <span aria-hidden>· </span>média{' '}
+                          <span
+                            className={cn(
+                              'font-bold tabular-nums',
+                              TONE_TEXT[toneForScore(group.average)],
+                            )}
+                          >
+                            {group.average}
+                          </span>
                         </span>
                       )}
                     </div>
@@ -2276,6 +2338,7 @@ function CandidateDetail({
                         <AnswerRow
                           key={item.id}
                           question={item.question_snapshot}
+                          category={group.label}
                           answer={item.answer}
                           score={item.score}
                           open={openAnswers.has(item.id)}
