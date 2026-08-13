@@ -74,7 +74,7 @@ Descrição e exigências: ${args.jobDescription ?? '(não informado)'}${formatR
 
 PASSO 1, CALIBRE A SENIORIDADE. Antes de escrever, deduza o nível da vaga pelo título e pela descrição (estágio, júnior, pleno, sênior, liderança). Isso mude TUDO:
 - Estágio / júnior: a pessoa está começando ou na faculdade. NÃO peça anos de experiência profissional, portfólio de campanhas pagas, biblioteca de assets pro time, decks de venda do zero ou liderança. Foque em fundamentos, curiosidade, projetos pequenos ou acadêmicos, familiaridade básica com as ferramentas, vontade de aprender e como a pessoa pensa. Perguntas que um bom estagiário consegue responder com o que já viveu.
-- Pleno: experiência prática real, autonomia em tarefas, decisões do dia a dia.
+- Pleno: OPERA dentro dos padrões que já existem e entende por que existem, resolve tarefa definida sozinho. Pergunta que exige ter CONCEBIDO o padrão, o sistema ou a estratégia é de sênior: não faça numa vaga pleno, ou faça deixando claro na régua que conceber é bônus, não exigência.
 - Sênior / liderança: arquitetura, trade-offs difíceis, mentoria, impacto amplo.
 Uma pergunta boa pra sênior costuma ser injusta pra estagiário. Ajuste a profundidade ao nível.
 
@@ -103,7 +103,7 @@ REGRAS DE ESCRITA (valem pra question, guidance, scoring_rubric e options):
 - Sem travessão de nenhum tipo. Use só vírgula, ponto, dois-pontos, hífen simples ou parênteses.
 - Sem "basicamente", "simplesmente", "definitivamente", "literalmente".
 - Específico da vaga e do nível, não pergunta que serve pra qualquer cargo.
-- Específico da FUNÇÃO, nunca do setor da empresa. Sem jargão de mercado no enunciado (o candidato pode vir de outro setor).
+- Específico da FUNÇÃO, nunca do setor nem do PRODUTO da empresa. Não peça "fluxo de reserva" ou "checkout de hotel": peça "um fluxo crítico de conversão" e deixe o candidato trazer o contexto dele. Sem jargão de mercado no enunciado (o candidato pode vir de outro setor).
 - A vaga é pra atuar dentro da empresa, não pra atender os clientes dela, salvo se a descrição disser o contrário.
 - Não repita a mesma pergunta com outras palavras.
 - Opções de seleção curtas, sem frase inteira.
