@@ -114,13 +114,13 @@ export function Questions() {
       <div className="relative max-w-3xl mx-auto px-8 py-12">
         {/* Header */}
         <div className="mb-8">
-          <p className="text-[12px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-3">
+          <p className="text-caption font-bold uppercase tracking-wider text-ink-subtle mb-3">
             Perguntas
           </p>
-          <h1 className="font-satoshi font-bold text-[36px] md:text-[44px] tracking-[-0.7px] leading-[1.1] text-[#1d1d1f]">
+          <h1 className="font-satoshi font-bold text-[36px] md:text-[44px] tracking-[-0.7px] leading-[1.1] text-ink">
             Banco de perguntas
           </h1>
-          <p className="text-[16px] text-[#6b6b70] mt-3 max-w-xl leading-relaxed">
+          <p className="text-body text-ink-muted mt-3 max-w-xl leading-relaxed">
             Essas perguntas entram no formulário de candidatura. Todo candidato responde as mesmas,
             então a comparação fica justa. A IA gera com base no DNA da sua empresa e usa a resposta
             esperada pra pontuar cada candidato.
@@ -187,7 +187,7 @@ function UnifiedCompanyPanel({
   return (
     <div>
       <div className="flex items-start justify-between gap-4 mb-5">
-        <p className="text-[14px] text-[#6b6b70] leading-relaxed max-w-md">
+        <p className="text-callout text-ink-muted leading-relaxed max-w-md">
           Perguntas sobre o candidato (história e triagem), cultura (fit com o DNA), curiosidade e
           raciocínio lógico. Geradas juntas e padronizadas pra todo candidato.
         </p>
@@ -195,7 +195,7 @@ function UnifiedCompanyPanel({
           <button
             type="button"
             onClick={onManual}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-gray-200 bg-white text-[13px] font-semibold text-[#1d1d1f] hover:border-gray-400 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-line-soft bg-white text-footnote font-semibold text-ink hover:border-line transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             Adicionar manual
@@ -208,16 +208,16 @@ function UnifiedCompanyPanel({
       </div>
 
       {loading ? (
-        <div className="text-[#8a8a8f] text-sm">Carregando...</div>
+        <div className="text-ink-subtle text-sm">Carregando...</div>
       ) : total === 0 ? (
-        <div className="bg-white rounded-[28px] border border-gray-200 p-10 text-center">
-          <div className="inline-flex h-14 w-14 rounded-2xl bg-gray-100 items-center justify-center mb-4">
-            <ListChecks className="h-6 w-6 text-[#6b6b70]" strokeWidth={1.5} />
+        <div className="bg-white rounded-panel border border-line-soft p-10 text-center">
+          <div className="inline-flex h-14 w-14 rounded-card bg-surface-sunken items-center justify-center mb-4">
+            <ListChecks className="h-6 w-6 text-ink-muted" strokeWidth={1.5} />
           </div>
-          <p className="text-[18px] font-semibold text-[#1d1d1f] mb-2">
+          <p className="text-[18px] font-semibold text-ink mb-2">
             Nenhuma pergunta de cultura ou raciocínio ainda
           </p>
-          <p className="text-[14px] text-[#6b6b70] mb-6 max-w-md mx-auto leading-relaxed">
+          <p className="text-callout text-ink-muted mb-6 max-w-md mx-auto leading-relaxed">
             Use o método Noren, gere do zero com IA ou escreva na mão. Elas ficam padronizadas pra
             todo candidato.
           </p>
@@ -255,13 +255,13 @@ function KindGroup({
     <div>
       <div className="flex items-center gap-2 mb-3">
         <KindChip kind={kind} />
-        <span className="text-[13px] text-[#8a8a8f] font-medium">
+        <span className="text-footnote text-ink-subtle font-medium">
           {questions.length} pergunta{questions.length === 1 ? '' : 's'}
         </span>
       </div>
 
       {questions.length === 0 ? (
-        <p className="text-[13px] text-[#a8a8ad] italic">
+        <p className="text-footnote text-[#a8a8ad] italic">
           Nenhuma pergunta de {KIND_EMPTY_LABEL[kind]} ainda.
         </p>
       ) : (
@@ -314,12 +314,12 @@ function JobPanel({
 
   if (jobs.length === 0) {
     return (
-      <div className="bg-white rounded-[28px] border border-gray-200 p-10 text-center">
-        <div className="inline-flex h-14 w-14 rounded-2xl bg-gray-100 items-center justify-center mb-4">
-          <Briefcase className="h-6 w-6 text-[#6b6b70]" strokeWidth={1.5} />
+      <div className="bg-white rounded-panel border border-line-soft p-10 text-center">
+        <div className="inline-flex h-14 w-14 rounded-card bg-surface-sunken items-center justify-center mb-4">
+          <Briefcase className="h-6 w-6 text-ink-muted" strokeWidth={1.5} />
         </div>
-        <p className="text-[18px] font-semibold text-[#1d1d1f] mb-2">Nenhuma vaga ainda</p>
-        <p className="text-[14px] text-[#6b6b70] max-w-md mx-auto leading-relaxed">
+        <p className="text-[18px] font-semibold text-ink mb-2">Nenhuma vaga ainda</p>
+        <p className="text-callout text-ink-muted max-w-md mx-auto leading-relaxed">
           Crie uma vaga primeiro. Cada vaga ganha perguntas técnicas específicas, além das
           perguntas de cultura e raciocínio da empresa.
         </p>
@@ -333,7 +333,7 @@ function JobPanel({
 
   return (
     <div className="space-y-4">
-      <p className="text-[14px] text-[#6b6b70] leading-relaxed max-w-xl">
+      <p className="text-callout text-ink-muted leading-relaxed max-w-xl">
         Perguntas técnicas específicas de cada vaga. Entram no formulário junto com as perguntas de
         cultura e raciocínio da empresa.
       </p>
@@ -341,7 +341,7 @@ function JobPanel({
       <div>
         <label
           htmlFor="job-select"
-          className="block text-[12px] font-semibold text-[#1d1d1f] mb-1.5"
+          className="block text-caption font-semibold text-ink mb-1.5"
         >
           Vaga
         </label>
@@ -350,7 +350,7 @@ function JobPanel({
             id="job-select"
             value={selectedJob.id}
             onChange={(e) => setSelectedJobId(e.target.value)}
-            className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3.5 pr-10 text-[14px] font-medium text-[#1d1d1f] outline-none transition-colors hover:border-gray-400 focus:border-sky-400"
+            className="w-full appearance-none rounded-tile border border-line-soft bg-white py-2.5 pl-3.5 pr-10 text-callout font-medium text-ink outline-none transition-colors hover:border-line focus:border-brand"
           >
             {jobs.map((job) => {
               const count = jobQuestions.filter((q) => q.job_id === job.id).length;
@@ -361,20 +361,20 @@ function JobPanel({
               );
             })}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a8a8f]" />
+          <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
         </div>
       </div>
 
       {(() => {
         const job = selectedJob;
         return (
-          <div key={job.id} className="bg-white rounded-2xl border border-gray-200 p-5">
+          <div key={job.id} className="bg-white rounded-card border border-line-soft p-5">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="min-w-0">
-                <p className="font-satoshi font-bold text-[17px] tracking-[-0.2px] text-[#1d1d1f] truncate">
+                <p className="font-satoshi font-bold text-[17px] tracking-[-0.2px] text-ink truncate">
                   {job.title}
                 </p>
-                <p className="text-[13px] text-[#8a8a8f] mt-0.5">
+                <p className="text-footnote text-ink-subtle mt-0.5">
                   {qs.length} pergunta{qs.length === 1 ? '' : 's'} da vaga
                 </p>
               </div>
@@ -382,7 +382,7 @@ function JobPanel({
                 <button
                   type="button"
                   onClick={() => onManual(job.id)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-gray-200 bg-white text-[12px] font-semibold text-[#1d1d1f] hover:border-gray-400 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-line-soft bg-white text-caption font-semibold text-ink hover:border-line transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Manual
@@ -390,7 +390,7 @@ function JobPanel({
                 <button
                   type="button"
                   onClick={() => onGerar(job.id)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-sky-600 text-white text-[12px] font-semibold hover:bg-sky-700 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-sky-600 text-white text-caption font-semibold hover:bg-sky-700 transition-colors"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Gerar perguntas da vaga
@@ -399,7 +399,7 @@ function JobPanel({
             </div>
 
             {qs.length === 0 ? (
-              <p className="text-[13px] text-[#8a8a8f] italic">
+              <p className="text-footnote text-ink-subtle italic">
                 Sem perguntas técnicas ainda pra essa vaga.
               </p>
             ) : (
@@ -503,9 +503,9 @@ function QuestionCard({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4">
+    <div className="rounded-card border border-line-soft bg-canvas p-4">
       <div className="flex items-start gap-3">
-        <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-bold shrink-0 mt-1">
+        <span className="inline-flex h-6 min-w-6 px-2 items-center justify-center rounded-full bg-sky-600 text-white text-caption font-bold shrink-0 mt-1">
           {index + 1}
         </span>
 
@@ -518,10 +518,10 @@ function QuestionCard({
                   onClick={() => setRequired((v) => !v)}
                   aria-pressed={required}
                   className={
-                    'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ' +
+                    'inline-flex items-center rounded-full border px-2.5 py-0.5 text-eyebrow font-bold uppercase transition-colors ' +
                     (required
                       ? 'border-amber-200 bg-amber-50 text-amber-700'
-                      : 'border-gray-200 bg-white text-[#8a8a8f] hover:text-[#1d1d1f]')
+                      : 'border-line-soft bg-white text-ink-subtle hover:text-ink')
                   }
                 >
                   Obrigatória
@@ -531,18 +531,18 @@ function QuestionCard({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 rows={2}
-                className="rounded-lg border-gray-200 bg-white text-[14px] leading-relaxed resize-none"
+                className="rounded-lg border-line-soft bg-white text-callout leading-relaxed resize-none"
               />
               {isSelectFormat(data.format) && (
                 <div className="mt-2">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                  <label className="block text-eyebrow font-bold uppercase text-ink-subtle mb-1.5">
                     Opções (uma por linha)
                   </label>
                   <Textarea
                     value={optionsText}
                     onChange={(e) => setOptionsText(e.target.value)}
                     rows={4}
-                    className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                    className="rounded-lg border-line-soft bg-white text-footnote leading-relaxed resize-none"
                   />
                 </div>
               )}
@@ -557,18 +557,18 @@ function QuestionCard({
               {(data.required || FORMAT_LABEL[data.format]) && (
                 <span className="mb-1.5 flex flex-wrap items-center gap-1.5">
                   {data.required && (
-                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-eyebrow font-bold uppercase text-amber-700">
                       Obrigatória
                     </span>
                   )}
                   {FORMAT_LABEL[data.format] && (
-                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#6b6b70]">
+                    <span className="inline-flex items-center rounded-full border border-line-soft bg-white px-2 py-0.5 text-eyebrow font-bold uppercase text-ink-muted">
                       {FORMAT_LABEL[data.format]}
                     </span>
                   )}
                 </span>
               )}
-              <p className="text-[15px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+              <p className="text-callout text-ink leading-relaxed whitespace-pre-wrap">
                 {data.question}
               </p>
               {isSelectFormat(data.format) && (data.options ?? []).length > 0 && (
@@ -576,7 +576,7 @@ function QuestionCard({
                   {(data.options ?? []).map((opt) => (
                     <span
                       key={opt}
-                      className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-[12px] text-[#6b6b70]"
+                      className="inline-flex items-center rounded-lg border border-line-soft bg-white px-2 py-0.5 text-caption text-ink-muted"
                     >
                       {opt}
                     </span>
@@ -592,7 +592,7 @@ function QuestionCard({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-white hover:text-[#1d1d1f] transition-colors"
+              className="h-7 w-7 rounded-full flex items-center justify-center text-ink-subtle hover:bg-white hover:text-ink transition-colors"
               aria-label={expanded ? 'Recolher critérios' : 'Ver critérios internos'}
               aria-expanded={expanded}
             >
@@ -606,7 +606,7 @@ function QuestionCard({
               <button
                 type="button"
                 onClick={startEdit}
-                className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-white hover:text-[#1d1d1f] transition-colors"
+                className="h-7 w-7 rounded-full flex items-center justify-center text-ink-subtle hover:bg-white hover:text-ink transition-colors"
                 aria-label="Editar"
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -614,7 +614,7 @@ function QuestionCard({
               <button
                 type="button"
                 onClick={handleDelete}
-                className="h-7 w-7 rounded-full flex items-center justify-center text-[#8a8a8f] hover:bg-red-50 hover:text-red-600 transition-colors"
+                className="h-7 w-7 rounded-full flex items-center justify-center text-ink-subtle hover:bg-red-50 hover:text-red-600 transition-colors"
                 aria-label="Remover"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -625,29 +625,29 @@ function QuestionCard({
       </div>
 
       {expanded && (
-        <div className="mt-3 space-y-3 border-t border-gray-200/70 pt-3 pl-9">
+        <div className="mt-3 space-y-3 border-t border-line-soft/70 pt-3 pl-9">
           {editing ? (
             <>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                <label className="block text-eyebrow font-bold uppercase text-ink-subtle mb-1.5">
                   Resposta esperada (interno)
                 </label>
                 <Textarea
                   value={guidance}
                   onChange={(e) => setGuidance(e.target.value)}
                   rows={2}
-                  className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                  className="rounded-lg border-line-soft bg-white text-footnote leading-relaxed resize-none"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-1.5">
+                <label className="block text-eyebrow font-bold uppercase text-ink-subtle mb-1.5">
                   Como pontuar (interno)
                 </label>
                 <Textarea
                   value={rubric}
                   onChange={(e) => setRubric(e.target.value)}
                   rows={2}
-                  className="rounded-lg border-gray-200 bg-white text-[13px] leading-relaxed resize-none"
+                  className="rounded-lg border-line-soft bg-white text-footnote leading-relaxed resize-none"
                 />
               </div>
               <div className="flex items-center gap-2 pt-1">
@@ -655,7 +655,7 @@ function QuestionCard({
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-600 text-white text-[12px] font-semibold hover:bg-sky-700 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-600 text-white text-caption font-semibold hover:bg-sky-700 transition-colors disabled:opacity-50"
                 >
                   <Check className="h-3.5 w-3.5" />
                   {saving ? 'Salvando...' : 'Salvar'}
@@ -664,7 +664,7 @@ function QuestionCard({
                   type="button"
                   onClick={() => setEditing(false)}
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white text-[12px] font-semibold text-[#6b6b70] hover:text-[#1d1d1f] transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line-soft bg-white text-caption font-semibold text-ink-muted hover:text-ink transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
                   Cancelar
@@ -674,27 +674,27 @@ function QuestionCard({
           ) : (
             <>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-0.5">
+                <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-0.5">
                   Resposta esperada
                 </p>
                 {data.guidance ? (
-                  <p className="text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
+                  <p className="text-footnote text-ink-muted leading-relaxed whitespace-pre-wrap">
                     {data.guidance}
                   </p>
                 ) : (
-                  <p className="text-[13px] text-[#a8a8ad] italic">Ainda não preenchida.</p>
+                  <p className="text-footnote text-[#a8a8ad] italic">Ainda não preenchida.</p>
                 )}
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-0.5">
+                <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-0.5">
                   Como pontuar
                 </p>
                 {data.scoring_rubric ? (
-                  <p className="text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
+                  <p className="text-footnote text-ink-muted leading-relaxed whitespace-pre-wrap">
                     {data.scoring_rubric}
                   </p>
                 ) : (
-                  <p className="text-[13px] text-[#a8a8ad] italic">Ainda não preenchida.</p>
+                  <p className="text-footnote text-[#a8a8ad] italic">Ainda não preenchida.</p>
                 )}
               </div>
             </>

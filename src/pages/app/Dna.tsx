@@ -18,10 +18,10 @@ export function Dna() {
   const [open, setOpen] = useState<SectionId | null>(null);
 
   if (loading) {
-    return <div className="p-8 text-[#8a8a8f] text-sm">Carregando...</div>;
+    return <div className="p-8 text-ink-subtle text-sm">Carregando...</div>;
   }
   if (!company) {
-    return <div className="p-8 text-[#6b6b70]">Empresa não encontrada.</div>;
+    return <div className="p-8 text-ink-muted">Empresa não encontrada.</div>;
   }
 
   const description = company.description?.trim() ?? '';
@@ -59,20 +59,20 @@ export function Dna() {
       <div className="relative max-w-3xl mx-auto px-8 py-12">
         {/* Header */}
         <div className="mb-8">
-          <p className="text-[12px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-3">
+          <p className="text-caption font-bold uppercase tracking-wider text-ink-subtle mb-3">
             DNA da empresa
           </p>
-          <h1 className="font-satoshi font-bold text-[36px] md:text-[44px] tracking-[-0.7px] leading-[1.1] text-[#1d1d1f]">
+          <h1 className="font-satoshi font-bold text-[36px] md:text-[44px] tracking-[-0.7px] leading-[1.1] text-ink">
             {company.name}
           </h1>
           <div className="mt-3 flex items-center gap-2">
             {dnaCompleted ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
+              <span className="inline-flex items-center gap-1.5 text-eyebrow font-bold uppercase text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
                 <CheckCircle2 className="h-3 w-3" />
                 DNA configurado
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-3 py-1">
+              <span className="inline-flex items-center gap-1.5 text-eyebrow font-bold uppercase text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-3 py-1">
                 <AlertCircle className="h-3 w-3" />
                 DNA pendente
               </span>
@@ -81,18 +81,18 @@ export function Dna() {
         </div>
 
         {/* Intro */}
-        <div className="mb-6 bg-white rounded-[28px] border border-gray-200 shadow-[0_10px_40px_-15px_rgba(15,15,30,0.08)] p-7 flex items-center gap-6">
+        <div className="mb-6 bg-white rounded-panel border border-line-soft shadow-e2 p-7 flex items-center gap-6">
           <div className="flex-shrink-0">
             <DnaSymbol size={88} />
           </div>
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-2.5 rounded-full bg-sky-50 border border-sky-200">
               <Sparkles className="h-3 w-3 text-sky-600" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700">
+              <span className="text-eyebrow font-bold uppercase text-sky-700">
                 Contexto ativo
               </span>
             </div>
-            <p className="text-[15px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Tudo que você escreve aqui entra na avaliação de cada candidato. Quanto mais
               específico, menos genérica fica a análise.
             </p>
@@ -154,39 +154,39 @@ function SectionShell({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-[28px] border border-gray-200 bg-white overflow-hidden shadow-[0_10px_40px_-15px_rgba(15,15,30,0.08)]">
+    <div className="rounded-panel border border-line-soft bg-white overflow-hidden shadow-e2">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-start justify-between gap-4 px-7 py-5 text-left transition-colors hover:bg-gray-50/60"
+        className="w-full flex items-start justify-between gap-4 px-7 py-5 text-left transition-colors hover:bg-canvas"
       >
         <span className="min-w-0">
           <span className="flex items-center gap-2">
-            <span className="font-satoshi font-bold text-[17px] tracking-[-0.2px] text-[#1d1d1f]">
+            <span className="font-satoshi font-bold text-[17px] tracking-[-0.2px] text-ink">
               {title}
             </span>
             {open ? (
-              <ChevronUp className="h-4 w-4 text-[#8a8a8f]" />
+              <ChevronUp className="h-4 w-4 text-ink-subtle" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-[#8a8a8f]" />
+              <ChevronDown className="h-4 w-4 text-ink-subtle" />
             )}
           </span>
-          <span className="block text-[13px] text-[#6b6b70] mt-1">{helper}</span>
+          <span className="block text-footnote text-ink-muted mt-1">{helper}</span>
         </span>
         <span
           className={cn(
-            'flex-shrink-0 mt-1 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider',
+            'flex-shrink-0 mt-1 rounded-full border px-3 py-1 text-eyebrow font-bold uppercase',
             statusTone === 'ok'
               ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
-              : 'border-gray-200 bg-gray-50 text-[#8a8a8f]',
+              : 'border-line-soft bg-canvas text-ink-subtle',
           )}
         >
           {status}
         </span>
       </button>
 
-      {open && <div className="px-7 pb-7 pt-1 border-t border-gray-100">{children}</div>}
+      {open && <div className="px-7 pb-7 pt-1 border-t border-line-soft">{children}</div>}
     </div>
   );
 }
@@ -196,7 +196,7 @@ function EditButton({ label, onClick }: { label: string; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400"
+      className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-white px-3.5 py-1.5 text-caption font-semibold text-ink transition-colors hover:border-line"
     >
       <Pencil className="h-3.5 w-3.5" />
       {label}
@@ -221,7 +221,7 @@ function EditActions({
         type="button"
         onClick={onSave}
         disabled={saving || disabled}
-        className="holo-gradient inline-flex items-center rounded-full px-5 py-2 text-[13px] font-semibold text-white shadow-lg shadow-sky-500/30 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        className="holo-gradient inline-flex items-center rounded-full px-5 py-2 text-footnote font-semibold text-white shadow-lg shadow-sky-500/30 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving ? 'Salvando...' : 'Salvar'}
       </button>
@@ -229,7 +229,7 @@ function EditActions({
         type="button"
         onClick={onCancel}
         disabled={saving}
-        className="rounded-full border border-gray-200 bg-white px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:border-gray-400 hover:text-[#1d1d1f] disabled:opacity-50"
+        className="rounded-full border border-line-soft bg-white px-4 py-2 text-footnote font-semibold text-ink-muted transition-colors hover:border-line hover:text-ink disabled:opacity-50"
       >
         Cancelar
       </button>
@@ -284,7 +284,7 @@ function SobreSection({
             onChange={(e) => setDraft(e.target.value)}
             rows={8}
             placeholder="Ex.: Plataforma de logística pra e-commerce. Vendemos pra operações que despacham mais de 5 mil pedidos por mês. Time de 40 pessoas, produto e engenharia juntos no mesmo squad."
-            className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
+            className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
           />
           <EditActions
             saving={saving}
@@ -295,11 +295,11 @@ function SobreSection({
       ) : (
         <div className="pt-4">
           {description ? (
-            <p className="text-[15px] text-[#1d1d1f] leading-[1.7] whitespace-pre-wrap">
+            <p className="text-callout text-ink leading-[1.7] whitespace-pre-wrap">
               {description}
             </p>
           ) : (
-            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Conta em poucas linhas o que a empresa faz. Ajuda o candidato a entender onde está
               entrando.
             </p>
@@ -360,12 +360,12 @@ function CulturaSection({
             onChange={(e) => setDraft(e.target.value)}
             rows={10}
             placeholder="Ex.: Async first, decisões pelos times sem aprovar tudo. Quem performa bem assume o problema sem esperar prioridade vir de cima. Quem precisa de tudo escrito e aprovado pra agir não engrena aqui."
-            className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
+            className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
           />
           <p
             className={cn(
-              'text-[11px] mt-1.5',
-              valid ? 'text-emerald-600' : 'text-[#8a8a8f]',
+              'text-caption mt-1.5',
+              valid ? 'text-emerald-600' : 'text-ink-subtle',
             )}
           >
             {draft.trim().length} caracteres, mínimo {CULTURE_MIN}
@@ -380,9 +380,9 @@ function CulturaSection({
       ) : (
         <div className="pt-4">
           {culture ? (
-            <p className="text-[15px] text-[#1d1d1f] leading-[1.7] whitespace-pre-wrap">{culture}</p>
+            <p className="text-callout text-ink leading-[1.7] whitespace-pre-wrap">{culture}</p>
           ) : (
-            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Descreve o ritmo, a autonomia e quem costuma engrenar por aí. É a parte que mais muda
               a qualidade da análise.
             </p>
@@ -450,14 +450,14 @@ function BeneficiosSection({
               {benefits.map((item) => (
                 <span
                   key={item}
-                  className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[13px] font-medium text-sky-800"
+                  className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-footnote font-medium text-sky-800"
                 >
                   {item}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Escolhe os benefícios da lista ou escreve os seus. Leva menos de um minuto.
             </p>
           )}

@@ -30,7 +30,7 @@ const STAGES = [
 const GOAL_STATUS: Record<string, { label: string; chip: string }> = {
   em_andamento: { label: 'Em andamento', chip: 'bg-sky-50 border-sky-100 text-sky-800' },
   concluida: { label: 'Concluída', chip: 'bg-emerald-50 border-emerald-100 text-emerald-800' },
-  pausada: { label: 'Pausada', chip: 'bg-gray-100 border-gray-200 text-gray-600' },
+  pausada: { label: 'Pausada', chip: 'bg-surface-sunken border-line-soft text-gray-600' },
 };
 
 function shortDate(iso: string): string {
@@ -78,7 +78,7 @@ function StageProgress({ status }: { status: string }) {
             <div
               className={cn(
                 'relative z-10 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 bg-white',
-                filled ? 'border-sky-500' : 'border-gray-200',
+                filled ? 'border-sky-500' : 'border-line-soft',
                 isCurrent && 'bg-sky-500',
               )}
             >
@@ -87,8 +87,8 @@ function StageProgress({ status }: { status: string }) {
             </div>
             <span
               className={cn(
-                'mt-1.5 text-[10px] sm:text-[11px] font-semibold text-center leading-tight',
-                filled ? 'text-[#1d1d1f]' : 'text-[#8a8a8f]',
+                'mt-1.5 text-[10px] sm:text-caption font-semibold text-center leading-tight',
+                filled ? 'text-ink' : 'text-ink-subtle',
               )}
             >
               {stage.label}
@@ -108,18 +108,18 @@ function ApplicationCard({ app }: { app: CandidateApplication }) {
     !app.form_completed_at && app.companySlug && app.jobSlug && !rejected;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
+    <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-satoshi font-bold text-[17px] leading-snug text-[#1d1d1f] truncate">
+          <h2 className="font-satoshi font-bold text-[17px] leading-snug text-ink truncate">
             {app.jobTitle}
           </h2>
-          <p className="text-[13px] text-[#6b6b70] mt-0.5">
+          <p className="text-footnote text-ink-muted mt-0.5">
             {app.companyName ? `${app.companyName} · ` : ''}Enviada em {fullDate(app.created_at)}
           </p>
         </div>
         {rejected && (
-          <span className="shrink-0 rounded-full bg-gray-100 border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-[#6b6b70]">
+          <span className="shrink-0 rounded-full bg-surface-sunken border border-line-soft px-2.5 py-1 text-caption font-semibold text-ink-muted">
             Encerrado
           </span>
         )}
@@ -127,9 +127,9 @@ function ApplicationCard({ app }: { app: CandidateApplication }) {
 
       <div className="mt-5">
         {rejected ? (
-          <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
-            <p className="text-sm font-semibold text-[#1d1d1f]">Processo encerrado nessa vaga</p>
-            <p className="text-[13px] text-[#6b6b70] mt-0.5">
+          <div className="rounded-tile bg-canvas border border-line-soft px-4 py-3">
+            <p className="text-sm font-semibold text-ink">Processo encerrado nessa vaga</p>
+            <p className="text-footnote text-ink-muted mt-0.5">
               Obrigado por participar. Seu perfil segue disponível pra futuras oportunidades.
             </p>
           </div>
@@ -139,25 +139,25 @@ function ApplicationCard({ app }: { app: CandidateApplication }) {
       </div>
 
       {canAdvanceForm && (
-        <div className="mt-4 rounded-xl bg-sky-50 border border-sky-100 px-4 py-3">
-          <p className="text-[13px] font-semibold text-sky-900">Adiante sua candidatura</p>
-          <p className="text-[13px] text-sky-800 mt-0.5">
+        <div className="mt-4 rounded-tile bg-sky-50 border border-sky-100 px-4 py-3">
+          <p className="text-footnote font-semibold text-sky-900">Adiante sua candidatura</p>
+          <p className="text-footnote text-sky-800 mt-0.5">
             Você ainda não respondeu o formulário completo dessa vaga.
           </p>
           <Link
             to={`/careers/${app.companySlug}/${app.jobSlug}/form`}
-            className="mt-2 inline-flex h-9 items-center rounded-lg bg-sky-600 px-3.5 text-[13px] font-semibold text-white hover:bg-sky-700"
+            className="mt-2 inline-flex h-9 items-center rounded-lg bg-sky-600 px-3.5 text-footnote font-semibold text-white hover:bg-sky-700"
           >
             Responder agora
           </Link>
         </div>
       )}
 
-      <div className="mt-4 border-t border-gray-100 pt-3">
+      <div className="mt-4 border-t border-line-soft pt-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 text-[13px] font-semibold text-sky-700 hover:text-sky-800"
+          className="inline-flex items-center gap-1 text-footnote font-semibold text-sky-700 hover:text-sky-800"
           aria-expanded={open}
         >
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -165,14 +165,14 @@ function ApplicationCard({ app }: { app: CandidateApplication }) {
         </button>
         {open && (
           <ol className="mt-3 space-y-2">
-            <li className="flex items-center gap-2.5 text-[13px] text-[#6b6b70]">
+            <li className="flex items-center gap-2.5 text-footnote text-ink-muted">
               <span className="h-1.5 w-1.5 rounded-full bg-gray-300 shrink-0" />
               Candidatura enviada em {shortDate(app.created_at)}
             </li>
             {app.events.map((e, i) => (
               <li
                 key={`${e.created_at}-${i}`}
-                className="flex items-center gap-2.5 text-[13px] text-[#1d1d1f]"
+                className="flex items-center gap-2.5 text-footnote text-ink"
               >
                 <span
                   className={cn(
@@ -194,13 +194,13 @@ function CandidaturasTab({ applications }: { applications: CandidateApplication[
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-satoshi text-2xl font-bold text-[#1d1d1f] mb-1">Minhas candidaturas</h1>
-        <p className="text-sm text-[#6b6b70]">Acompanhe em que etapa você está em cada vaga.</p>
+        <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minhas candidaturas</h1>
+        <p className="text-sm text-ink-muted">Acompanhe em que etapa você está em cada vaga.</p>
       </div>
 
       {applications.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-          <p className="text-sm text-[#6b6b70]">
+        <div className="bg-white rounded-card border border-line-soft p-8 text-center">
+          <p className="text-sm text-ink-muted">
             Você ainda não se candidatou a nenhuma vaga. Quando se candidatar pela página de
             carreiras de uma empresa, ela aparece aqui.
           </p>
@@ -221,11 +221,11 @@ function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
     return (
       <div className="space-y-5">
         <div>
-          <h1 className="font-satoshi text-2xl font-bold text-[#1d1d1f] mb-1">Minha jornada</h1>
-          <p className="text-sm text-[#6b6b70]">Sua evolução profissional dentro das empresas.</p>
+          <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minha jornada</h1>
+          <p className="text-sm text-ink-muted">Sua evolução profissional dentro das empresas.</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-          <p className="text-sm text-[#6b6b70]">
+        <div className="bg-white rounded-card border border-line-soft p-8 text-center">
+          <p className="text-sm text-ink-muted">
             Sua jornada começa no dia em que uma empresa que usa a Noren te contratar. A partir daí,
             suas avaliações e seu plano de desenvolvimento ficam disponíveis aqui.
           </p>
@@ -291,8 +291,8 @@ function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-satoshi text-2xl font-bold text-[#1d1d1f] mb-1">Minha jornada</h1>
-        <p className="text-sm text-[#6b6b70]">
+        <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minha jornada</h1>
+        <p className="text-sm text-ink-muted">
           {companyName
             ? `Sua evolução na ${companyName}, na visão de quem acompanha seu trabalho.`
             : 'Sua evolução profissional, na visão de quem acompanha seu trabalho.'}
@@ -310,29 +310,29 @@ function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
           className="max-w-md mx-auto sm:mx-0"
         />
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <p className="text-sm text-[#6b6b70]">
+        <div className="bg-white rounded-card border border-line-soft p-6">
+          <p className="text-sm text-ink-muted">
             Ainda não há avaliações registradas. Assim que a primeira for feita, seu scout card
             aparece aqui com seus scores por área.
           </p>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
-        <h2 className="font-satoshi font-bold text-[17px] text-[#1d1d1f] mb-4">
+      <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
+        <h2 className="font-satoshi font-bold text-[17px] text-ink mb-4">
           Plano de desenvolvimento
         </h2>
         {goals.length === 0 ? (
-          <p className="text-sm text-[#6b6b70]">Nenhuma meta cadastrada por enquanto.</p>
+          <p className="text-sm text-ink-muted">Nenhuma meta cadastrada por enquanto.</p>
         ) : (
           <ul className="space-y-3">
             {goals.map((goal) => (
-              <li key={goal.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <li key={goal.id} className="rounded-tile border border-line-soft bg-canvas p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#1d1d1f]">{goal.title}</p>
+                  <p className="text-sm font-semibold text-ink">{goal.title}</p>
                   <span
                     className={cn(
-                      'shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
+                      'shrink-0 rounded-full border px-2.5 py-0.5 text-caption font-semibold',
                       (GOAL_STATUS[goal.status] ?? GOAL_STATUS.em_andamento).chip,
                     )}
                   >
@@ -340,12 +340,12 @@ function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
                   </span>
                 </div>
                 {goal.description && (
-                  <p className="text-[13px] text-[#6b6b70] mt-1 leading-relaxed">
+                  <p className="text-footnote text-ink-muted mt-1 leading-relaxed">
                     {goal.description}
                   </p>
                 )}
                 {(goal.due_date || goal.completed_at) && (
-                  <p className="text-[12px] text-[#8a8a8f] mt-1.5">
+                  <p className="text-caption text-ink-subtle mt-1.5">
                     {goal.completed_at
                       ? `Concluída em ${fullDate(goal.completed_at)}`
                       : `Prazo: ${fullDate(goal.due_date as string)}`}
@@ -357,8 +357,8 @@ function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
-        <h2 className="font-satoshi font-bold text-[17px] text-[#1d1d1f] mb-4">Linha do tempo</h2>
+      <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
+        <h2 className="font-satoshi font-bold text-[17px] text-ink mb-4">Linha do tempo</h2>
         <ol className="space-y-3">
           {timeline.map((item, i) => (
             <li key={`${item.date}-${i}`} className="flex items-baseline gap-3">
@@ -370,8 +370,8 @@ function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
                   item.tone === 'gray' && 'bg-gray-300',
                 )}
               />
-              <span className="text-sm text-[#1d1d1f]">{item.text}</span>
-              <span className="ml-auto shrink-0 text-[12px] text-[#8a8a8f]">
+              <span className="text-sm text-ink">{item.text}</span>
+              <span className="ml-auto shrink-0 text-caption text-ink-subtle">
                 {fullDate(item.date)}
               </span>
             </li>
@@ -419,20 +419,20 @@ function PerfilTab({
   }
 
   const fieldClass =
-    'w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-[15px] outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100';
+    'w-full h-11 rounded-lg border border-line-soft bg-white px-3 text-callout outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100';
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-satoshi text-2xl font-bold text-[#1d1d1f] mb-1">Meu perfil</h1>
-        <p className="text-sm text-[#6b6b70]">
+        <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Meu perfil</h1>
+        <p className="text-sm text-ink-muted">
           Esses dados ajudam as empresas a te conhecer melhor. Seu e-mail é {profile.email}.
         </p>
       </div>
 
-      <form onSubmit={save} className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 space-y-4">
+      <form onSubmit={save} className="bg-white rounded-card border border-line-soft p-5 sm:p-6 space-y-4">
         <div>
-          <label htmlFor="p-name" className="block text-sm font-semibold text-[#1d1d1f] mb-1.5">
+          <label htmlFor="p-name" className="block text-sm font-semibold text-ink mb-1.5">
             Nome completo
           </label>
           <input
@@ -446,7 +446,7 @@ function PerfilTab({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="p-phone" className="block text-sm font-semibold text-[#1d1d1f] mb-1.5">
+            <label htmlFor="p-phone" className="block text-sm font-semibold text-ink mb-1.5">
               Telefone
             </label>
             <input
@@ -459,7 +459,7 @@ function PerfilTab({
             />
           </div>
           <div>
-            <label htmlFor="p-city" className="block text-sm font-semibold text-[#1d1d1f] mb-1.5">
+            <label htmlFor="p-city" className="block text-sm font-semibold text-ink mb-1.5">
               Cidade
             </label>
             <input
@@ -473,7 +473,7 @@ function PerfilTab({
         </div>
 
         <div>
-          <label htmlFor="p-linkedin" className="block text-sm font-semibold text-[#1d1d1f] mb-1.5">
+          <label htmlFor="p-linkedin" className="block text-sm font-semibold text-ink mb-1.5">
             LinkedIn
           </label>
           <input
@@ -487,7 +487,7 @@ function PerfilTab({
         </div>
 
         <div>
-          <label htmlFor="p-about" className="block text-sm font-semibold text-[#1d1d1f] mb-1.5">
+          <label htmlFor="p-about" className="block text-sm font-semibold text-ink mb-1.5">
             Sobre você
           </label>
           <textarea
@@ -495,7 +495,7 @@ function PerfilTab({
             value={about}
             onChange={(e) => setAbout(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[15px] leading-relaxed outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            className="w-full rounded-lg border border-line-soft bg-white px-3 py-2.5 text-callout leading-relaxed outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
             placeholder="Um resumo rápido da sua trajetória e do que você procura."
           />
         </div>
@@ -503,7 +503,7 @@ function PerfilTab({
         <button
           type="submit"
           disabled={saving}
-          className="w-full sm:w-auto h-11 rounded-lg holo-gradient px-6 text-white font-semibold text-[15px] transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="w-full sm:w-auto h-11 rounded-lg holo-gradient px-6 text-white font-semibold text-callout transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {saving ? 'Salvando...' : 'Salvar perfil'}
         </button>
@@ -533,9 +533,9 @@ export function CandidateTokenArea() {
               Noren
             </Link>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-md p-6 sm:p-8">
-            <h1 className="text-2xl font-bold mb-2 text-[#1d1d1f]">Sua área de candidato</h1>
-            <p className="text-sm text-[#6b6b70] mb-6">
+          <div className="bg-white rounded-card border border-line-soft shadow-md p-6 sm:p-8">
+            <h1 className="text-2xl font-bold mb-2 text-ink">Sua área de candidato</h1>
+            <p className="text-sm text-ink-muted mb-6">
               Informe seu e-mail pra ver suas candidaturas, sua jornada e seu perfil.
             </p>
             <AccessForm onAccess={setToken} />
@@ -547,16 +547,16 @@ export function CandidateTokenArea() {
 
   return (
     <main className="min-h-screen bg-[#f7f7f8]">
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-gray-100">
+      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-line-soft">
         <div className="mx-auto max-w-2xl px-4">
           <div className="flex items-center justify-between h-14">
-            <Link to="/" className="text-lg font-bold text-[#1d1d1f]">
+            <Link to="/" className="text-lg font-bold text-ink">
               Noren
             </Link>
             <button
               type="button"
               onClick={clearToken}
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#6b6b70] hover:text-[#1d1d1f]"
+              className="inline-flex items-center gap-1.5 text-footnote font-semibold text-ink-muted hover:text-ink"
             >
               <LogOut className="h-4 w-4" />
               Sair
@@ -569,10 +569,10 @@ export function CandidateTokenArea() {
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={cn(
-                  'px-3.5 py-2.5 text-[14px] font-semibold border-b-2 transition-colors',
+                  'px-3.5 py-2.5 text-callout font-semibold border-b-2 transition-colors',
                   tab === t.key
-                    ? 'border-sky-500 text-[#1d1d1f]'
-                    : 'border-transparent text-[#8a8a8f] hover:text-[#1d1d1f]',
+                    ? 'border-sky-500 text-ink'
+                    : 'border-transparent text-ink-subtle hover:text-ink',
                 )}
               >
                 {t.label}
@@ -584,10 +584,10 @@ export function CandidateTokenArea() {
 
       <div className="mx-auto max-w-2xl px-4 py-6">
         {loading && !data ? (
-          <p className="text-sm text-[#6b6b70]">Carregando...</p>
+          <p className="text-sm text-ink-muted">Carregando...</p>
         ) : error && !data ? (
           <div className="space-y-3">
-            <p className="text-sm text-[#1d1d1f]">{error}</p>
+            <p className="text-sm text-ink">{error}</p>
             <button
               type="button"
               onClick={() => void refetch()}
@@ -603,7 +603,7 @@ export function CandidateTokenArea() {
             {tab === 'perfil' && <PerfilTab profile={data.profile} onSave={updateProfile} />}
           </>
         ) : (
-          <p className="text-sm text-[#6b6b70]">Carregando...</p>
+          <p className="text-sm text-ink-muted">Carregando...</p>
         )}
       </div>
     </main>

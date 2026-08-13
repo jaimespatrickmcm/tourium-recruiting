@@ -73,7 +73,7 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
       }}
     >
       <DialogContent
-        className="max-w-2xl p-0 rounded-[24px] border-gray-200 shadow-[0_30px_80px_-20px_rgba(15,15,30,0.25)] overflow-hidden gap-0 flex flex-col [&>button]:hidden"
+        className="max-w-2xl p-0 rounded-card border-line-soft shadow-e3 overflow-hidden gap-0 flex flex-col [&>button]:hidden"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           firstInputRef.current?.focus();
@@ -85,19 +85,19 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
         </DialogDescription>
 
         {/* Header */}
-        <div className="shrink-0 px-8 pt-6 pb-4 border-b border-gray-100">
+        <div className="shrink-0 px-8 pt-6 pb-4 border-b border-line-soft">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+            <p className="text-eyebrow font-bold uppercase text-ink-subtle">
               DNA da empresa
             </p>
             <div className="flex items-center gap-3">
-              <p className="text-[12px] font-medium text-[#6b6b70]">
-                Passo <span className="text-[#1d1d1f] font-bold">{step}</span> de {TOTAL_STEPS}
+              <p className="text-caption font-medium text-ink-muted">
+                Passo <span className="text-ink font-bold">{step}</span> de {TOTAL_STEPS}
               </p>
               <button
                 type="button"
                 onClick={handleClose}
-                className="h-8 w-8 rounded-full flex items-center justify-center text-[#6b6b70] hover:bg-gray-100 hover:text-[#1d1d1f] transition-colors"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors"
                 aria-label="Fechar"
               >
                 <X className="h-4 w-4" />
@@ -105,7 +105,7 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
             </div>
           </div>
           <div
-            className="h-1 bg-gray-100 rounded-full overflow-hidden"
+            className="h-1 bg-surface-sunken rounded-full overflow-hidden"
             role="progressbar"
             aria-valuenow={step}
             aria-valuemin={1}
@@ -122,10 +122,10 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
         <div className="flex-1 min-h-0 overflow-y-auto px-8 py-7">
           {step === 1 && (
             <div>
-              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f] mb-2">
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
                 Como vocês trabalham?
               </h2>
-              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 Texto livre, específico. A IA vai LER tudo isso e usar pra avaliar cada candidato.
                 Conta cultura, ritmo, autonomia, quem performa bem e quem não engrena.
               </p>
@@ -135,11 +135,11 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
                 value={culture}
                 onChange={(e) => setCulture(e.target.value)}
                 rows={11}
-                className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
+                className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
               />
               <p
                 className={
-                  'text-[11px] mt-1.5 ' + (validCulture ? 'text-emerald-600' : 'text-[#8a8a8f]')
+                  'text-caption mt-1.5 ' + (validCulture ? 'text-emerald-600' : 'text-ink-subtle')
                 }
               >
                 {culture.length} chars · mínimo 80
@@ -149,15 +149,15 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
 
           {step === 2 && (
             <div>
-              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f] mb-2">
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
                 Revisar DNA
               </h2>
-              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 Esse texto vai pra IA junto com cada candidato. Pode editar depois reabrindo o
                 modal.
               </p>
-              <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
-                <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+              <div className="rounded-card border border-line-soft bg-canvas p-5">
+                <p className="text-callout text-ink leading-relaxed whitespace-pre-wrap">
                   {culture}
                 </p>
               </div>
@@ -166,11 +166,11 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-8 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+        <div className="shrink-0 px-8 py-5 border-t border-line-soft flex items-center justify-between bg-canvas">
           <button
             onClick={() => step > 1 && setStep(step - 1)}
             disabled={step === 1 || saving}
-            className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
+            className="inline-flex items-center gap-2 text-footnote font-medium text-ink-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar

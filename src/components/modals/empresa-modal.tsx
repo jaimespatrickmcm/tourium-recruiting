@@ -134,7 +134,7 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
       }}
     >
       <DialogContent
-        className="max-w-2xl p-0 rounded-[24px] border-gray-200 shadow-[0_30px_80px_-20px_rgba(15,15,30,0.25)] overflow-hidden gap-0 flex flex-col [&>button]:hidden"
+        className="max-w-2xl p-0 rounded-card border-line-soft shadow-e3 overflow-hidden gap-0 flex flex-col [&>button]:hidden"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           firstInputRef.current?.focus();
@@ -146,19 +146,19 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
         </DialogDescription>
 
         {/* Header */}
-        <div className="shrink-0 px-8 pt-6 pb-4 border-b border-gray-100">
+        <div className="shrink-0 px-8 pt-6 pb-4 border-b border-line-soft">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
+            <p className="text-eyebrow font-bold uppercase text-ink-subtle">
               Empresa
             </p>
             <div className="flex items-center gap-3">
-              <p className="text-[12px] font-medium text-[#6b6b70]">
-                Passo <span className="text-[#1d1d1f] font-bold">{step}</span> de {TOTAL_STEPS}
+              <p className="text-caption font-medium text-ink-muted">
+                Passo <span className="text-ink font-bold">{step}</span> de {TOTAL_STEPS}
               </p>
               <button
                 type="button"
                 onClick={handleClose}
-                className="h-8 w-8 rounded-full flex items-center justify-center text-[#6b6b70] hover:bg-gray-100 hover:text-[#1d1d1f] transition-colors"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors"
                 aria-label="Fechar"
               >
                 <X className="h-4 w-4" />
@@ -166,7 +166,7 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
             </div>
           </div>
           <div
-            className="h-1 bg-gray-100 rounded-full overflow-hidden"
+            className="h-1 bg-surface-sunken rounded-full overflow-hidden"
             role="progressbar"
             aria-valuenow={step}
             aria-valuemin={1}
@@ -183,21 +183,21 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
         <div className="flex-1 min-h-0 overflow-y-auto px-8 py-7">
           {step === 1 && (
             <div>
-              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f] mb-2">
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
                 Identidade da empresa
               </h2>
-              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 Cola a URL do site e a gente preenche o que dá. Você confirma.
               </p>
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#1d1d1f] mb-1.5">
+                  <label className="block text-caption font-semibold text-ink mb-1.5">
                     Site (opcional)
                   </label>
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
-                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8a8a8f]" />
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-subtle" />
                       <Input
                         ref={firstInputRef}
                         placeholder="acme.com"
@@ -210,14 +210,14 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
                           }
                         }}
                         disabled={scraping}
-                        className="h-11 pl-10 rounded-xl border-gray-200 text-[15px]"
+                        className="h-11 pl-10 rounded-tile border-line-soft text-callout"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={scrapeUrl}
                       disabled={scraping || !draft.websiteUrl.trim()}
-                      className="h-11 px-4 rounded-xl bg-[#1d1d1f] text-white font-semibold text-[13px] hover:bg-[#1d1d1f]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 whitespace-nowrap"
+                      className="h-11 px-4 rounded-tile bg-ink text-white font-semibold text-footnote hover:bg-ink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 whitespace-nowrap"
                     >
                       {scraping ? (
                         <>
@@ -231,7 +231,7 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-[#1d1d1f] mb-1.5">
+                  <label className="block text-caption font-semibold text-ink mb-1.5">
                     Nome da empresa <span className="text-red-500">*</span>
                   </label>
                   <Input
@@ -239,17 +239,17 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
                     value={draft.name}
                     onChange={(e) => set('name', e.target.value)}
                     className={
-                      'h-11 rounded-xl text-[15px] ' +
+                      'h-11 rounded-tile text-callout ' +
                       (draft.name.trim().length > 0 && draft.name.trim().length < 2
                         ? 'border-red-300 focus-visible:ring-red-200'
-                        : 'border-gray-200')
+                        : 'border-line-soft')
                     }
                   />
                   {draft.name.trim().length > 0 && draft.name.trim().length < 2 && (
-                    <p className="text-[11px] text-red-600 mt-1">Mínimo 2 caracteres.</p>
+                    <p className="text-caption text-red-600 mt-1">Mínimo 2 caracteres.</p>
                   )}
                   {draft.name.trim().length === 0 && (
-                    <p className="text-[11px] text-[#8a8a8f] mt-1">
+                    <p className="text-caption text-ink-subtle mt-1">
                       Obrigatório pra continuar. Cola o site acima e clica "Buscar" pra preencher
                       automático, ou digita manualmente.
                     </p>
@@ -261,10 +261,10 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
 
           {step === 2 && (
             <div>
-              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-[#1d1d1f] mb-2">
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
                 O que vocês fazem?
               </h2>
-              <p className="text-[14px] text-[#6b6b70] leading-relaxed mb-6">
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 Em 2-3 frases. Esse texto vai pra IA como parte do contexto da empresa.
               </p>
               <Textarea
@@ -272,12 +272,12 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
                 value={draft.description}
                 onChange={(e) => set('description', e.target.value)}
                 rows={6}
-                className="rounded-xl border-gray-200 text-[15px] leading-relaxed resize-none"
+                className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
               />
               <p
                 className={
-                  'text-[11px] mt-1.5 ' +
-                  (draft.description.length >= 20 ? 'text-emerald-600' : 'text-[#8a8a8f]')
+                  'text-caption mt-1.5 ' +
+                  (draft.description.length >= 20 ? 'text-emerald-600' : 'text-ink-subtle')
                 }
               >
                 {draft.description.length} chars · mínimo 20
@@ -287,11 +287,11 @@ export function EmpresaModal({ open, onClose }: { open: boolean; onClose: () => 
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-8 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+        <div className="shrink-0 px-8 py-5 border-t border-line-soft flex items-center justify-between bg-canvas">
           <button
             onClick={() => step > 1 && setStep(step - 1)}
             disabled={step === 1 || saving}
-            className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
+            className="inline-flex items-center gap-2 text-footnote font-medium text-ink-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-3 py-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar

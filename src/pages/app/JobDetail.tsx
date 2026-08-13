@@ -591,10 +591,10 @@ export function JobDetail() {
   }, [id]);
 
   if (jobLoading || appsLoading) {
-    return <div className="p-8 text-[#8a8a8f] text-sm">Carregando...</div>;
+    return <div className="p-8 text-ink-subtle text-sm">Carregando...</div>;
   }
   if (!job) {
-    return <div className="p-8 text-[#6b6b70]">Vaga não encontrada.</div>;
+    return <div className="p-8 text-ink-muted">Vaga não encontrada.</div>;
   }
 
   const counts = STAGE_ORDER.reduce(
@@ -1087,9 +1087,9 @@ function DescriptionPanel({
                 onChange={(e) => setDraft(e.target.value)}
                 rows={16}
                 placeholder="Descrição da vaga em seções (## Título)."
-                className="text-[14px] leading-relaxed"
+                className="text-callout leading-relaxed"
               />
-              <p className="mt-1.5 text-[11px] text-[#8a8a8f]">
+              <p className="mt-1.5 text-caption text-ink-subtle">
                 Cada seção começa com "## Título" e vira um item expansível na career page.
                 Bullets começam com hífen.
               </p>
@@ -1101,7 +1101,7 @@ function DescriptionPanel({
                   type="button"
                   onClick={() => setEditing(false)}
                   disabled={saving}
-                  className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
+                  className="rounded-full px-4 py-2 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -1112,7 +1112,7 @@ function DescriptionPanel({
               {sections.map((section, i) => (
                 <div key={i}>
                   {section.title && (
-                    <p className="font-satoshi font-bold text-[14px] text-[#1d1d1f] mb-1">
+                    <p className="font-satoshi font-bold text-callout text-ink mb-1">
                       {section.title}
                     </p>
                   )}
@@ -1121,7 +1121,7 @@ function DescriptionPanel({
               ))}
             </div>
           ) : (
-            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Essa vaga ainda não tem descrição. Clique em Regerar pra a IA escrever uma, ou em
               Editar pra escrever na mão.
             </p>
@@ -1132,21 +1132,21 @@ function DescriptionPanel({
               type="button"
               onClick={() => void toggleBenefits()}
               disabled={togglingBenefits}
-              className="mt-5 flex w-full items-start gap-3 rounded-xl border border-gray-200 p-3.5 text-left transition-colors hover:border-gray-300 disabled:opacity-50"
+              className="mt-5 flex w-full items-start gap-3 rounded-tile border border-line-soft p-3.5 text-left transition-colors hover:border-line disabled:opacity-50"
             >
               <span
                 className={
                   'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ' +
-                  (job.show_benefits ? 'border-sky-500 bg-sky-500' : 'border-gray-300 bg-white')
+                  (job.show_benefits ? 'border-sky-500 bg-sky-500' : 'border-line bg-white')
                 }
               >
                 {job.show_benefits && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
               </span>
               <span>
-                <span className="block text-[13px] font-semibold text-[#1d1d1f]">
+                <span className="block text-footnote font-semibold text-ink">
                   Exibir os benefícios da empresa nesta vaga
                 </span>
-                <span className="block text-[12px] text-[#6b6b70] mt-0.5">
+                <span className="block text-caption text-ink-muted mt-0.5">
                   Os benefícios são cadastrados no DNA da empresa e aparecem na career page.
                 </span>
               </span>
@@ -1326,46 +1326,46 @@ function RequirementsPanel({
           {editing ? (
             <div className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">Nível</label>
+                <label className="mb-1.5 block text-caption font-semibold text-ink">Nível</label>
                 <input
                   value={draft.seniority}
                   onChange={(e) => setDraft((prev) => ({ ...prev, seniority: e.target.value }))}
                   placeholder="Ex.: Pleno, Sênior, Staff"
-                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-[14px] text-[#1d1d1f] outline-none focus:border-sky-400"
+                  className="h-10 w-full rounded-tile border border-line-soft px-3 text-callout text-ink outline-none focus:border-brand"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">
+                <label className="mb-1.5 block text-caption font-semibold text-ink">
                   Local e modelo de trabalho
                 </label>
                 <input
                   value={draft.location}
                   onChange={(e) => setDraft((prev) => ({ ...prev, location: e.target.value }))}
                   placeholder="Ex.: Presencial em BH, Remoto, Híbrido em SP"
-                  className="h-10 w-full rounded-xl border border-gray-200 px-3 text-[14px] text-[#1d1d1f] outline-none focus:border-sky-400"
+                  className="h-10 w-full rounded-tile border border-line-soft px-3 text-callout text-ink outline-none focus:border-brand"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">Resumo</label>
+                <label className="mb-1.5 block text-caption font-semibold text-ink">Resumo</label>
                 <Textarea
                   value={draft.summary}
                   onChange={(e) => setDraft((prev) => ({ ...prev, summary: e.target.value }))}
                   rows={3}
                   placeholder="Resumo do perfil ideal pra essa vaga."
-                  className="text-[14px]"
+                  className="text-callout"
                 />
               </div>
               {REQ_ARRAY_FIELDS.map((field) => (
                 <div key={field.key}>
-                  <label className="mb-1.5 block text-[12px] font-semibold text-[#1d1d1f]">
+                  <label className="mb-1.5 block text-caption font-semibold text-ink">
                     {field.label}
-                    <span className="ml-2 font-normal text-[#8a8a8f]">um item por linha</span>
+                    <span className="ml-2 font-normal text-ink-subtle">um item por linha</span>
                   </label>
                   <Textarea
                     value={textFor(field.key)}
                     onChange={(e) => setArray(field.key, e.target.value)}
                     rows={3}
-                    className="text-[14px]"
+                    className="text-callout"
                   />
                 </div>
               ))}
@@ -1377,7 +1377,7 @@ function RequirementsPanel({
                   type="button"
                   onClick={() => setEditing(false)}
                   disabled={saving}
-                  className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
+                  className="rounded-full px-4 py-2 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -1387,30 +1387,30 @@ function RequirementsPanel({
             <div className="space-y-5">
               {requirements.seniority && (
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                  <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-2">
                     Nível
                   </p>
-                  <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[12px] font-semibold text-sky-700">
+                  <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-caption font-semibold text-sky-700">
                     {requirements.seniority}
                   </span>
                 </div>
               )}
               {requirements.location && (
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                  <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-2">
                     Local e modelo
                   </p>
-                  <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[12px] font-semibold text-[#1d1d1f]">
+                  <span className="inline-flex items-center rounded-full border border-line-soft bg-canvas px-3 py-1 text-caption font-semibold text-ink">
                     {requirements.location}
                   </span>
                 </div>
               )}
               {requirements.summary && (
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                  <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-2">
                     Resumo
                   </p>
-                  <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+                  <p className="text-callout text-ink leading-relaxed whitespace-pre-wrap">
                     {requirements.summary}
                   </p>
                 </div>
@@ -1420,12 +1420,12 @@ function RequirementsPanel({
                 if (!Array.isArray(items) || items.length === 0) return null;
                 return (
                   <div key={field.key}>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
+                    <p className="text-eyebrow font-bold uppercase text-ink-subtle mb-2">
                       {field.label}
                     </p>
                     <ul className="space-y-1.5">
                       {items.map((item, i) => (
-                        <li key={i} className="flex gap-2 text-[14px] text-[#1d1d1f] leading-relaxed">
+                        <li key={i} className="flex gap-2 text-callout text-ink leading-relaxed">
                           <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gray-300" />
                           <span>{item}</span>
                         </li>
@@ -1436,7 +1436,7 @@ function RequirementsPanel({
               })}
             </div>
           ) : (
-            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+            <p className="text-callout text-ink-muted leading-relaxed">
               Ainda não há requisitos gerados pra essa vaga. Clique em Gerar pra montar o gabarito
               interno que orienta as perguntas e a análise.
             </p>

@@ -19,10 +19,10 @@ export function UseCases() {
   return (
     <section className="w-full py-20 md:py-28 px-5">
       <div className="max-w-5xl mx-auto text-center">
-        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-[#1d1d1f] max-w-3xl mx-auto">
+        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-ink max-w-3xl mx-auto">
           Feita pra quem carrega o processo de gente nas costas
         </h2>
-        <p className="mt-5 text-[17px] md:text-[19px] text-[#6b6b70] leading-[1.5] max-w-2xl mx-auto font-medium">
+        <p className="mt-5 text-[17px] md:text-[19px] text-ink-muted leading-[1.5] max-w-2xl mx-auto font-medium">
           Founder que precisa contratar sem virar recrutador. Head of people
           montando processo do zero. Gestor que quer ver a evolução do time sem
           abrir planilha.
@@ -35,7 +35,7 @@ export function UseCases() {
               delay={i * 40}
               variant="scale"
               as="span"
-              className="inline-block bg-white border border-gray-200 rounded-full px-5 py-2.5 text-[14px] font-semibold shadow-sm"
+              className="inline-block bg-white border border-line-soft rounded-full px-5 py-2.5 text-callout font-semibold shadow-e1"
             >
               <span style={{ color: c.color }}>{c.label}</span>
             </Reveal>

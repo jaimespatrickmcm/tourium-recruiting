@@ -5,20 +5,20 @@ function StepMockup({ step }: { step: number }) {
   if (step === 1) {
     // DNA Wizard preview: open-ended question + emerging tags
     return (
-      <div className="bg-white rounded-[24px] border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-card border border-line-soft shadow-e1 p-6">
         <div className="flex items-center gap-2 mb-4">
           <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
           <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
           <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
         </div>
-        <p className="text-[11px] font-bold text-[#8a8a8f] uppercase tracking-wider mb-3">
+        <p className="text-caption font-bold text-ink-subtle uppercase tracking-wider mb-3">
           Step 4 de 7: Perfil ideal
         </p>
-        <p className="text-[14px] text-[#1d1d1f] font-medium leading-relaxed mb-4">
+        <p className="text-callout text-ink font-medium leading-relaxed mb-4">
           Descreva alguém que performou muito bem nos últimos 12 meses.
         </p>
-        <div className="bg-gray-50 rounded-xl p-4 mb-4">
-          <p className="text-[13px] text-[#6b6b70] leading-relaxed italic">
+        <div className="bg-canvas rounded-tile p-4 mb-4">
+          <p className="text-footnote text-ink-muted leading-relaxed italic">
             "Pessoa que aceitou ownership de áreas inteiras sem precisar de aprovação
             constante. Tomava decisão com 70% dos dados..."
           </p>
@@ -35,7 +35,7 @@ function StepMockup({ step }: { step: number }) {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, amount: 0.4 }}
               transition={{ duration: 0.45, delay: t.delay, ease: [0.22, 1, 0.36, 1] }}
-              className="text-[11px] font-semibold px-2.5 py-1 rounded-full border"
+              className="text-caption font-semibold px-2.5 py-1 rounded-full border"
               style={{ color: t.color, borderColor: `${t.color}44`, backgroundColor: `${t.color}0d` }}
             >
               {t.tag}
@@ -55,10 +55,10 @@ function StepMockup({ step }: { step: number }) {
       { name: 'Ana Souza', score: 58, tag: 'maybe', color: '#38BDF8' },
     ];
     return (
-      <div className="bg-white rounded-[24px] border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-card border border-line-soft shadow-e1 p-6">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[13px] font-semibold text-[#1d1d1f]">Ranking da vaga Senior Eng</span>
-          <span className="text-[11px] text-emerald-600 font-semibold">4 candidatos</span>
+          <span className="text-footnote font-semibold text-ink">Ranking da vaga Senior Eng</span>
+          <span className="text-caption text-emerald-600 font-semibold">4 candidatos</span>
         </div>
         <div className="space-y-2">
           {candidates.map((c, i) => (
@@ -68,18 +68,18 @@ function StepMockup({ step }: { step: number }) {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, amount: 0.4 }}
               transition={{ duration: 0.5, delay: 0.15 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-              className="flex items-center gap-3 p-3 rounded-xl bg-gray-50"
+              className="flex items-center gap-3 p-3 rounded-tile bg-canvas"
             >
               <div
-                className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-caption font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: c.color }}
               >
                 {c.name.split(' ').map((n) => n[0]).join('')}
               </div>
-              <span className="text-[13px] text-[#1d1d1f] font-medium flex-grow truncate">{c.name}</span>
-              <span className="text-[12px] font-bold text-[#1d1d1f]">{c.score}/100</span>
+              <span className="text-footnote text-ink font-medium flex-grow truncate">{c.name}</span>
+              <span className="text-caption font-bold text-ink">{c.score}/100</span>
               <span
-                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                className="text-eyebrow font-bold uppercase px-2 py-0.5 rounded-full"
                 style={{ color: c.color, backgroundColor: `${c.color}14` }}
               >
                 {c.tag}
@@ -92,7 +92,7 @@ function StepMockup({ step }: { step: number }) {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.4, delay: 0.7 }}
-          className="mt-3 flex items-center gap-2 text-[11px] text-[#8a8a8f]"
+          className="mt-3 flex items-center gap-2 text-caption text-ink-subtle"
         >
           <BarChart3 className="h-3.5 w-3.5" />
           <span>Nota em 5 áreas, com o raciocínio citando o seu DNA</span>
@@ -110,12 +110,12 @@ function StepMockup({ step }: { step: number }) {
     { area: 'Potencial', score: 85, color: '#38BDF8' },
   ];
   return (
-    <div className="bg-white rounded-[24px] border border-gray-200 shadow-sm p-6 space-y-3">
+    <div className="bg-white rounded-card border border-line-soft shadow-e1 p-6 space-y-3">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-[11px] font-bold text-[#8a8a8f] uppercase tracking-wider">
+        <span className="text-caption font-bold text-ink-subtle uppercase tracking-wider">
           Scout card: Maria Silva
         </span>
-        <span className="flex-grow h-[1px] bg-gray-100" />
+        <span className="flex-grow h-[1px] bg-surface-sunken" />
         <TrendingUp className="h-3.5 w-3.5 text-sky-500" />
       </div>
       {areas.map((it, i) => (
@@ -128,12 +128,12 @@ function StepMockup({ step }: { step: number }) {
           className="flex items-center gap-3"
         >
           <span
-            className="text-[12px] font-bold flex-shrink-0 w-24"
+            className="text-caption font-bold flex-shrink-0 w-24"
             style={{ color: it.color }}
           >
             {it.area}
           </span>
-          <div className="flex-grow h-7 rounded-lg bg-gray-50 relative overflow-hidden">
+          <div className="flex-grow h-7 rounded-lg bg-canvas relative overflow-hidden">
             <motion.div
               initial={{ scaleX: 0 }}
               whileInView={{ scaleX: 1 }}
@@ -147,7 +147,7 @@ function StepMockup({ step }: { step: number }) {
               }}
               className="absolute inset-y-0 left-0 rounded-lg"
             />
-            <span className="relative z-10 flex items-center h-full px-3 text-[11px] font-bold text-[#1d1d1f]">
+            <span className="relative z-10 flex items-center h-full px-3 text-caption font-bold text-ink">
               {it.score}
             </span>
           </div>
@@ -158,7 +158,7 @@ function StepMockup({ step }: { step: number }) {
         whileInView={{ opacity: 1 }}
         viewport={{ once: true, amount: 0.4 }}
         transition={{ duration: 0.4, delay: 0.7 }}
-        className="pt-1 text-[11px] text-[#8a8a8f]"
+        className="pt-1 text-caption text-ink-subtle"
       >
         Metas e avaliações no mesmo card, antes e depois da contratação
       </motion.p>
@@ -193,7 +193,7 @@ export function HowItWorks() {
   return (
     <section id="como-funciona" className="w-full py-16 md:py-28 px-4 md:px-5 bg-white">
       <div className="max-w-5xl mx-auto">
-        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-center text-[#1d1d1f] mb-20">
+        <h2 className="font-satoshi font-bold text-[32px] md:text-[48px] leading-[1.1] tracking-[-0.6px] text-center text-ink mb-20">
           Como a Noren funciona
         </h2>
 
@@ -228,15 +228,15 @@ export function HowItWorks() {
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true, amount: 0.4 }}
                         transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                        className="font-satoshi font-bold text-[36px] md:text-[48px] text-[#1d1d1f] tracking-[-0.6px] leading-none"
+                        className="font-satoshi font-bold text-[36px] md:text-[48px] text-ink tracking-[-0.6px] leading-none"
                       >
                         {step.num}
                       </motion.span>
-                      <h3 className="font-satoshi font-bold text-[22px] md:text-[28px] text-[#1d1d1f] tracking-[-0.2px]">
+                      <h3 className="font-satoshi font-bold text-[22px] md:text-[28px] text-ink tracking-[-0.2px]">
                         {step.title}
                       </h3>
                     </div>
-                    <p className="mt-4 text-[16px] md:text-[17px] text-[#6b6b70] leading-[1.55] max-w-md">
+                    <p className="mt-4 text-body md:text-[17px] text-ink-muted leading-[1.55] max-w-md">
                       {step.body}
                     </p>
                   </motion.div>

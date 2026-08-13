@@ -50,7 +50,7 @@ export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) 
   return (
     <form onSubmit={requestAccess} className="space-y-4">
       <div>
-        <label htmlFor="access-email" className="block text-sm font-semibold text-[#1d1d1f] mb-1.5">
+        <label htmlFor="access-email" className="block text-sm font-semibold text-ink mb-1.5">
           Seu e-mail
         </label>
         <div className="relative">
@@ -67,29 +67,29 @@ export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) 
               setError(null);
             }}
             placeholder="voce@email.com"
-            className="w-full h-12 rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-[15px] outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            className="w-full h-12 rounded-lg border border-line-soft bg-white pl-10 pr-3 text-callout outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
           />
         </div>
-        <p className="mt-1.5 text-[12px] text-[#8a8a8f]">
+        <p className="mt-1.5 text-caption text-ink-subtle">
           Use o mesmo e-mail com que você se candidatou.
         </p>
       </div>
 
       {notFound && (
-        <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
-          <p className="text-[13px] text-amber-900 leading-relaxed">
+        <div className="rounded-tile bg-amber-50 border border-amber-100 px-4 py-3">
+          <p className="text-footnote text-amber-900 leading-relaxed">
             Não achamos candidaturas com esse e-mail. Confira se digitou certo, ou candidate-se pela
             página de carreiras de uma empresa que usa a Noren.
           </p>
         </div>
       )}
 
-      {error && <p className="text-[13px] text-red-600">{error}</p>}
+      {error && <p className="text-footnote text-red-600">{error}</p>}
 
       <button
         type="submit"
         disabled={!emailValid || loading}
-        className="w-full h-12 rounded-lg holo-gradient text-white font-semibold text-[15px] transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="w-full h-12 rounded-lg holo-gradient text-white font-semibold text-callout transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {loading ? 'Verificando...' : 'Ver minhas candidaturas'}
       </button>
@@ -119,7 +119,7 @@ export function CandidateAccess() {
   if (tokenParam) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-white px-4">
-        <p className="text-sm text-[#6b6b70]">Entrando...</p>
+        <p className="text-sm text-ink-muted">Entrando...</p>
       </main>
     );
   }
@@ -133,9 +133,9 @@ export function CandidateAccess() {
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-md p-6 sm:p-8">
-          <h1 className="text-2xl font-bold mb-2 text-[#1d1d1f]">Sua área de candidato</h1>
-          <p className="text-sm text-[#6b6b70] mb-6">
+        <div className="bg-white rounded-card border border-line-soft shadow-md p-6 sm:p-8">
+          <h1 className="text-2xl font-bold mb-2 text-ink">Sua área de candidato</h1>
+          <p className="text-sm text-ink-muted mb-6">
             Informe seu e-mail pra ver o andamento das suas candidaturas, sua jornada e seu perfil.
             Sem senha, sem complicação.
           </p>
@@ -143,7 +143,7 @@ export function CandidateAccess() {
           <AccessForm onAccess={handleAccess} />
         </div>
 
-        <p className="text-xs text-[#8a8a8f] mt-6 text-center">
+        <p className="text-xs text-ink-subtle mt-6 text-center">
           Você é uma empresa contratando?{' '}
           <Link to="/login" className="text-gray-900 font-semibold hover:underline">
             Entrar como empresa

@@ -168,18 +168,18 @@ export function ProfileAssessment() {
       <main className="relative min-h-screen bg-white">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[480px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.10),transparent_60%)]" />
         <div className="relative max-w-2xl mx-auto px-6 py-14 md:py-20">
-          <p className="text-[12px] font-bold uppercase tracking-wider text-sky-600 mb-4">Noren</p>
-          <h1 className="font-satoshi font-bold text-[32px] md:text-[42px] tracking-[-0.7px] leading-[1.1] text-[#1d1d1f] mb-4">
+          <p className="text-caption font-bold uppercase tracking-wider text-sky-600 mb-4">Noren</p>
+          <h1 className="font-satoshi font-bold text-[32px] md:text-[42px] tracking-[-0.7px] leading-[1.1] text-ink mb-4">
             Sua análise de perfil comportamental
           </h1>
-          <p className="text-[16px] text-[#6b6b70] leading-relaxed mb-8 max-w-lg">
+          <p className="text-body text-ink-muted leading-relaxed mb-8 max-w-lg">
             Três métodos usados no mundo todo (DISC, Big Five e Garra), só com perguntas de marcar.
             O resultado chega no seu email e fica vinculado ao seu perfil de candidato. Dá pra fazer
             um método de cada vez ou o completo de uma vez.
           </p>
 
           <div className="max-w-md mb-6">
-            <label className="block text-[12px] font-semibold text-[#1d1d1f] mb-1.5">
+            <label className="block text-caption font-semibold text-ink mb-1.5">
               Seu email
             </label>
             <Input
@@ -187,9 +187,9 @@ export function ProfileAssessment() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="voce@email.com"
-              className="h-12 rounded-xl border-gray-200 text-[16px]"
+              className="h-12 rounded-tile border-line-soft text-body"
             />
-            <p className="text-[12px] text-[#8a8a8f] mt-1.5">
+            <p className="text-caption text-ink-subtle mt-1.5">
               Use o mesmo email da sua candidatura: é ele que liga o resultado ao seu perfil.
             </p>
           </div>
@@ -203,12 +203,12 @@ export function ProfileAssessment() {
             <span
               className={
                 'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ' +
-                (consent ? 'border-sky-500 bg-sky-500' : 'border-gray-300 bg-white')
+                (consent ? 'border-sky-500 bg-sky-500' : 'border-line bg-white')
               }
             >
               {consent && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
             </span>
-            <span className="text-[13px] text-[#6b6b70] leading-relaxed">
+            <span className="text-footnote text-ink-muted leading-relaxed">
               Concordo que meu resultado fique vinculado ao meu perfil na Noren e visível pras
               empresas em que eu me candidatar.
             </span>
@@ -220,16 +220,16 @@ export function ProfileAssessment() {
                 key={m}
                 type="button"
                 onClick={() => startPlan([m])}
-                className="group w-full text-left rounded-2xl border border-gray-200 bg-white p-4 flex items-start gap-4 hover:border-sky-300 hover:bg-sky-50/30 transition-colors"
+                className="group w-full text-left rounded-card border border-line-soft bg-white p-4 flex items-start gap-4 hover:border-sky-300 hover:bg-sky-50/30 transition-colors"
               >
                 <span className="flex-1 min-w-0">
-                  <span className="block font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
+                  <span className="block font-satoshi font-bold text-body tracking-[-0.2px] text-ink">
                     {METHOD_INFO[m].label}
-                    <span className="ml-2 text-[12px] font-semibold text-[#8a8a8f]">
+                    <span className="ml-2 text-caption font-semibold text-ink-subtle">
                       {METHOD_INFO[m].minutes}
                     </span>
                   </span>
-                  <span className="block text-[13px] text-[#6b6b70] leading-relaxed mt-0.5">
+                  <span className="block text-footnote text-ink-muted leading-relaxed mt-0.5">
                     {METHOD_INFO[m].shortDescription}
                   </span>
                 </span>
@@ -254,13 +254,13 @@ export function ProfileAssessment() {
       <main className="relative min-h-screen bg-white">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[480px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.10),transparent_60%)]" />
         <div className="relative max-w-2xl mx-auto px-6 py-24 text-center">
-          <div className="inline-flex h-16 w-16 rounded-2xl holo-gradient items-center justify-center mb-6">
+          <div className="inline-flex h-16 w-16 rounded-card holo-gradient items-center justify-center mb-6">
             <CheckCircle2 className="h-8 w-8 text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="font-satoshi font-bold text-[36px] tracking-[-0.6px] text-[#1d1d1f] mb-3">
+          <h1 className="font-satoshi font-bold text-[36px] tracking-[-0.6px] text-ink mb-3">
             Análise concluída
           </h1>
-          <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto mb-8">
+          <p className="text-body text-ink-muted max-w-md mx-auto mb-8">
             O resultado completo foi pro seu email e já está vinculado ao seu perfil. Quando quiser,
             volte aqui pra fazer os métodos que faltam.
           </p>
@@ -281,11 +281,11 @@ export function ProfileAssessment() {
       <main className="relative min-h-screen bg-white">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.08),transparent_60%)]" />
         <div className="relative max-w-2xl mx-auto px-6 py-14">
-          <p className="text-[12px] font-bold uppercase tracking-wider text-sky-600 mb-3">
+          <p className="text-caption font-bold uppercase tracking-wider text-sky-600 mb-3">
             Resultado: {METHOD_INFO[lastResult.method].label}
           </p>
           <MethodResultView data={lastResult} />
-          <p className="text-[13px] text-[#8a8a8f] mt-6">
+          <p className="text-footnote text-ink-subtle mt-6">
             Esse resultado também foi pro seu email e ficou salvo no seu perfil.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -297,7 +297,7 @@ export function ProfileAssessment() {
                 <button
                   type="button"
                   onClick={() => setPhase('done')}
-                  className="text-[13px] font-semibold text-[#6b6b70] hover:text-[#1d1d1f] transition-colors"
+                  className="text-footnote font-semibold text-ink-muted hover:text-ink transition-colors"
                 >
                   Parar por aqui
                 </button>
@@ -324,17 +324,17 @@ export function ProfileAssessment() {
       <div className="relative px-6 pt-5">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-2">
-            <Link to="/" className="font-satoshi font-bold text-[16px] tracking-[-0.3px] text-[#1d1d1f]">
+            <Link to="/" className="font-satoshi font-bold text-body tracking-[-0.3px] text-ink">
               Noren
             </Link>
-            <span className="text-[12px] font-medium text-[#6b6b70]">
+            <span className="text-caption font-medium text-ink-muted">
               {METHOD_INFO[method].label}
               {plan.length > 1 && (
                 <span className="text-[#a8a8ad]"> · parte {planIndex + 1} de {plan.length}</span>
               )}
             </span>
           </div>
-          <div className="h-1 bg-gray-100 rounded-full overflow-hidden" role="progressbar">
+          <div className="h-1 bg-surface-sunken rounded-full overflow-hidden" role="progressbar">
             <div
               className="h-full holo-gradient rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
@@ -347,10 +347,10 @@ export function ProfileAssessment() {
         <div className="w-full max-w-2xl" key={`${method}-${questionIndex}`}>
           {method === 'disc' && discCurrent ? (
             <div>
-              <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-[#1d1d1f] mb-2.5">
+              <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-ink mb-2.5">
                 {DISC_QUESTIONS[questionIndex].question}
               </h2>
-              <p className="text-[14px] text-[#8a8a8f] leading-relaxed mb-6">
+              <p className="text-callout text-ink-subtle leading-relaxed mb-6">
                 Toque nas opções na ordem: primeiro a que MAIS combina com você, por último a que
                 MENOS combina.
               </p>
@@ -363,17 +363,17 @@ export function ProfileAssessment() {
                       key={oi}
                       type="button"
                       onClick={() => rankOption(oi)}
-                      className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-[14px] leading-relaxed transition-colors ${
+                      className={`w-full flex items-center gap-3 rounded-tile border px-4 py-3 text-left text-callout leading-relaxed transition-colors ${
                         selected
-                          ? 'border-sky-400 bg-sky-50 text-[#1d1d1f]'
-                          : 'border-gray-200 bg-white text-[#1d1d1f] hover:border-sky-200 hover:bg-sky-50/40'
+                          ? 'border-sky-400 bg-sky-50 text-ink'
+                          : 'border-line-soft bg-white text-ink hover:border-sky-200 hover:bg-sky-50/40'
                       }`}
                     >
                       <span
-                        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${
+                        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-caption font-bold ${
                           selected
                             ? 'border-sky-400 bg-sky-600 text-white'
-                            : 'border-gray-300 bg-gray-50 text-[#a8a8ad]'
+                            : 'border-line bg-canvas text-[#a8a8ad]'
                         }`}
                       >
                         {selected ? 5 - rank : '·'}
@@ -386,19 +386,19 @@ export function ProfileAssessment() {
               <button
                 type="button"
                 onClick={resetQuestion}
-                className="mt-3 text-[12px] font-semibold text-[#8a8a8f] hover:text-[#1d1d1f] transition-colors"
+                className="mt-3 text-caption font-semibold text-ink-subtle hover:text-ink transition-colors"
               >
                 Refazer essa questão
               </button>
             </div>
           ) : (
             <div>
-              <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-[#1d1d1f] mb-2.5">
+              <h2 className="font-satoshi font-semibold text-[19px] md:text-[23px] tracking-[-0.2px] leading-[1.35] text-ink mb-2.5">
                 {method === 'bigfive'
                   ? `Vejo-me como alguém que... ${BIGFIVE_ITEMS[questionIndex].text.charAt(0).toLowerCase()}${BIGFIVE_ITEMS[questionIndex].text.slice(1)}`
                   : GRIT_ITEMS[questionIndex].text}
               </h2>
-              <p className="text-[14px] text-[#8a8a8f] leading-relaxed mb-6">
+              <p className="text-callout text-ink-subtle leading-relaxed mb-6">
                 O quanto isso te descreve?
               </p>
               <div className="space-y-2 max-w-md">
@@ -414,17 +414,17 @@ export function ProfileAssessment() {
                       key={label}
                       type="button"
                       onClick={() => answerLikert(value)}
-                      className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition-colors ${
+                      className={`w-full flex items-center gap-3 rounded-tile border px-4 py-3 text-left text-callout transition-colors ${
                         selected
-                          ? 'border-sky-400 bg-sky-50 text-[#1d1d1f]'
-                          : 'border-gray-200 bg-white text-[#1d1d1f] hover:border-sky-200 hover:bg-sky-50/40'
+                          ? 'border-sky-400 bg-sky-50 text-ink'
+                          : 'border-line-soft bg-white text-ink hover:border-sky-200 hover:bg-sky-50/40'
                       }`}
                     >
                       <span
-                        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold ${
+                        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-caption font-bold ${
                           selected
                             ? 'border-sky-400 bg-sky-600 text-white'
-                            : 'border-gray-300 bg-gray-50 text-[#6b6b70]'
+                            : 'border-line bg-canvas text-ink-muted'
                         }`}
                       >
                         {value}
@@ -439,18 +439,18 @@ export function ProfileAssessment() {
         </div>
       </div>
 
-      <div className="relative border-t border-gray-100 bg-white/70 backdrop-blur">
+      <div className="relative border-t border-line-soft bg-white/70 backdrop-blur">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <button
             type="button"
             onClick={goBack}
             disabled={submitting}
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors disabled:opacity-30 px-2 py-1.5"
+            className="inline-flex items-center gap-1.5 text-footnote font-medium text-ink-muted hover:text-ink transition-colors disabled:opacity-30 px-2 py-1.5"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </button>
-          <span className="text-[12px] text-[#a8a8ad]">
+          <span className="text-caption text-[#a8a8ad]">
             {submitting ? 'Enviando...' : 'Responda pra avançar'}
           </span>
         </div>
@@ -467,16 +467,16 @@ function MethodResultView({ data }: { data: MethodResult }) {
       .join(' e ');
     return (
       <div>
-        <h1 className="font-satoshi font-bold text-[30px] md:text-[38px] tracking-[-0.6px] text-[#1d1d1f] mb-2">
+        <h1 className="font-satoshi font-bold text-[30px] md:text-[38px] tracking-[-0.6px] text-ink mb-2">
           Perfil {primary.name}
         </h1>
-        <p className="text-[15px] text-[#6b6b70] mb-1">{primary.headline}</p>
-        <p className="text-[14px] text-[#8a8a8f] mb-6">Sua dupla principal: {pairNames}.</p>
+        <p className="text-callout text-ink-muted mb-1">{primary.headline}</p>
+        <p className="text-callout text-ink-subtle mb-6">Sua dupla principal: {pairNames}.</p>
         <div className="flex flex-wrap gap-1.5 mb-6">
           {primary.description.map((d) => (
             <span
               key={d}
-              className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[12px] text-sky-800"
+              className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-caption text-sky-800"
             >
               {d}
             </span>
@@ -487,16 +487,16 @@ function MethodResultView({ data }: { data: MethodResult }) {
             .sort((a, b) => data.result.points[b] - data.result.points[a])
             .map((p) => (
               <div key={p} className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-[13px] font-semibold text-[#1d1d1f]">
+                <span className="w-28 shrink-0 text-footnote font-semibold text-ink">
                   {DISC_PROFILE_CONTENT[p].name}
                 </span>
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="flex-1 h-2 bg-surface-sunken rounded-full overflow-hidden">
                   <div
                     className="h-full holo-gradient rounded-full"
                     style={{ width: `${data.result.percents[p]}%` }}
                   />
                 </div>
-                <span className="w-12 text-right text-[12px] text-[#6b6b70]">
+                <span className="w-12 text-right text-caption text-ink-muted">
                   {data.result.percents[p].toFixed(0)}%
                 </span>
               </div>
@@ -509,21 +509,21 @@ function MethodResultView({ data }: { data: MethodResult }) {
   if (data.method === 'bigfive') {
     return (
       <div>
-        <h1 className="font-satoshi font-bold text-[30px] md:text-[38px] tracking-[-0.6px] text-[#1d1d1f] mb-6">
+        <h1 className="font-satoshi font-bold text-[30px] md:text-[38px] tracking-[-0.6px] text-ink mb-6">
           Seus cinco traços
         </h1>
         <div className="space-y-4 max-w-md">
           {(Object.keys(data.result.means) as BigFiveDimension[]).map((dim) => (
             <div key={dim}>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[13px] font-semibold text-[#1d1d1f]">
+                <span className="text-footnote font-semibold text-ink">
                   {BIGFIVE_DIMENSION_INFO[dim].label}
                 </span>
-                <span className="text-[12px] text-[#6b6b70]">
+                <span className="text-caption text-ink-muted">
                   {data.result.means[dim].toFixed(2)} de 5
                 </span>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-surface-sunken rounded-full overflow-hidden">
                 <div
                   className="h-full holo-gradient rounded-full"
                   style={{ width: `${(data.result.means[dim] / 5) * 100}%` }}
@@ -538,10 +538,10 @@ function MethodResultView({ data }: { data: MethodResult }) {
 
   return (
     <div>
-      <h1 className="font-satoshi font-bold text-[30px] md:text-[38px] tracking-[-0.6px] text-[#1d1d1f] mb-3">
+      <h1 className="font-satoshi font-bold text-[30px] md:text-[38px] tracking-[-0.6px] text-ink mb-3">
         {data.result.garraPct}% de garra
       </h1>
-      <p className="text-[15px] text-[#6b6b70] max-w-md leading-relaxed">
+      <p className="text-callout text-ink-muted max-w-md leading-relaxed">
         Esse número reflete o quanto você combina paixão e perseverança em objetivos de longo prazo,
         no seu momento atual. Garra se desenvolve: dá pra refazer o teste daqui um tempo.
       </p>

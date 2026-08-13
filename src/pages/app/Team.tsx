@@ -230,18 +230,18 @@ function AddCollaboratorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-[24px] bg-white sm:rounded-[24px] overflow-y-auto">
+      <DialogContent className="rounded-card bg-white sm:rounded-card overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-satoshi font-bold text-[22px] tracking-[-0.3px] text-[#1d1d1f]">
+          <DialogTitle className="font-satoshi font-bold text-[22px] tracking-[-0.3px] text-ink">
             Adicionar colaborador
           </DialogTitle>
-          <DialogDescription className="text-[14px] text-[#6b6b70]">
+          <DialogDescription className="text-callout text-ink-muted">
             Pra quem já está no time e não passou pelo pipeline. As avaliações começam do zero.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="collab-name" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-name" className="text-footnote font-semibold text-ink">
               Nome completo
             </Label>
             <Input
@@ -253,7 +253,7 @@ function AddCollaboratorDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="collab-email" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-email" className="text-footnote font-semibold text-ink">
               Email
             </Label>
             <Input
@@ -266,7 +266,7 @@ function AddCollaboratorDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="collab-role" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-role" className="text-footnote font-semibold text-ink">
               Cargo
             </Label>
             <Input
@@ -277,7 +277,7 @@ function AddCollaboratorDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="collab-hired" className="text-[13px] font-semibold text-[#1d1d1f]">
+            <Label htmlFor="collab-hired" className="text-footnote font-semibold text-ink">
               Data de contratação
             </Label>
             <Input
