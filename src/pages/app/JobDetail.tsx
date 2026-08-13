@@ -165,10 +165,17 @@ const TONE_FILL: Record<Tone, string> = {
 };
 
 /** Faixa de nota → tom. Fonte unica pra score geral, fit da etapa e nota por pergunta. */
+/**
+ * Cor da nota. Os cortes 60 e 40 são os MESMOS de verdictFromScore no edge
+ * function analyze-candidate, e os mesmos de scoreBand logo abaixo. Antes eram
+ * três réguas diferentes (60/40 no veredito, 80/65/50 na palavra, 75/60/45 na
+ * cor), então um 42 saía pintado de vermelho, com a palavra "Abaixo", embaixo
+ * de um veredito que dizia "Avaliar melhor". Se mexer num corte, mexe nos três.
+ */
 function toneForScore(score: number): Tone {
-  if (score >= 75) return 'positive';
+  if (score >= 80) return 'positive';
   if (score >= 60) return 'brand';
-  if (score >= 45) return 'warning';
+  if (score >= 40) return 'warning';
   return 'critical';
 }
 
@@ -308,19 +315,11 @@ const NEXT_STAGE: Partial<Record<ApplicationStatus, ApplicationStatus>> = {
   entrevista: 'proposta',
 };
 
-const recTone: Record<string, Tone> = {
-  strong_hire: 'positive',
-  hire: 'brand',
-  maybe: 'warning',
-  no_hire: 'critical',
-};
-
-const recLabels: Record<string, string> = {
-  strong_hire: 'Contratação forte',
-  hire: 'Contratar',
-  maybe: 'Talvez',
-  no_hire: 'Não contratar',
-};
+// `recommendation` (strong_hire / hire / maybe / no_hire) saiu da tela inteira.
+// Era o modelo decidindo contratação por conta própria, e aparecia ao lado do
+// fit da etapa dizendo o contrário dele: "Avançar" na decisão da etapa e "Não
+// contratar" no scout, na mesma tela. Nenhuma etapa antes da entrevista decide
+// contratação; quem decide se a pessoa segue é o `stage_verdict`, calculado.
 
 const STUCK_ANALYSIS_MS = 2 * 60 * 1000;
 
@@ -335,11 +334,17 @@ const AREA_LABELS: Record<string, string> = {
 type ScoreBand = { label: string; hint: string };
 
 // Dá referência à nota crua: uma faixa nomeada + o que ela significa no processo.
+/**
+ * Palavra que acompanha a nota. Mesmos cortes de toneForScore e de
+ * verdictFromScore: 60 é onde vira "avançar", 40 é onde vira "cortar". As
+ * frases falam da PRÓXIMA ETAPA, nunca de contratar: nenhuma etapa antes da
+ * entrevista decide isso.
+ */
 function scoreBand(score: number): ScoreBand {
   if (score >= 80) return { label: 'Forte', hint: 'Entre os mais aderentes ao que a vaga pede.' };
-  if (score >= 65) return { label: 'Bom', hint: 'Fit sólido. Vale levar pra conversa.' };
-  if (score >= 50)
-    return { label: 'Mediano', hint: 'Fit parcial. Tem pontos a checar antes de decidir.' };
+  if (score >= 60) return { label: 'Bom', hint: 'Fit sólido pra esta etapa. Vale seguir.' };
+  if (score >= 40)
+    return { label: 'Mediano', hint: 'Fit parcial. Tem o que investigar antes de seguir.' };
   return { label: 'Abaixo', hint: 'Distante do que a vaga pede neste momento.' };
 }
 
@@ -1003,16 +1008,8 @@ function CandidateListItem({
   const done = aStatus === 'completed' && stageScore !== null;
   const tone = done ? toneForScore(stageScore) : 'neutral';
 
-  const verdictLabel = verdict
-    ? (VERDICT_LABELS[verdict] ?? verdict)
-    : analysis?.recommendation
-      ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
-      : null;
-  const verdictTone: Tone = verdict
-    ? (VERDICT_TONE[verdict] ?? 'neutral')
-    : analysis?.recommendation
-      ? (recTone[analysis.recommendation] ?? 'neutral')
-      : 'neutral';
+  const verdictLabel = verdict ? (VERDICT_LABELS[verdict] ?? verdict) : null;
+  const verdictTone: Tone = verdict ? (VERDICT_TONE[verdict] ?? 'neutral') : 'neutral';
 
   return (
     <button
@@ -2307,13 +2304,13 @@ function CandidateDetail({
                       flat
                       name={app.candidate_name}
                       subtitle={jobTitle}
-                      overall={analysis.score ?? overallFromDimensions(dims) ?? 0}
+                      // Calculado das áreas aqui na tela, não lido do banco: as
+                      // análises antigas guardam um número que o modelo
+                      // escolheu solto e que não bate com as próprias barras.
+                      // Assim o velho fica coerente sem precisar re-analisar.
+                      overall={overallFromDimensions(dims) ?? analysis.score ?? 0}
                       dimensions={dims}
-                      badge={
-                        analysis.recommendation
-                          ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
-                          : null
-                      }
+                      badge={null}
                       pending={pendingAreas.length > 0 ? pendingAreas : undefined}
                     />
                   </div>
