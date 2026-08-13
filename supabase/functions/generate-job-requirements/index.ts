@@ -50,6 +50,15 @@ PASSO 1, CALIBRE A SENIORIDADE pelo título e pela descrição (estágio, júnio
 
 PASSO 2, EXTRAIA os requisitos REAIS da vaga a partir do que a descrição sustenta. Não invente exigência que a descrição não dá base. Seja específico da vaga, não genérico que serve pra qualquer cargo.
 
+PASSO 1B, CALIBRE O NÍVEL PELO EIXO CONCEBER x OPERAR. Esse é o erro que mais infla requisito: escrever pra sênior numa vaga de pleno, ou pra pleno numa de estágio. A régua:
+- Estágio: entende o conceito, faz com apoio, mostra fundamento e vontade de aprender.
+- Júnior: executa tarefa definida com autonomia crescente, ainda com revisão.
+- Pleno: OPERA bem dentro dos padrões que já existem, entende POR QUE existem, resolve sozinho tarefa definida e pede ajuda no trade-off difícil.
+- Sênior: DEFINE o padrão, decide o trade-off, responde pelo desenho.
+- Liderança: define a direção, forma gente e responde pelo resultado de um time.
+Aplicando: "seguir o padrão de resiliência de uma integração e saber por que ele existe" é PLENO. "Desenhar a estratégia de resiliência" é SÊNIOR. "Usar feature flag e saber desligar sem quebrar" é PLENO. "Montar a estrutura de experimentação com guardrails" é SÊNIOR.
+Regra dura: se o item exige CONCEBER o padrão, o sistema ou a estratégia, ele NÃO pode ser must-have de vaga pleno ou abaixo. Vai pra nice_to_have, onde vira bônus em vez de motivo de corte. Um must-have inflado reprova gente que daria conta da vaga, e o pior é que ninguém percebe: o candidato só não aparece.
+
 PASSO 2B, MUST-HAVE É CAPACIDADE, NUNCA MÉTODO, FRAMEWORK OU FERRAMENTA. Esse é o erro mais caro que você pode cometer aqui: um must-have escrito como método faz o sistema cortar gente excelente que faz a mesma coisa com outro nome.
 - Errado: "liderança de ciclo de OKRs com KRs e backlog priorizado por squad". Certo: "definir metas de negócio, desdobrar em indicadores por área e manter uma cadência de acompanhamento que corrige rota".
 - Errado: "modelagem de CAC, LTV, payback". Certo: "modelar o impacto econômico de uma decisão e defender com números (a métrica muda conforme o negócio: margem, DRE, ticket, prazo médio, CAC, o que for)".
@@ -60,6 +69,7 @@ PASSO 3, NÃO TRANSFORME O SETOR EM REQUISITO. A vaga é pra atuar DENTRO da emp
 - Escreva os must-have como COMPETÊNCIA, não como setor. "Construir indicador que sustenta decisão" em vez de "experiência com jornada digital de hotelaria".
 - Só coloque experiência no setor específico como must-have se a descrição disser com todas as letras que é obrigatório. Se for só desejável, vai em nice-to-have.
 - Ferramenta e método podem ser específicos. Setor, não.
+- Nem o PRODUTO da empresa. "Fluxo de reserva", "checkout de hotel", "jornada de booking" descrevem o negócio de quem contrata, não a competência: escreva "fluxo crítico de conversão" e deixe o candidato trazer o contexto dele (checkout, cadastro, carrinho, onboarding). Um ótimo profissional de outro produto tem a mesma competência.
 
 Entregue JSON com estes campos:
 - "seniority": um de estagio, junior, pleno, senior, lideranca. Use exatamente essas palavras, sem termo em inglês: "lead" em português de negócio significa prospect e confunde numa vaga comercial.
