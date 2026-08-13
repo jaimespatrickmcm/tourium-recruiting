@@ -203,6 +203,8 @@ export type Database = {
           strengths: Json | null;
           concerns: Json | null;
           question_scores: Json | null;
+          potential_breakdown: Json | null;
+          leadership_signal: Json | null;
           dna_version_used: number | null;
           model_used: string | null;
           cost_cents: number | null;

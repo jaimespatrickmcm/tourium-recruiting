@@ -1,10 +1,13 @@
-// As 5 áreas do scout card. Mesmas chaves usadas pelo edge function
-// analyze-candidate (dimensions) e pela tabela collaborator_scores (area).
+// As 6 áreas do scout card. Mesmas chaves usadas pelo edge function
+// analyze-candidate (SCOUT_AREAS / dimensions) e pela tabela
+// collaborator_scores (area). A ordem aqui é a ordem de leitura na UI e no
+// radar, então precisa bater com a do edge function.
 
 export const SCOUT_AREAS = [
   { key: 'cultura', label: 'Cultura' },
   { key: 'execucao', label: 'Execução' },
   { key: 'comunicacao', label: 'Comunicação' },
+  { key: 'raciocinio', label: 'Raciocínio' },
   { key: 'motivacao', label: 'Motivação' },
   { key: 'potencial', label: 'Potencial' },
 ] as const;
@@ -18,7 +21,8 @@ export type DimensionScore = {
 };
 
 // Áreas específicas do scout por etapa (stage_dimensions). As de CV avaliam o
-// currículo contra a vaga; raciocinio aparece na etapa de formulário.
+// currículo contra a vaga. Raciocínio também vive aqui porque aparece na etapa
+// de formulário; o rótulo é o mesmo do scout geral.
 export const STAGE_AREA_LABELS: Record<string, string> = {
   experiencia: 'Experiência',
   estabilidade: 'Estabilidade',
