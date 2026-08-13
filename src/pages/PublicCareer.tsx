@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -38,13 +38,11 @@ type PublicJob = {
 
 export function PublicCareer() {
   const { companySlug, jobSlug } = useParams<{ companySlug: string; jobSlug: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { candidate } = useCandidate();
   const [job, setJob] = useState<PublicJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
-  const [applicationId, setApplicationId] = useState<string | null>(null);
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -164,7 +162,7 @@ export function PublicCareer() {
     if (!companySlug || !jobSlug) return;
     setSubmitting(true);
     try {
-      const { data, error } = await invokeEdge<{ applicationId?: string }>('submit-application', {
+      const { error } = await invokeEdge<{ applicationId?: string }>('submit-application', {
         companySlug,
         jobSlug,
         candidateName: name,
@@ -177,7 +175,6 @@ export function PublicCareer() {
         website: website || undefined,
       });
       if (error) throw error;
-      setApplicationId(data?.applicationId ?? null);
       setSubmitted(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao enviar candidatura');
@@ -227,40 +224,14 @@ export function PublicCareer() {
           </h1>
           <p className="text-[16px] text-[#6b6b70] max-w-md mx-auto mb-8">
             Recebemos sua aplicação pra <strong className="text-[#1d1d1f]">{job.title}</strong> na{' '}
-            <strong className="text-[#1d1d1f]">{job.company?.name}</strong>. O time já vai começar a
-            avaliar seu fit e entra em contato se houver match.
+            <strong className="text-[#1d1d1f]">{job.company?.name}</strong>. O time vai avaliar sua
+            candidatura e, se você avançar, as próximas etapas chegam no seu email.
           </p>
 
-          <div className="max-w-md mx-auto rounded-[20px] border border-sky-100 bg-sky-50/50 p-5 text-left mb-6">
-            <p className="font-satoshi font-bold text-[16px] text-[#1d1d1f] mb-1.5">
-              Quer sair na frente?
-            </p>
-            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
-              Responder agora umas perguntas rápidas sobre você e a vaga dá muito mais contexto pro
-              time. Sua avaliação fica mais completa e mais justa, e você não fica esperando a equipe
-              pedir isso depois. Leva poucos minutos.
-            </p>
-            <div className="mt-4">
-              <BrandCtaButton
-                size="default"
-                onClick={() =>
-                  navigate(
-                    `/careers/${companySlug}/${jobSlug}/form${
-                      applicationId ? `?app=${applicationId}` : ''
-                    }`,
-                    { state: { name, email, phone } },
-                  )
-                }
-              >
-                Adiantar meu processo
-              </BrandCtaButton>
-            </div>
-          </div>
-
           <div className="text-[13px] text-[#8a8a8f]">
-            Ou{' '}
+            Enquanto isso, você pode{' '}
             <Link to="/candidato" className="font-semibold text-[#1d1d1f] underline hover:no-underline">
-              acesse seu perfil
+              acessar seu perfil
             </Link>{' '}
             pra acompanhar em que etapa você está.
           </div>

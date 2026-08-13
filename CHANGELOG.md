@@ -2,6 +2,16 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.6.0] - 2026-08-13
+
+Application form vira etapa por convite: a candidatura termina na candidatura.
+
+### Changed
+- A tela de "candidatura enviada" não empurra mais o formulário completo. Ela agora diz o que acontece de verdade: o time avalia e, se o candidato avançar, as próximas etapas chegam por email.
+- O formulário completo só abre pelo link individual do convite (enviado quando o candidato avança pra etapa de fit cultural). Acessar a URL sem convite mostra uma explicação do fluxo.
+- O envio do formulário passou a validar o token do convite no servidor, igual ao prefill. O form não cria mais candidatura por conta própria.
+- Capa do formulário celebra o avanço ("Você avançou no processo") e fala o tempo real, uns 15 minutos.
+
 ## [0.5.1] - 2026-08-12
 
 ### Changed

@@ -522,6 +522,7 @@ export function ApplicationForm() {
 
       const { error } = await invokeEdge('submit-application-form', {
         applicationId: applicationId ?? undefined,
+        token: accessToken ?? undefined,
         companySlug,
         jobSlug,
         candidateInfo: {
@@ -545,6 +546,31 @@ export function ApplicationForm() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // O formulário é por convite: chega por email quando o candidato avança de
+  // etapa, sempre com link individual (app + token). Sem convite, explica o
+  // fluxo em vez de abrir o form.
+  if (!loading && job && (!applicationId || !accessToken)) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-white px-6">
+        <div className="max-w-md text-center">
+          <h1 className="font-satoshi font-bold text-[28px] tracking-[-0.4px] text-[#1d1d1f] mb-3">
+            Esse formulário chega por convite
+          </h1>
+          <p className="text-[15px] text-[#6b6b70] mb-8">
+            Quando você avança no processo da {job.companyName}, a gente te manda um link individual
+            por email pra responder essas perguntas. Confere sua caixa de entrada, ou candidate-se
+            primeiro na página da vaga.
+          </p>
+          <div className="flex justify-center">
+            <BrandCtaLink to={`/careers/${companySlug}/${jobSlug}`} size="default">
+              Ver a vaga
+            </BrandCtaLink>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (loading) {
@@ -639,12 +665,12 @@ export function ApplicationForm() {
             <h1 className="font-satoshi font-bold text-[34px] md:text-[48px] tracking-[-0.8px] leading-[1.08] text-[#1d1d1f] mb-5">
               {restoredDraft
                 ? 'Suas respostas estão salvas'
-                : `Vamos adiantar seu processo pra ${job.title}`}
+                : `Você avançou no processo pra ${job.title}`}
             </h1>
             <p className="text-[16px] md:text-[17px] text-[#6b6b70] leading-relaxed mb-8 max-w-md mx-auto">
               {restoredDraft
                 ? 'Você já tinha começado por aqui. Guardamos tudo neste aparelho, é só continuar de onde parou.'
-                : 'Umas perguntas rápidas, uma por vez. Suas respostas dão ao time o contexto pra avaliar seu fit de verdade. Leva poucos minutos.'}
+                : 'Agora o time quer te conhecer de verdade. São perguntas na tela, uma por vez, no seu ritmo. Reserve uns 15 minutos num lugar tranquilo.'}
             </p>
             <div className="flex justify-center">
               <BrandCtaButton size="lg" onClick={() => setPhase('form')}>

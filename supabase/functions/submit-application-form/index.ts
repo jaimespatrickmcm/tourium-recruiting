@@ -30,6 +30,8 @@ type AnswerInput = {
 
 type Payload = {
   applicationId?: string;
+  /** Token individual do convite (mesmo do application-prefill). Obrigatório. */
+  token?: string;
   companySlug: string;
   jobSlug: string;
   candidateInfo?: {
@@ -67,6 +69,14 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 Deno.serve(async (req) => {
@@ -159,129 +169,80 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Vaga não encontrada' }, 404);
   }
 
-  // Resolve application: usa a existente se o id bater com a vaga, senão cria.
-  let applicationId: string | null = null;
-  let createdNow = false;
-
-  if (payload.applicationId) {
-    const { data: existing } = await admin
-      .from('applications')
-      .select('id, job_id')
-      .eq('id', payload.applicationId)
-      .maybeSingle();
-    if (existing && existing.job_id === job.id) {
-      applicationId = existing.id;
-    }
+  // O form é por convite: só aceita candidatura existente + token individual
+  // válido (mesma validação do application-prefill). O form não cria mais
+  // candidatura; quem chega aqui já se candidatou e avançou de etapa.
+  const inviteToken = (payload.token ?? '').trim();
+  if (!payload.applicationId || !inviteToken) {
+    return jsonResponse({ error: 'Esse formulário é acessado pelo link individual do seu email.' }, 401);
   }
 
-  // O formulário COMPLETA uma candidatura, não cria uma segunda. Se o link
-  // individual não trouxe o id (a pessoa chegou pela career page, ou o ?app= se
-  // perdeu no caminho), acha a candidatura dela nesta vaga pelo e-mail. Sem
-  // isso, o insert bate no unique (job_id, lower(email)) e ela perde as
-  // respostas que acabou de escrever.
-  // Comparação em JS pra bater exatamente com o índice: ilike trataria o "_" de
-  // um e-mail como curinga e poderia casar com a pessoa errada.
-  if (!applicationId && email) {
-    const { data: sameJob } = await admin
-      .from('applications')
-      .select('id, candidate_email')
-      .eq('job_id', job.id);
-    const match = (sameJob ?? []).find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (a: any) => String(a.candidate_email ?? '').trim().toLowerCase() === email,
-    );
-    if (match) applicationId = match.id;
+  const { data: existing } = await admin
+    .from('applications')
+    .select('id, job_id, candidate_email, status')
+    .eq('id', payload.applicationId)
+    .maybeSingle();
+  if (!existing || existing.job_id !== job.id) {
+    return jsonResponse({ error: 'Candidatura não encontrada' }, 404);
   }
 
-  if (!applicationId) {
-    if (!name || !email) {
-      return jsonResponse({ error: 'Nome e e-mail são obrigatórios' }, 400);
-    }
-    const { data: created, error: createError } = await admin
-      .from('applications')
-      .insert({
-        job_id: job.id,
-        company_id: company.id,
-        candidate_name: name,
-        candidate_email: email,
-        candidate_phone: phone || null,
-        city: city || null,
-        form_completed_at: new Date().toISOString(),
-        ai_suspected: aiSuspected,
-        ai_flags: aiSuspected ? { canary_hits: canaryHits, detected_at: new Date().toISOString() } : null,
-      })
-      .select('id')
-      .single();
-    if (createError?.code === '23505') {
-      // Corrida: a candidatura nasceu entre a busca acima e este insert. Em vez
-      // de devolver erro e descartar as respostas, aproveita a que existe.
-      const { data: raced } = await admin
-        .from('applications')
-        .select('id, candidate_email')
-        .eq('job_id', job.id);
-      const match = (raced ?? []).find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (a: any) => String(a.candidate_email ?? '').trim().toLowerCase() === email,
-      );
-      if (!match) {
-        return jsonResponse({ error: 'Não deu pra salvar suas respostas. Tente de novo.' }, 500);
-      }
-      applicationId = match.id;
-    } else if (createError || !created) {
-      return jsonResponse({ error: createError?.message ?? 'Falha ao salvar aplicação' }, 500);
-    } else {
-      applicationId = created.id;
-      createdNow = true;
-    }
+  const tokenHash = await sha256Hex(inviteToken);
+  const candidateEmail = (existing.candidate_email ?? '').trim().toLowerCase();
+  const { data: tokenRow, error: tokenError } = await admin
+    .from('applicant_tokens')
+    .select('id')
+    .eq('token_hash', tokenHash)
+    .eq('email', candidateEmail)
+    .maybeSingle();
+  if (tokenError) {
+    return jsonResponse({ error: 'Não conseguimos validar seu acesso agora.' }, 500);
+  }
+  if (!tokenRow) {
+    return jsonResponse({ error: 'Esse formulário é acessado pelo link individual do seu email.' }, 401);
   }
 
-  // Candidatura que já existia (veio do link, do e-mail ou da corrida): completa
-  // com os dados do formulário. A recém-criada já nasceu com tudo isso.
-  if (!createdNow) {
-    // Preencher o formulário É a etapa de fit cultural. Quem ainda está em
-    // triagem avança sozinho, senão o recrutador avançaria depois e a pessoa
-    // receberia de novo o convite pra preencher o que já preencheu.
-    const { data: current } = await admin
-      .from('applications')
-      .select('status')
-      .eq('id', applicationId)
-      .maybeSingle();
-    const promote = current?.status === 'triagem';
+  const applicationId: string = existing.id;
 
-    const update: Record<string, unknown> = {
-      city: city || null,
-      form_completed_at: new Date().toISOString(),
-    };
-    if (promote) update.status = 'fit_cultural';
-    if (phone) update.candidate_phone = phone;
-    // Só liga o flag; nunca desliga um já marcado.
-    if (aiSuspected) {
-      update.ai_suspected = true;
-      update.ai_flags = { canary_hits: canaryHits, detected_at: new Date().toISOString() };
-    }
-    const { error: updateError } = await admin
-      .from('applications')
-      .update(update)
-      .eq('id', applicationId);
-    if (updateError) {
-      return jsonResponse({ error: updateError.message ?? 'Falha ao atualizar aplicação' }, 500);
-    }
+  // Preencher o formulário É a etapa de fit cultural. Se a pessoa preencheu
+  // ainda em triagem (ex.: chegou pelo token da área do candidato), avança
+  // sozinha, senão o recrutador moveria depois e ela receberia convite pro
+  // que já preencheu.
+  const promote = existing.status === 'triagem';
 
-    if (promote) {
-      // Registra na linha do tempo pra o recrutador ver que quem moveu foi o
-      // próprio preenchimento, não alguém do time.
-      const { error: eventError } = await admin.from('application_events').insert({
-        application_id: applicationId,
-        company_id: company.id,
-        actor_id: null,
-        type: 'stage_change',
-        from_status: 'triagem',
-        to_status: 'fit_cultural',
-        note: null,
-      });
-      if (eventError) {
-        console.error('[submit-application-form] evento de etapa:', eventError.message);
-      }
+  // Atualiza a application existente com os campos do formulário completo.
+  const update: Record<string, unknown> = {
+    city: city || null,
+    form_completed_at: new Date().toISOString(),
+  };
+  if (promote) update.status = 'fit_cultural';
+  if (phone) update.candidate_phone = phone;
+  // Só liga o flag; nunca desliga um já marcado.
+  if (aiSuspected) {
+    update.ai_suspected = true;
+    update.ai_flags = { canary_hits: canaryHits, detected_at: new Date().toISOString() };
+  }
+  const { error: updateError } = await admin
+    .from('applications')
+    .update(update)
+    .eq('id', applicationId);
+  if (updateError) {
+    return jsonResponse({ error: updateError.message ?? 'Falha ao atualizar aplicação' }, 500);
+  }
+
+  if (promote) {
+    // Registra na linha do tempo pra o recrutador ver que quem moveu foi o
+    // próprio preenchimento, não alguém do time.
+    const { error: eventError } = await admin.from('application_events').insert({
+      application_id: applicationId,
+      company_id: company.id,
+      actor_id: null,
+      type: 'stage_change',
+      from_status: 'triagem',
+      to_status: 'fit_cultural',
+      note: null,
+    });
+    if (eventError) {
+      console.error('[submit-application-form] evento de etapa:', eventError.message);
     }
   }
 
