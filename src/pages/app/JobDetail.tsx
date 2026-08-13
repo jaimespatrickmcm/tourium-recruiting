@@ -22,6 +22,8 @@ import {
   Copy,
   Check,
   Users,
+  TrendingUp,
+  Compass,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -47,9 +49,15 @@ import {
   parseEvidencePoints,
   parseQuestionScores,
   parseCvFeedback,
+  parsePotentialBreakdown,
+  parseLeadershipSignal,
+  LEADERSHIP_LEVEL_LABELS,
+  LEADERSHIP_INTENT_LABELS,
   type EvidencePoint,
   type QuestionScore,
   type CvFeedback,
+  type PotentialComponent,
+  type LeadershipSignal,
 } from '@/lib/evidence-points';
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
@@ -619,6 +627,104 @@ function StageScout({
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// De onde vem o potencial: os componentes por trás da nota de potencial.
+// A linha de apoio existe porque potencial é fácil de ler errado. É projeção
+// de crescimento, não retrato do nível atual, e por isso fica fora da nota da
+// vaga.
+function PotentialBreakdownBlock({ components }: { components: PotentialComponent[] }) {
+  return (
+    <div className="mb-6 border-t border-line-soft pt-6">
+      <p className="mb-1 flex items-center gap-2 text-eyebrow font-bold uppercase text-ink-subtle">
+        <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+        De onde vem o potencial
+      </p>
+      <p className="mb-4 text-caption text-ink-subtle">
+        Potencial projeta o quanto a pessoa ainda cresce, não o nível de hoje. Por isso não entra
+        na nota da vaga.
+      </p>
+      <div className="space-y-3">
+        {components.map((c) => (
+          <div key={c.key}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-footnote font-semibold text-ink">{c.label}</span>
+              {c.score !== null ? (
+                <span
+                  className={cn(
+                    'shrink-0 text-footnote font-bold tabular-nums',
+                    TONE_TEXT[toneForScore(c.score)],
+                  )}
+                >
+                  {c.score}
+                </span>
+              ) : (
+                <span className="shrink-0 text-caption italic text-ink-subtle">sem dados</span>
+              )}
+            </div>
+            {c.evidence && <p className="mt-0.5 text-footnote text-ink-muted">{c.evidence}</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Sinal de liderança. Deliberadamente sem nota, sem barra e sem tom de
+// sucesso ou erro: é informação, não veredito. Muita gente excelente não quer
+// liderar, e mostrar isso como falha seria injusto. Capacidade (level) e
+// interesse declarado (intent) ficam em linhas separadas justamente porque o
+// caso mais útil é capacidade alta com interesse baixo: essa pessoa cresce
+// como referência técnica, não empurrada pra gestão.
+function LeadershipSignalBlock({ signal }: { signal: LeadershipSignal }) {
+  const hasEvidence = signal.evidence.length > 0;
+  const intentDeclared = signal.intent !== 'nao_declarado';
+  // Sem sinal e sem evidência só vale a pena mostrar se a pessoa declarou
+  // interesse. Fora isso o bloco não acrescenta nada e some.
+  if (signal.level === 'sem' && !hasEvidence && !intentDeclared) return null;
+
+  return (
+    <div className="mb-6 border-t border-line-soft pt-6">
+      <p className="mb-1 flex items-center gap-2 text-eyebrow font-bold uppercase text-ink-subtle">
+        <Compass className="h-3.5 w-3.5" aria-hidden />
+        Liderança
+      </p>
+      <p className="mb-4 text-caption text-ink-subtle">
+        Leitura de contexto, não nota. Não entra em ranking nem em média.
+      </p>
+
+      <div className="rounded-card bg-canvas px-4 py-3">
+        <p className="text-footnote text-ink">
+          <span className="font-semibold">Sinal de liderança:</span>{' '}
+          <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-semibold text-ink-muted">
+            {LEADERSHIP_LEVEL_LABELS[signal.level]}
+          </span>
+        </p>
+
+        {hasEvidence && (
+          <ul className="mt-2.5 space-y-1.5">
+            {signal.evidence.map((item, i) => (
+              <li key={`lideranca-${i}`} className="flex gap-2.5">
+                <span
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-ink-subtle"
+                  aria-hidden
+                />
+                <span className="min-w-0 text-footnote text-ink-muted">{item}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="mt-3 border-t border-line-soft pt-3 text-footnote text-ink">
+          <span className="font-semibold">Interesse declarado:</span>{' '}
+          {LEADERSHIP_INTENT_LABELS[signal.intent]}
+        </p>
+        {signal.intent_evidence && (
+          <p className="mt-0.5 text-footnote text-ink-muted">{signal.intent_evidence}</p>
+        )}
       </div>
     </div>
   );
@@ -1809,6 +1915,12 @@ function CandidateDetail({
   // Leitura do currículo como documento. Fica nulo quando não veio anexo e em
   // análises antigas, e nesse caso o bloco some.
   const cvFeedback = aStatus === 'completed' ? parseCvFeedback(analysis?.cv_feedback) : null;
+  // Componentes por trás do potencial e sinal de liderança. Colunas novas: em
+  // análises antigas voltam null e os dois blocos somem.
+  const potentialBreakdown =
+    aStatus === 'completed' ? parsePotentialBreakdown(analysis?.potential_breakdown) : null;
+  const leadershipSignal =
+    aStatus === 'completed' ? parseLeadershipSignal(analysis?.leadership_signal) : null;
   // Áreas gerais que a etapa atual ainda não consegue avaliar (ex.: cultura só
   // depois do formulário de fit). Mostradas como pendentes, nunca inventadas.
   const pendingAreas = SCOUT_AREAS.filter((a) => !dims.some((d) => d.area === a.key)).map(
@@ -2206,6 +2318,12 @@ function CandidateDetail({
                     />
                   </div>
                 )}
+
+                {potentialBreakdown && (
+                  <PotentialBreakdownBlock components={potentialBreakdown} />
+                )}
+
+                {leadershipSignal && <LeadershipSignalBlock signal={leadershipSignal} />}
 
                 {/* Perfil comportamental (DISC / Big Five / Garra). So aparece
                     se a pessoa fez o teste — o componente renderiza vazio

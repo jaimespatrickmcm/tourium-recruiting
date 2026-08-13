@@ -98,3 +98,116 @@ export function parseQuestionScores(raw: unknown): QuestionScore[] {
   }
   return out;
 }
+
+function clampScore(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  return Math.round(Math.min(100, Math.max(0, raw)));
+}
+
+function trimmedString(raw: unknown): string {
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+// De onde vem o potencial (coluna jsonb potential_breakdown em ai_analyses).
+// São os componentes por trás da nota de potencial, e potencial é PROJEÇÃO de
+// quanto a pessoa ainda cresce, não o nível dela hoje.
+//   aquisicao  = o que ela foi atrás de aprender por conta própria
+//   trajetoria = escopo ganho por tempo de carreira (inclinação, não altura);
+//                vem null pra estagiário sem histórico de trabalho
+//   reflexao   = consegue nomear o que errou e o que tirou dali
+//   raciocinio = estrutura problema novo
+// Análises antigas não têm a coluna, então o parser é defensivo: formato
+// inesperado ou conteúdo vazio vira null e a UI não renderiza o bloco.
+export const POTENTIAL_COMPONENTS = [
+  { key: 'aquisicao', label: 'Aquisição' },
+  { key: 'trajetoria', label: 'Trajetória' },
+  { key: 'reflexao', label: 'Reflexão' },
+  { key: 'raciocinio', label: 'Raciocínio' },
+] as const;
+
+export type PotentialComponentKey = (typeof POTENTIAL_COMPONENTS)[number]['key'];
+
+export type PotentialComponent = {
+  key: PotentialComponentKey;
+  label: string;
+  score: number | null;
+  evidence: string;
+};
+
+export function parsePotentialBreakdown(raw: unknown): PotentialComponent[] | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  const out: PotentialComponent[] = [];
+  for (const { key, label } of POTENTIAL_COMPONENTS) {
+    const item = obj[key];
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const { score, evidence } = item as Record<string, unknown>;
+    const parsedScore = clampScore(score);
+    const parsedEvidence = trimmedString(evidence);
+    // Componente sem nota e sem evidência não diz nada: fora.
+    if (parsedScore === null && parsedEvidence.length === 0) continue;
+    out.push({ key, label, score: parsedScore, evidence: parsedEvidence });
+  }
+  return out.length > 0 ? out : null;
+}
+
+// Sinal de liderança (coluna jsonb leadership_signal em ai_analyses).
+// ATENÇÃO: isto não é nota e nunca pode virar uma. Não entra em média, não
+// ranqueia candidato e não aparece como déficit. Muita gente excelente não quer
+// liderar, e tratar isso como falta seria injusto.
+//   level  = evidência de capacidade de liderança
+//   intent = o que a pessoa DIZ que quer, que é outra coisa
+// O caso interessante é capacidade alta com interesse baixo: essa pessoa se
+// desenvolve como referência técnica, não empurrada pra gestão.
+export type LeadershipLevel = 'sem' | 'moderado' | 'forte';
+export type LeadershipIntent = 'alto' | 'medio' | 'baixo' | 'nao_declarado';
+
+export type LeadershipSignal = {
+  level: LeadershipLevel;
+  evidence: string[];
+  intent: LeadershipIntent;
+  intent_evidence: string;
+};
+
+const LEADERSHIP_LEVELS: LeadershipLevel[] = ['sem', 'moderado', 'forte'];
+const LEADERSHIP_INTENTS: LeadershipIntent[] = ['alto', 'medio', 'baixo', 'nao_declarado'];
+
+export const LEADERSHIP_LEVEL_LABELS: Record<LeadershipLevel, string> = {
+  sem: 'sem sinal',
+  moderado: 'moderado',
+  forte: 'forte',
+};
+
+export const LEADERSHIP_INTENT_LABELS: Record<LeadershipIntent, string> = {
+  alto: 'alto',
+  medio: 'médio',
+  baixo: 'baixo',
+  nao_declarado: 'não declarado',
+};
+
+export function parseLeadershipSignal(raw: unknown): LeadershipSignal | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const { level, evidence, intent, intent_evidence: intentEvidence } = raw as Record<
+    string,
+    unknown
+  >;
+
+  const parsedLevel =
+    typeof level === 'string' && (LEADERSHIP_LEVELS as string[]).includes(level)
+      ? (level as LeadershipLevel)
+      : null;
+  const parsedIntent =
+    typeof intent === 'string' && (LEADERSHIP_INTENTS as string[]).includes(intent)
+      ? (intent as LeadershipIntent)
+      : null;
+
+  // Sem nenhum dos dois enums válidos não há sinal nenhum pra mostrar.
+  if (parsedLevel === null && parsedIntent === null) return null;
+
+  return {
+    level: parsedLevel ?? 'sem',
+    evidence: parseStringList(evidence),
+    intent: parsedIntent ?? 'nao_declarado',
+    intent_evidence: trimmedString(intentEvidence),
+  };
+}

@@ -38,7 +38,7 @@ async function extractResumeText(
 
 type Payload = { applicationId: string };
 
-const SCOUT_AREAS = ['cultura', 'execucao', 'comunicacao', 'motivacao', 'potencial'] as const;
+const SCOUT_AREAS = ['cultura', 'execucao', 'comunicacao', 'raciocinio', 'motivacao', 'potencial'] as const;
 type ScoutArea = (typeof SCOUT_AREAS)[number];
 
 type DimensionScore = { area: ScoutArea; score: number; rationale: string };
@@ -50,6 +50,24 @@ type StageVerdict = 'avancar' | 'avaliar_melhor' | 'cortar';
 type EvidenceStage = 'cv' | 'form';
 
 type EvidencePoint = { point: string; evidence: string };
+
+// Componentes do potencial. Guardados separados de propósito: quando houver dado
+// real de desempenho de quem foi contratado, dá pra recalibrar os pesos sem
+// re-analisar ninguém. Hoje os pesos são hipótese fundamentada, não modelo.
+type PotentialPart = { score: number | null; evidence: string };
+type PotentialBreakdown = {
+  aquisicao: PotentialPart;
+  trajetoria: PotentialPart;
+  reflexao: PotentialPart;
+  raciocinio: PotentialPart;
+};
+
+type LeadershipSignal = {
+  level: 'sem' | 'moderado' | 'forte';
+  evidence: string[];
+  intent: 'alto' | 'medio' | 'baixo' | 'nao_declarado';
+  intent_evidence: string;
+};
 
 // Devolutiva do currículo, a única parte da análise que o candidato vê.
 type CvFeedback = { strengths: string[]; improvements: { point: string; why: string }[] };
@@ -72,6 +90,8 @@ type AnalysisResult = {
   concerns: EvidencePoint[];
   question_scores_raw: QuestionScoreRaw[];
   cv_feedback: CvFeedback | null;
+  potential_breakdown: PotentialBreakdown | null;
+  leadership_signal: LeadershipSignal | null;
 };
 
 const STAGE_VERDICTS = ['avancar', 'avaliar_melhor', 'cortar'] as const;
@@ -160,7 +180,7 @@ function scoreFromQuestions(
 const AREA_FROM_SOURCES: Record<string, string[]> = {
   cultura: ['culture'],
   execucao: ['job_question'],
-  potencial: ['reasoning', 'curiosity'],
+  raciocinio: ['reasoning'],
 };
 
 // Substitui as áreas deriváveis pela média das perguntas daquela categoria.
@@ -188,6 +208,45 @@ function deriveDimensions(
       rationale: `${dim.rationale} (média das ${scores.length} perguntas de ${dim.area})`.trim(),
     };
   });
+}
+
+// Pesos do potencial por nível. No estágio não existe trajetória pra medir (a
+// pessoa não tem carreira), e o que separa quem vai voar é AQUISIÇÃO: curso,
+// certificação, habilidade aprendida por conta própria, projeto pessoal. No
+// pleno pra cima a velocidade de trajetória entra e pesa.
+// Componente sem dado sai da conta e os pesos se redistribuem.
+const POTENTIAL_WEIGHTS: Record<string, Record<string, number>> = {
+  inicio: { aquisicao: 0.4, trajetoria: 0, reflexao: 0.3, raciocinio: 0.3 },
+  carreira: { aquisicao: 0.25, trajetoria: 0.3, reflexao: 0.25, raciocinio: 0.2 },
+};
+
+function potentialWeightsFor(seniority: string): Record<string, number> {
+  const nivel = (seniority || '').toLowerCase();
+  return nivel === 'estagio' || nivel === 'junior'
+    ? POTENTIAL_WEIGHTS.inicio
+    : POTENTIAL_WEIGHTS.carreira;
+}
+
+// Potencial é PROJEÇÃO, não a nota de hoje: mede o quanto a pessoa ainda sobe.
+// Por isso nunca entra na nota geral da vaga. Um sênior com scout alto costuma
+// ter potencial menor, e isso é leitura correta, não defeito: os dois se leem
+// juntos, um diz onde a pessoa está e o outro o quanto ainda cabe crescer.
+function computePotential(
+  parts: PotentialBreakdown | null,
+  seniority: string,
+): number | null {
+  if (!parts) return null;
+  const weights = potentialWeightsFor(seniority);
+  let sum = 0;
+  let total = 0;
+  for (const [key, part] of Object.entries(parts)) {
+    const w = weights[key] ?? 0;
+    if (w === 0 || typeof part?.score !== 'number') continue;
+    sum += part.score * w;
+    total += w;
+  }
+  if (total === 0) return null;
+  return Math.max(0, Math.min(100, Math.round(sum / total)));
 }
 
 // A etapa é um portão, não a contratação: só corta quem está claramente abaixo.
@@ -489,6 +548,18 @@ NOTA POR PERGUNTA: em "question_scores", dê uma nota de 0 a 100 para CADA pergu
 - PERGUNTA DE MARCAR OPÇÕES: julgue APENAS as opções escolhidas, comparando com o que a vaga precisa. O candidato não digita nada nesse formato, então é ERRO tirar ponto por "não justificou", "não deu exemplo", "não detalhou" ou "faltou contexto". Se as opções certas estão marcadas, a nota é alta, ponto.
 - O ENUNCIADO E A RÉGUA PODEM ESTAR ENVIESADOS. Muitas perguntas foram escritas cobrando um método, uma métrica ou uma ferramenta pelo nome (OKR, KR, CAC, LTV, payback, SQL). Quando isso acontecer, traduza para a capacidade que está sendo medida e credite o EQUIVALENTE que o candidato descreveu: quem desdobrou metas em indicadores com rito e correção de rota atendeu o item de "OKR"; quem modelou margem, DRE, prazo médio ou payback do jeito do negócio dele atendeu o item de "unit economics"; quem monta painel em BI ou planilha atendeu o item de "SQL". Não escreva no rationale que faltou a sigla: diga o que faltou de CAPACIDADE, se é que faltou.
 
+POTENCIAL ("potential_breakdown"): potencial NÃO é a nota de hoje, é o quanto a pessoa ainda sobe. Não repita a avaliação de desempenho atual aqui. Pontue 0-100 cada componente, ou null quando não houver dado, sempre com a evidência:
+- "aquisicao": o que a pessoa buscou aprender por conta própria. Curso, certificação, formação além do obrigatório, ferramenta ou domínio novo, projeto pessoal, freelance, voluntariado. Vale em qualquer nível, e numa vaga de estágio é o SINAL PRINCIPAL, porque ali não existe carreira pra medir: é o que separa quem vai voar de quem vai cumprir horário.
+- "trajetoria": quanto de escopo e responsabilidade a pessoa ganhou POR TEMPO de carreira. É inclinação, não altura: cresceu rápido a partir do próprio ponto de partida vale mais que título bonito. Quem levou dez anos pra chegar onde outro chegou em três tem inclinação menor. Sem histórico de trabalho (estágio), retorne null.
+- "reflexao": consegue nomear o que errou, o que aprendeu e o que faria diferente. Quem terceiriza a culpa cresce menos. Olhe a resposta sobre falha ou feedback duro.
+- "raciocinio": estrutura problema novo, decompõe, chega a caminho de solução. É o que sustenta aprender rápido daqui pra frente.
+
+SINAL DE LIDERANÇA ("leadership_signal"): não é nota e NÃO entra em média nenhuma, é um sinal com evidência. Muita gente excelente não quer liderar, e apontar isso como falta seria injusto.
+- "level": "forte", "moderado" ou "sem". O preditor mais forte é ter influenciado gente SEM ter autoridade sobre ela. Depois: formou gente (ensinou, integrou, deixou área rodando sozinha), assumiu problema fora do próprio escopo, comunica pra decidir e sustenta discordância com respeito, considera a motivação e a restrição dos outros.
+- "evidence": 1 a 3 frases citando o que sustenta. Sem evidência, o nível é "sem" e a lista fica vazia.
+- "intent": o que a pessoa DIZ querer, que é diferente de capacidade. Use a resposta sobre onde quer estar no futuro: "alto" se fala em liderar ou formar time, "medio" se fala em crescer sem citar gente, "baixo" se aponta claramente pra caminho técnico ou especialista, "nao_declarado" se não dá pra saber.
+- "intent_evidence": uma frase com o que a pessoa disse. Capacidade alta com intenção baixa é alguém pra desenvolver como referência técnica, não pra empurrar pra gestão.
+
 DEVOLUTIVA DO CURRÍCULO ("cv_feedback"): só quando houver texto de currículo; sem currículo, retorne null. Esta é a ÚNICA parte da análise que o CANDIDATO vai ler, então escreva pra ele, não sobre ele.
 - Avalie o currículo COMO PEÇA de comunicação, não a pessoa. Aqui não se julga se ela serve pra vaga: julga-se se o documento mostra bem o que ela fez.
 - "strengths": 1 a 3 frases sobre o que o currículo já faz bem (ex.: trajetória clara, resultado com número, escopo explícito).
@@ -517,6 +588,13 @@ OUTPUT: somente JSON, nenhum texto extra antes ou depois. Schema:
     { "area": "<dimensão do estágio>", "score": <0-100 ou null se sem dados>, "rationale": "<1-2 frases>" }
   ],
   "question_scores": [ { "n": <número da pergunta>, "score": <0-100>, "rationale": "<uma frase>" } ],
+  "potential_breakdown": {
+    "aquisicao": { "score": <0-100 ou null>, "evidence": "<o que sustenta>" },
+    "trajetoria": { "score": <0-100 ou null>, "evidence": "<o que sustenta>" },
+    "reflexao": { "score": <0-100 ou null>, "evidence": "<o que sustenta>" },
+    "raciocinio": { "score": <0-100 ou null>, "evidence": "<o que sustenta>" }
+  },
+  "leadership_signal": { "level": "sem" | "moderado" | "forte", "evidence": ["<frase>"], "intent": "alto" | "medio" | "baixo" | "nao_declarado", "intent_evidence": "<frase>" },
   "cv_feedback": { "strengths": ["<frase>"], "improvements": [ { "point": "<ajuste concreto>", "why": "<a diferença que faz>" } ] },
   "strengths": [ { "point": "<uma frase>", "evidence": "<o que o candidato disse ou fez>" } ],
   "concerns": [ { "point": "<uma frase>", "evidence": "<o que faltou, e o que investigar>" } ]
@@ -607,6 +685,38 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
           }
         : null;
 
+    const part = (raw: unknown): PotentialPart => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      score: scoreOrNull((raw as any)?.score),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      evidence: String((raw as any)?.evidence ?? '').trim(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawPot = parsed.potential_breakdown as any;
+    const potentialBreakdown: PotentialBreakdown | null = rawPot
+      ? {
+          aquisicao: part(rawPot.aquisicao),
+          trajetoria: part(rawPot.trajetoria),
+          reflexao: part(rawPot.reflexao),
+          raciocinio: part(rawPot.raciocinio),
+        }
+      : null;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawLead = parsed.leadership_signal as any;
+    const LEVELS = ['sem', 'moderado', 'forte'];
+    const INTENTS = ['alto', 'medio', 'baixo', 'nao_declarado'];
+    const leadershipSignal: LeadershipSignal | null = rawLead
+      ? {
+          level: LEVELS.includes(rawLead.level) ? rawLead.level : 'sem',
+          evidence: (Array.isArray(rawLead.evidence) ? rawLead.evidence : [])
+            .map((e: unknown) => String(e ?? '').trim())
+            .filter((e: string) => e.length > 0),
+          intent: INTENTS.includes(rawLead.intent) ? rawLead.intent : 'nao_declarado',
+          intent_evidence: String(rawLead.intent_evidence ?? '').trim(),
+        }
+      : null;
+
     const stageNoteRaw = parsed.stage_note;
     const stageNote =
       typeof stageNoteRaw === 'string' && stageNoteRaw.trim().length > 0 ? stageNoteRaw.trim() : '';
@@ -625,6 +735,8 @@ function parseAnalysisJson(text: string): AnalysisResult | null {
       concerns: parsePoints(parsed.concerns),
       question_scores_raw: questionScoresRaw,
       cv_feedback: cvFeedback,
+      potential_breakdown: potentialBreakdown,
+      leadership_signal: leadershipSignal,
     };
   } catch {
     return null;
@@ -782,10 +894,26 @@ Deno.serve(async (req) => {
       fromQuestions ?? computeStageScore(result.stage_dimensions, result.stage_score);
     // No formulário, cultura, execução e potencial saem da média das perguntas
     // da categoria. No currículo não há perguntas, então segue como o modelo deu.
-    const dimensions =
+    const derived =
       evidenceStage === 'form'
         ? deriveDimensions(result.dimensions, result.question_scores_raw, formQuestions)
         : result.dimensions;
+
+    // Potencial é calculado dos componentes, em qualquer estágio: no currículo
+    // dá pra medir aquisição e trajetória mesmo sem formulário.
+    const seniority = String(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((job?.requirements as any) ?? {}).seniority ?? '',
+    );
+    const potencial = computePotential(result.potential_breakdown, seniority);
+    const dimensions =
+      potencial === null
+        ? derived
+        : derived.map((d) =>
+            d.area === 'potencial'
+              ? { ...d, score: potencial, rationale: d.rationale }
+              : d,
+          );
     const stageVerdict = verdictFromScore(stageScore);
 
     await admin.from('ai_analyses').upsert(
@@ -805,6 +933,8 @@ Deno.serve(async (req) => {
         concerns: result.concerns,
         question_scores: questionScores,
         cv_feedback: resumeText ? result.cv_feedback : null,
+        potential_breakdown: result.potential_breakdown,
+        leadership_signal: result.leadership_signal,
         dna_version_used: dnaVersion,
         model_used: MODEL,
         cost_cents: costCents,
