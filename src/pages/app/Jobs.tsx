@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Briefcase, ExternalLink } from 'lucide-react';
+import { Plus, Briefcase, ExternalLink, ArrowUpRight } from 'lucide-react';
+import { PageShell, EmptyState } from '@/components/page-shell';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
 import { useCompany } from '@/hooks/use-company';
 import { useModal } from '@/contexts/modal-context';
+import { cn } from '@/lib/utils';
 
 type Job = {
   id: string;
@@ -13,6 +15,18 @@ type Job = {
   status: string;
   created_at: string;
   applications_count?: number;
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  active: 'Ativa',
+  paused: 'Pausada',
+  closed: 'Encerrada',
+};
+
+const STATUS_TONE: Record<string, string> = {
+  active: 'bg-positive-tint text-positive',
+  paused: 'bg-warning-tint text-warning',
+  closed: 'bg-canvas text-ink-subtle',
 };
 
 export function Jobs() {
@@ -42,78 +56,83 @@ export function Jobs() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[400px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.05),transparent_70%)]" />
-
-      <div className="relative max-w-5xl mx-auto px-8 py-12">
-        <div className="flex items-start justify-between gap-4 mb-10">
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-3">
-              Vagas
-            </p>
-            <h1 className="font-satoshi font-bold text-[36px] md:text-[44px] tracking-[-0.7px] leading-[1.1] text-[#1d1d1f]">
-              {jobs.length > 0 ? `${jobs.length} ${jobs.length === 1 ? 'vaga' : 'vagas'}` : 'Suas vagas'}
-            </h1>
-            <p className="text-[16px] text-[#6b6b70] mt-3 max-w-xl leading-relaxed">
-              Cada vaga vira uma career page pública. A IA analisa cada candidato sob o DNA da sua empresa.
-            </p>
-          </div>
-          <BrandCtaButton onClick={() => openModal('job-new')}>
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-            Nova vaga
-          </BrandCtaButton>
+    <PageShell
+      width="wide"
+      eyebrow="Vagas"
+      title={jobs.length > 0 ? `${jobs.length} ${jobs.length === 1 ? 'vaga' : 'vagas'}` : 'Vagas'}
+      description="Cada vaga vira uma career page pública. A análise lê cada candidatura sob o DNA da sua empresa."
+      action={
+        <BrandCtaButton onClick={() => openModal('job-new')} showArrow={false}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+          Nova vaga
+        </BrandCtaButton>
+      }
+    >
+      {loading ? (
+        <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Carregando vagas">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="surface-card h-[88px] animate-pulse" />
+          ))}
         </div>
-
-        {loading ? (
-          <div className="text-[#8a8a8f] text-sm">Carregando...</div>
-        ) : jobs.length === 0 ? (
-          <div className="bg-white rounded-[28px] border border-gray-200 p-12 text-center">
-            <div className="inline-flex h-14 w-14 rounded-2xl bg-gray-100 items-center justify-center mb-4">
-              <Briefcase className="h-6 w-6 text-[#6b6b70]" strokeWidth={1.5} />
-            </div>
-            <p className="text-[18px] font-semibold text-[#1d1d1f] mb-2">Nenhuma vaga ainda</p>
-            <p className="text-[14px] text-[#6b6b70] mb-6 max-w-md mx-auto">
-              Crie sua primeira vaga. A career page pública é gerada automaticamente.
-            </p>
-            <BrandCtaButton onClick={() => openModal('job-new')}>Criar vaga</BrandCtaButton>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {jobs.map((job) => (
-              <Link
-                key={job.id}
-                to={`/app/jobs/${job.id}`}
-                className="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-gray-400 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-satoshi font-bold text-[18px] tracking-[-0.2px] text-[#1d1d1f] truncate">
+      ) : jobs.length === 0 ? (
+        <EmptyState
+          icon={<Briefcase className="h-7 w-7" strokeWidth={1.75} />}
+          title="Nenhuma vaga ainda"
+          description="Crie a primeira vaga e a career page pública é gerada junto, pronta pra divulgar."
+          action={<BrandCtaButton onClick={() => openModal('job-new')}>Criar vaga</BrandCtaButton>}
+          hint="Descrição, requisitos e perguntas podem ser geradas a partir do DNA."
+        />
+      ) : (
+        <ul className="flex flex-col gap-2.5">
+          {jobs.map((job) => (
+            <li key={job.id}>
+              <div className="surface-card-interactive group relative flex items-center gap-4 px-4 py-4 sm:px-5">
+                <Link
+                  to={`/app/jobs/${job.id}`}
+                  className="min-w-0 flex-1 after:absolute after:inset-0"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="truncate font-satoshi text-title-3 font-bold text-ink">
                       {job.title}
-                    </p>
-                    <p className="text-[13px] text-[#8a8a8f] mt-1">
-                      {job.applications_count ?? 0} candidato
-                      {job.applications_count === 1 ? '' : 's'} · status: {job.status}
-                    </p>
-                  </div>
-                  {company && job.status === 'active' && (
-                    <a
-                      href={`/careers/${company.slug}/${job.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors whitespace-nowrap"
+                    </span>
+                    <span
+                      className={cn(
+                        'shrink-0 rounded-full px-2.5 py-1 text-eyebrow font-bold uppercase',
+                        STATUS_TONE[job.status] ?? 'bg-canvas text-ink-muted',
+                      )}
                     >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Career page
-                    </a>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+                      {STATUS_LABEL[job.status] ?? job.status}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block text-footnote text-ink-subtle">
+                    {job.applications_count ?? 0} candidato
+                    {job.applications_count === 1 ? '' : 's'}
+                  </span>
+                </Link>
+
+                {company && job.status === 'active' && (
+                  <a
+                    href={`/careers/${company.slug}/${job.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    // z-10 pra escapar do overlay do link do card acima.
+                    className="relative z-10 hidden shrink-0 items-center gap-1.5 rounded-full border border-line-soft px-3 py-1.5 text-caption font-semibold text-ink-muted transition-colors hover:border-line hover:text-ink sm:inline-flex"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                    Career page
+                  </a>
+                )}
+
+                <ArrowUpRight
+                  className="h-4 w-4 shrink-0 text-ink-subtle transition-colors group-hover:text-ink"
+                  aria-hidden
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </PageShell>
   );
 }
 
