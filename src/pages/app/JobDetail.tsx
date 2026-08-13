@@ -166,16 +166,19 @@ const TONE_FILL: Record<Tone, string> = {
 
 /** Faixa de nota → tom. Fonte unica pra score geral, fit da etapa e nota por pergunta. */
 /**
- * Cor da nota. Os cortes 60 e 40 são os MESMOS de verdictFromScore no edge
- * function analyze-candidate, e os mesmos de scoreBand logo abaixo. Antes eram
- * três réguas diferentes (60/40 no veredito, 80/65/50 na palavra, 75/60/45 na
- * cor), então um 42 saía pintado de vermelho, com a palavra "Abaixo", embaixo
- * de um veredito que dizia "Avaliar melhor". Se mexer num corte, mexe nos três.
+ * Cor da nota. Três estados, porque a decisão tem três estados: segue,
+ * investiga, corta. Os cortes 60 e 40 são os MESMOS de verdictFromScore no edge
+ * function analyze-candidate e os mesmos de scoreBand. Se mexer num, mexe nos
+ * três.
+ *
+ * O âmbar saiu da faixa do meio de propósito. Âmbar lê como alerta, e a faixa
+ * do meio não é alerta: é "vale investigar antes de decidir", que é um estado
+ * normal de triagem. Pintar de amarelo um 58 fazia um candidato mediano parecer
+ * um problema.
  */
 function toneForScore(score: number): Tone {
-  if (score >= 80) return 'positive';
-  if (score >= 60) return 'brand';
-  if (score >= 40) return 'warning';
+  if (score >= 60) return 'positive';
+  if (score >= 40) return 'brand';
   return 'critical';
 }
 
@@ -343,15 +346,26 @@ type ScoreBand = { label: string; hint: string };
 // Dá referência à nota crua: uma faixa nomeada + o que ela significa no processo.
 /**
  * Palavra que acompanha a nota. Mesmos cortes de toneForScore e de
- * verdictFromScore: 60 é onde vira "avançar", 40 é onde vira "cortar". As
- * frases falam da PRÓXIMA ETAPA, nunca de contratar: nenhuma etapa antes da
- * entrevista decide isso.
+ * verdictFromScore. As frases falam da PRÓXIMA ETAPA, nunca de contratar:
+ * nenhuma etapa antes da entrevista decide isso.
+ *
+ * Os rótulos subiram um degrau, e isso sai da matemática da própria régua, não
+ * de gosto. As rubricas cadastradas dizem "0-30 fraco, 40-60 ok, 70-85 forte,
+ * 90-100 topo". A nota da etapa é a MÉDIA de ~20 dessas. Quem responde "forte"
+ * em tudo tira 77; quem responde "ok" em tudo tira 50. Ninguém é forte em vinte
+ * perguntas seguidas, então um candidato muito bom pousa entre 62 e 72, e 80+ é
+ * quase teto. Chamar 65 de "bom" e reservar "forte" pra 80 media uma régua
+ * contra a outra e fazia gente ótima parecer morna.
+ *
+ * A distribuição real dos 45 candidatos de currículo confirma: mediana 65,
+ * percentil 75 em 76, percentil 90 em 80, máximo 90.
  */
 function scoreBand(score: number): ScoreBand {
-  if (score >= 80) return { label: 'Forte', hint: 'Entre os mais aderentes ao que a vaga pede.' };
-  if (score >= 60) return { label: 'Bom', hint: 'Fit sólido pra esta etapa. Vale seguir.' };
+  if (score >= 80)
+    return { label: 'Excepcional', hint: 'Raro. Forte em quase tudo que a vaga pede.' };
+  if (score >= 60) return { label: 'Forte', hint: 'Aderente ao que a vaga pede. Vale seguir.' };
   if (score >= 40)
-    return { label: 'Mediano', hint: 'Fit parcial. Tem o que investigar antes de seguir.' };
+    return { label: 'Mediano', hint: 'Tem o que investigar antes de decidir a próxima etapa.' };
   return { label: 'Abaixo', hint: 'Distante do que a vaga pede neste momento.' };
 }
 
@@ -363,11 +377,14 @@ const VERDICT_LABELS: Record<string, string> = {
   // Análises antigas gravaram 'segurar', que dizia pouco sobre o que fazer.
   segurar: 'Avaliar melhor',
 };
+// Mesma lógica de toneForScore: "avaliar melhor" não é alerta, é uma etapa
+// normal do processo. Âmbar aqui fazia parecer que havia algo errado com o
+// candidato quando a única coisa que havia era uma pergunta em aberto.
 const VERDICT_TONE: Record<string, Tone> = {
   avancar: 'positive',
-  avaliar_melhor: 'warning',
+  avaliar_melhor: 'brand',
   cortar: 'critical',
-  segurar: 'warning',
+  segurar: 'brand',
 };
 const EVIDENCE_STAGE_LABELS: Record<string, string> = {
   cv: 'Baseado só no currículo',
