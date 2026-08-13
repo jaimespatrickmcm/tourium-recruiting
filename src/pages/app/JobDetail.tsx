@@ -21,6 +21,7 @@ import {
   MessageCircle,
   Copy,
   Check,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -50,6 +51,7 @@ import {
 } from '@/lib/evidence-points';
 import { ScoutCard } from '@/components/scout-card';
 import { BrandCtaButton } from '@/components/brand-cta';
+import { EmptyState } from '@/components/page-shell';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
@@ -113,13 +115,74 @@ const ANSWER_SOURCE_LABELS: Record<AnswerSource, string> = {
   candidate_info: 'Dados',
 };
 
-// Cor da nota por pergunta, por faixa. Mesma leitura rápida do resto do painel:
-// verde manda bem, azul ok, âmbar atenção, rosa fraco.
-function questionScoreTone(score: number): string {
-  if (score >= 70) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  if (score >= 50) return 'bg-sky-50 text-sky-700 border-sky-200';
-  if (score >= 30) return 'bg-amber-50 text-amber-700 border-amber-200';
-  return 'bg-rose-50 text-rose-700 border-rose-200';
+// -----------------------------------------------------------------------------
+// Sistema de tom
+// -----------------------------------------------------------------------------
+// Antes existiam cinco mapas de cor independentes (stageChipColors, recColors,
+// VERDICT_COLORS, questionScoreTone, scoreBand.chip), somando seis matizes —
+// esmeralda, ceu, ambar, rosa, violeta e indigo — cada um com sua tripla
+// bg/text/border. O painel virava um vitral: nada tinha peso porque tudo
+// gritava junto.
+//
+// Agora sao quatro tons semanticos + neutro, e uma regra: cor comunica
+// julgamento (bom / atencao / ruim), nunca categoria. Etapa e categoria, entao
+// etapa e neutra — exceto os estados terminais, que sao o desfecho.
+
+type Tone = 'positive' | 'brand' | 'warning' | 'critical' | 'neutral';
+
+const TONE_CHIP: Record<Tone, string> = {
+  positive: 'bg-positive-tint text-positive',
+  brand: 'bg-brand-tint text-brand',
+  warning: 'bg-warning-tint text-warning',
+  critical: 'bg-critical-tint text-critical',
+  neutral: 'bg-canvas text-ink-muted',
+};
+
+const TONE_TEXT: Record<Tone, string> = {
+  positive: 'text-positive',
+  brand: 'text-brand',
+  warning: 'text-warning',
+  critical: 'text-critical',
+  neutral: 'text-ink',
+};
+
+const TONE_FILL: Record<Tone, string> = {
+  positive: 'bg-positive',
+  brand: 'bg-brand',
+  warning: 'bg-warning',
+  critical: 'bg-critical',
+  neutral: 'bg-ink-subtle',
+};
+
+/** Faixa de nota → tom. Fonte unica pra score geral, fit da etapa e nota por pergunta. */
+function toneForScore(score: number): Tone {
+  if (score >= 75) return 'positive';
+  if (score >= 60) return 'brand';
+  if (score >= 45) return 'warning';
+  return 'critical';
+}
+
+/** Chip padrao: pilula sem borda. A borda era ruido — o tint ja separa do fundo. */
+function Chip({
+  tone = 'neutral',
+  children,
+  className,
+}: {
+  tone?: Tone;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-eyebrow font-bold uppercase',
+        TONE_CHIP[tone],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
 }
 
 // Uma pergunta do formulário. Fechada mostra o enunciado e a nota; aberta revela
@@ -143,17 +206,15 @@ function AnswerRow({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50/70"
+        className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors duration-200 hover:bg-canvas"
       >
-        <p className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-[#1d1d1f]">
-          {question}
-        </p>
-        <span className="flex flex-shrink-0 items-center gap-2 pt-0.5">
+        <span className="min-w-0 flex-1 text-callout font-semibold text-ink">{question}</span>
+        <span className="flex shrink-0 items-center gap-2 pt-0.5">
           {score && (
             <span
               className={cn(
-                'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold tabular-nums',
-                questionScoreTone(score.score),
+                'text-callout font-bold tabular-nums',
+                TONE_TEXT[toneForScore(score.score)],
               )}
             >
               {score.score}
@@ -161,30 +222,23 @@ function AnswerRow({
           )}
           <ChevronDown
             className={cn(
-              'h-4 w-4 text-[#8a8a8f] transition-transform',
+              'h-4 w-4 text-ink-subtle transition-transform duration-200',
               open && 'rotate-180',
             )}
+            aria-hidden
           />
         </span>
       </button>
 
       {open && (
-        <div className="space-y-3 px-5 pb-5 pl-5">
-          <div className="border-l-2 border-gray-200 pl-4">
-            <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-              {answer}
-            </p>
-          </div>
+        <div className="space-y-3 px-4 pb-4">
+          <p className="whitespace-pre-wrap text-callout text-ink">{answer}</p>
 
           {score && score.rationale.length > 0 && (
-            <div className="rounded-xl bg-gray-50/70 p-3.5">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a8f]">
-                Por que essa nota
-              </p>
-              <p className="mt-1.5 text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
-                {score.rationale}
-              </p>
-            </div>
+            <p className="border-l-2 border-line-soft pl-3 text-footnote text-ink-muted">
+              <span className="font-semibold text-ink-subtle">Por que essa nota: </span>
+              {score.rationale}
+            </p>
           )}
         </div>
       )}
@@ -219,13 +273,15 @@ const stageLabels: Record<ApplicationStatus, string> = {
   reprovado: 'Reprovado',
 };
 
-const stageChipColors: Record<ApplicationStatus, string> = {
-  triagem: 'bg-gray-100 text-[#6b6b70] border-gray-200',
-  fit_cultural: 'bg-violet-50 text-violet-700 border-violet-200',
-  entrevista: 'bg-sky-50 text-sky-700 border-sky-200',
-  proposta: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  contratado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  reprovado: 'bg-rose-50 text-rose-700 border-rose-200',
+// Etapa e categoria, nao julgamento: so os estados terminais carregam tom.
+// O resto e neutro — a posicao no funil ja e comunicada pelo texto.
+const stageTone: Record<ApplicationStatus, Tone> = {
+  triagem: 'neutral',
+  fit_cultural: 'neutral',
+  entrevista: 'neutral',
+  proposta: 'brand',
+  contratado: 'positive',
+  reprovado: 'neutral',
 };
 
 const NEXT_STAGE: Partial<Record<ApplicationStatus, ApplicationStatus>> = {
@@ -234,11 +290,11 @@ const NEXT_STAGE: Partial<Record<ApplicationStatus, ApplicationStatus>> = {
   entrevista: 'proposta',
 };
 
-const recColors: Record<string, string> = {
-  strong_hire: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  hire: 'bg-sky-50 text-sky-700 border-sky-200',
-  maybe: 'bg-amber-50 text-amber-700 border-amber-200',
-  no_hire: 'bg-rose-50 text-rose-700 border-rose-200',
+const recTone: Record<string, Tone> = {
+  strong_hire: 'positive',
+  hire: 'brand',
+  maybe: 'warning',
+  no_hire: 'critical',
 };
 
 const recLabels: Record<string, string> = {
@@ -258,33 +314,15 @@ const AREA_LABELS: Record<string, string> = {
   potencial: 'Potencial',
 };
 
-type ScoreBand = { label: string; chip: string; hint: string };
+type ScoreBand = { label: string; hint: string };
 
 // Dá referência à nota crua: uma faixa nomeada + o que ela significa no processo.
 function scoreBand(score: number): ScoreBand {
-  if (score >= 80)
-    return {
-      label: 'Forte',
-      chip: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-      hint: 'Entre os mais aderentes ao que a vaga pede.',
-    };
-  if (score >= 65)
-    return {
-      label: 'Bom',
-      chip: 'text-sky-700 bg-sky-50 border-sky-200',
-      hint: 'Fit sólido. Vale levar pra conversa.',
-    };
+  if (score >= 80) return { label: 'Forte', hint: 'Entre os mais aderentes ao que a vaga pede.' };
+  if (score >= 65) return { label: 'Bom', hint: 'Fit sólido. Vale levar pra conversa.' };
   if (score >= 50)
-    return {
-      label: 'Mediano',
-      chip: 'text-amber-700 bg-amber-50 border-amber-200',
-      hint: 'Fit parcial. Tem pontos a checar antes de decidir.',
-    };
-  return {
-    label: 'Abaixo',
-    chip: 'text-rose-700 bg-rose-50 border-rose-200',
-    hint: 'Distante do que a vaga pede neste momento.',
-  };
+    return { label: 'Mediano', hint: 'Fit parcial. Tem pontos a checar antes de decidir.' };
+  return { label: 'Abaixo', hint: 'Distante do que a vaga pede neste momento.' };
 }
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -292,10 +330,10 @@ const VERDICT_LABELS: Record<string, string> = {
   segurar: 'Segurar',
   cortar: 'Cortar',
 };
-const VERDICT_COLORS: Record<string, string> = {
-  avancar: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-  segurar: 'text-amber-700 bg-amber-50 border-amber-200',
-  cortar: 'text-rose-700 bg-rose-50 border-rose-200',
+const VERDICT_TONE: Record<string, Tone> = {
+  avancar: 'positive',
+  segurar: 'warning',
+  cortar: 'critical',
 };
 const EVIDENCE_STAGE_LABELS: Record<string, string> = {
   cv: 'Baseado só no currículo',
@@ -326,70 +364,68 @@ function StageDecision({
   const average =
     total > 0 ? Math.round(cohortStageScores.reduce((sum, s) => sum + s, 0) / total) : stageScore;
 
+  const tone = toneForScore(stageScore);
+  const verdictTone = verdict ? (VERDICT_TONE[verdict] ?? 'neutral') : tone;
+
+  // Hierarquia deliberada, de cima pra baixo:
+  //   1. o numero e o veredito — a decisao, legivel a um metro de distancia
+  //   2. uma frase de justificativa
+  //   3. forte / atencao / posicao relativa — apoio, em corpo pequeno
+  // Antes os tres niveis tinham o mesmo peso visual e o olho nao sabia onde
+  // pousar. Sem caixa em volta: este bloco ja esta dentro do card do candidato,
+  // e caixa dentro de caixa era a origem da poluicao.
   return (
-    <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
-          Decisão da etapa
-        </p>
-        {stage && (
-          <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#6b6b70]">
-            {EVIDENCE_STAGE_LABELS[stage] ?? stage}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {verdict && (
-          <span
+    <div className="mb-6">
+      <div className="mb-4 flex items-start gap-5">
+        <div className="shrink-0">
+          <p
             className={cn(
-              'inline-flex items-center text-[12px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border',
-              VERDICT_COLORS[verdict] ?? '',
+              'font-satoshi text-[56px] font-bold leading-none tracking-[-0.05em] tabular-nums',
+              TONE_TEXT[tone],
             )}
           >
-            {VERDICT_LABELS[verdict] ?? verdict}
+            {stageScore}
+          </p>
+          <p className="mt-1.5 text-eyebrow font-bold uppercase text-ink-subtle">Fit da etapa</p>
+        </div>
+
+        <div className="min-w-0 flex-1 pt-1">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {verdict && <Chip tone={verdictTone}>{VERDICT_LABELS[verdict] ?? verdict}</Chip>}
+            <Chip tone="neutral">{band.label}</Chip>
+            {stage && (
+              <span className="text-caption text-ink-subtle">
+                {EVIDENCE_STAGE_LABELS[stage] ?? stage}
+              </span>
+            )}
+          </div>
+          <p className="text-callout text-ink">{analysis.stage_note || band.hint}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption text-ink-subtle">
+        {strongest && (
+          <span>
+            Forte em{' '}
+            <span className="font-semibold text-ink-muted">
+              {AREA_LABELS[strongest.area] ?? strongest.area} ({strongest.score})
+            </span>
           </span>
         )}
-        <span
-          className={cn(
-            'inline-flex items-center text-[12px] font-semibold px-2.5 py-1 rounded-full border',
-            band.chip,
-          )}
-        >
-          Fit da etapa {stageScore}
+        {weakest && weakest !== strongest && (
+          <span>
+            Atenção em{' '}
+            <span className="font-semibold text-ink-muted">
+              {AREA_LABELS[weakest.area] ?? weakest.area} ({weakest.score})
+            </span>
+          </span>
+        )}
+        <span>
+          {total > 1
+            ? `${rank}º de ${total} nesta etapa · média ${average}`
+            : 'Primeiro candidato nesta etapa'}
         </span>
       </div>
-      {analysis.stage_note ? (
-        <p className="mt-2 text-[13px] text-[#1d1d1f] leading-relaxed">{analysis.stage_note}</p>
-      ) : (
-        <p className="mt-2 text-[13px] text-[#6b6b70] leading-relaxed">{band.hint}</p>
-      )}
-
-      {(strongest || weakest) && (
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px]">
-          {strongest && (
-            <span className="text-[#6b6b70]">
-              Ponto forte:{' '}
-              <span className="font-semibold text-[#1d1d1f]">
-                {AREA_LABELS[strongest.area] ?? strongest.area} ({strongest.score})
-              </span>
-            </span>
-          )}
-          {weakest && weakest !== strongest && (
-            <span className="text-[#6b6b70]">
-              Atenção:{' '}
-              <span className="font-semibold text-[#1d1d1f]">
-                {AREA_LABELS[weakest.area] ?? weakest.area} ({weakest.score})
-              </span>
-            </span>
-          )}
-        </div>
-      )}
-
-      <p className="mt-2 text-[12px] text-[#8a8a8f]">
-        {total > 1
-          ? `${rank}º de ${total} no mesmo estágio nesta vaga · média ${average}`
-          : 'Primeiro candidato neste estágio. A referência fica mais clara conforme chegam outros.'}
-      </p>
     </div>
   );
 }
@@ -407,56 +443,57 @@ function EvidencePoints({
 }) {
   if (strengths.length === 0 && concerns.length === 0) return null;
 
+  // Duas colunas no desktop: forte e atencao lado a lado se leem como um
+  // balanco. Empilhados, como estavam, viravam duas listas soltas e o
+  // recrutador tinha que rolar pra formar a comparacao na cabeca.
   return (
-    <div className="mb-4 space-y-6 rounded-2xl border border-gray-200 bg-white p-5">
+    <div className="mb-6 grid gap-6 border-t border-line-soft pt-6 sm:grid-cols-2">
       {strengths.length > 0 && (
         <section>
-          <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-            Pontos fortes
-          </p>
-          <div className="space-y-4">
+          <p className="mb-3 text-eyebrow font-bold uppercase text-ink-subtle">Pontos fortes</p>
+          <ul className="space-y-3.5">
             {strengths.map((item, i) => (
-              <div key={`forte-${i}`} className="flex gap-3">
-                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                <div>
-                  <p className="text-[14px] font-semibold text-[#1d1d1f]">{item.point}</p>
+              <li key={`forte-${i}`} className="flex gap-2.5">
+                <span
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-positive"
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <p className="text-footnote font-semibold text-ink">{item.point}</p>
                   {item.evidence && (
-                    <p className="mt-1 text-[13px] text-[#6b6b70] leading-relaxed">
-                      {item.evidence}
-                    </p>
+                    <p className="mt-0.5 text-footnote text-ink-muted">{item.evidence}</p>
                   )}
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       )}
 
       {concerns.length > 0 && (
         <section>
-          <p className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
-            <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+          <p className="mb-1 text-eyebrow font-bold uppercase text-ink-subtle">
             Pontos de atenção
           </p>
-          <p className="mb-3 text-[12px] text-[#8a8a8f]">
-            Não são vetos. São os temas que valem uma pergunta na entrevista.
+          <p className="mb-3 text-caption text-ink-subtle">
+            Não são vetos. São o que vale perguntar na entrevista.
           </p>
-          <div className="space-y-4">
+          <ul className="space-y-3.5">
             {concerns.map((item, i) => (
-              <div key={`atencao-${i}`} className="flex gap-3">
-                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
-                <div>
-                  <p className="text-[14px] font-semibold text-[#1d1d1f]">{item.point}</p>
+              <li key={`atencao-${i}`} className="flex gap-2.5">
+                <span
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-warning"
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <p className="text-footnote font-semibold text-ink">{item.point}</p>
                   {item.evidence && (
-                    <p className="mt-1 text-[13px] text-[#6b6b70] leading-relaxed">
-                      {item.evidence}
-                    </p>
+                    <p className="mt-0.5 text-footnote text-ink-muted">{item.evidence}</p>
                   )}
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       )}
     </div>
@@ -479,36 +516,35 @@ function StageScout({
 }) {
   const title = (evidenceStage && STAGE_SCOUT_TITLES[evidenceStage]) ?? 'Leitura da etapa';
   return (
-    <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
-      <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
-        {title}
-      </p>
-      <div className="space-y-2.5">
+    <div className="mb-6 border-t border-line-soft pt-6">
+      <p className="mb-3.5 text-eyebrow font-bold uppercase text-ink-subtle">{title}</p>
+      <div className="space-y-3">
         {stageDims.map((d) => (
-          <div
-            key={d.area}
-            className="flex items-center gap-3"
-            title={d.rationale ?? undefined}
-          >
-            <span className="w-28 shrink-0 text-[12px] font-medium text-[#6b6b70]">
+          <div key={d.area} className="flex items-center gap-3" title={d.rationale ?? undefined}>
+            <span className="w-28 shrink-0 text-caption font-medium text-ink-muted">
               {areaLabel(d.area)}
             </span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+            <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-sunken">
               {d.score !== null && (
+                // Barra em cor solida do tom da faixa: o preenchimento ja diz
+                // "quanto"; gradiente nele so acrescentava ruido.
                 <div
-                  className="h-full rounded-full holo-gradient transition-all duration-500"
+                  className={cn('h-full rounded-full', TONE_FILL[toneForScore(d.score)])}
                   style={{ width: `${d.score}%` }}
                 />
               )}
             </div>
             {d.score !== null ? (
-              <span className="w-8 shrink-0 text-right text-[12px] font-bold text-[#1d1d1f]">
+              <span
+                className={cn(
+                  'w-7 shrink-0 text-right text-caption font-bold tabular-nums',
+                  TONE_TEXT[toneForScore(d.score)],
+                )}
+              >
                 {d.score}
               </span>
             ) : (
-              <span className="shrink-0 text-right text-[11px] italic text-[#b0b0b5]">
-                sem dados
-              </span>
+              <span className="shrink-0 text-caption italic text-ink-subtle">sem dados</span>
             )}
           </div>
         ))}
@@ -587,29 +623,27 @@ export function JobDetail() {
     .map((a) => a.ai_analysis!.stage_score as number);
 
   return (
-    <div className="relative min-h-screen bg-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[400px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.05),transparent_70%)]" />
+    <div className="relative min-h-screen bg-canvas">
+      <div className="canvas-tint pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
 
-      <div className="relative max-w-6xl mx-auto px-8 py-10">
+      <div className="relative mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
         <button
           onClick={() => navigate('/app/jobs')}
-          className="inline-flex items-center gap-2 text-[14px] font-medium text-[#6b6b70] hover:text-[#1d1d1f] transition-colors mb-6"
+          className="mb-6 inline-flex items-center gap-2 text-footnote font-medium text-ink-muted transition-colors hover:text-ink"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar pras vagas
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Vagas
         </button>
 
-        <div className="flex items-start justify-between gap-4 mb-8">
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-3">
-              Vaga
-            </p>
-            <h1 className="font-satoshi font-bold text-[36px] md:text-[44px] tracking-[-0.7px] leading-[1.1] text-[#1d1d1f]">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="mb-3 text-eyebrow font-bold uppercase text-ink-subtle">Vaga</p>
+            <h1 className="font-satoshi text-title-1 font-bold text-ink sm:text-display">
               {job.title}
             </h1>
-            <p className="text-[14px] text-[#8a8a8f] mt-3">
-              {applications.length} candidato{applications.length === 1 ? '' : 's'} · status:{' '}
-              {job.status}
+            <p className="mt-3 text-footnote text-ink-subtle">
+              {applications.length} candidato{applications.length === 1 ? '' : 's'} ·{' '}
+              {job.status === 'active' ? 'Ativa' : job.status === 'paused' ? 'Pausada' : 'Encerrada'}
             </p>
           </div>
           {company && job.status === 'active' && (
@@ -617,190 +651,253 @@ export function JobDetail() {
               href={`/careers/${company.slug}/${job.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white text-[13px] font-semibold text-[#1d1d1f] hover:border-gray-400 transition-colors whitespace-nowrap"
+              className="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-full border border-line bg-surface px-4 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
             >
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               Career page
             </a>
           )}
         </div>
 
-        <DescriptionPanel
-          job={job}
-          onUpdate={(description) => setJob({ ...job, description })}
-          onToggleBenefits={(show_benefits) => setJob({ ...job, show_benefits })}
-        />
+        {/*
+          Reestruturacao principal desta tela.
 
-        <RequirementsPanel job={job} onUpdate={(requirements) => setJob({ ...job, requirements })} />
+          Antes, "Descricao da vaga" e "Requisitos (interno)" eram duas sanfonas
+          grandes empilhadas ACIMA da lista de candidatos. Elas empurravam o
+          trabalho real pra baixo da dobra toda vez que o recrutador abria a
+          vaga — e sao conteudo de setup, editado uma vez e revisitado raramente,
+          exatamente como Empresa/DNA/Perguntas na nav.
 
-        {applications.length === 0 ? (
-          <div className="bg-white rounded-[28px] border border-gray-200 p-12 text-center">
-            <p className="text-[16px] font-semibold text-[#1d1d1f] mb-2">Nenhum candidato ainda</p>
-            <p className="text-[14px] text-[#6b6b70] max-w-md mx-auto mb-5">
-              Compartilhe a career page. Toda aplicação dispara análise da IA automaticamente.
-            </p>
-            {company && (
-              <code className="text-[12px] bg-gray-100 px-3 py-1.5 rounded-md text-[#1d1d1f] inline-block">
-                {window.location.origin}/careers/{company.slug}/{job.slug}
-              </code>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Filtro por etapa */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              <StagePill
-                label="Todas"
-                count={applications.length}
-                active={stageFilter === 'all'}
-                onClick={() => setStageFilter('all')}
+          Agora sao duas abas irmas: Pipeline abre por padrao, Sobre a vaga
+          guarda a configuracao. Mesmo principio da navegacao principal:
+          operacao na frente, setup a um clique.
+        */}
+        <Tabs defaultValue="pipeline">
+          <TabsList className="mb-7 inline-flex h-auto gap-1 rounded-full bg-surface-sunken p-1">
+            <TabsTrigger
+              value="pipeline"
+              className="gap-2 rounded-full px-4 py-2 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Pipeline
+              <span className="tabular-nums text-ink-subtle">{applications.length}</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="vaga"
+              className="rounded-full px-4 py-2 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Sobre a vaga
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pipeline" className="mt-0">
+            {applications.length === 0 ? (
+              <EmptyState
+                icon={<Users className="h-7 w-7" strokeWidth={1.75} />}
+                title="Nenhum candidato ainda"
+                description="Compartilhe a career page. Cada candidatura dispara a análise automaticamente."
+                action={
+                  company ? (
+                    <code className="inline-block rounded-control bg-surface-sunken px-3 py-2 text-footnote text-ink">
+                      {window.location.origin}/careers/{company.slug}/{job.slug}
+                    </code>
+                  ) : undefined
+                }
               />
-              {STAGE_ORDER.map((s) => (
-                <StagePill
-                  key={s}
-                  label={stageLabels[s]}
-                  count={counts[s]}
-                  active={stageFilter === s}
-                  onClick={() => setStageFilter(s)}
-                />
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6">
-              {/* Lista */}
-              <div className="space-y-2">
-                {filtered.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center">
-                    <p className="text-[13px] text-[#6b6b70]">Nenhum candidato nessa etapa.</p>
-                  </div>
-                ) : (
-                  filtered.map((app) => {
-                    const stageScore = app.ai_analysis?.stage_score ?? app.ai_analysis?.score;
-                    const verdict = app.ai_analysis?.stage_verdict ?? null;
-                    const aStatus = app.ai_analysis?.status;
-                    const isPending = analysisIsPending(app);
-                    const hasError = aStatus === 'error';
-                    const isSelected = selectedId === app.id;
-                    return (
-                      <button
-                        key={app.id}
-                        onClick={() => setSelectedId(app.id)}
-                        className={cn(
-                          'w-full text-left p-4 rounded-2xl border transition-all',
-                          isSelected
-                            ? 'border-sky-500 bg-sky-50/40 ring-2 ring-sky-500/20'
-                            : 'border-gray-200 bg-white hover:border-gray-400',
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-[14px] text-[#1d1d1f] truncate">
-                              {app.candidate_name}
-                            </p>
-                            <p className="text-[12px] text-[#8a8a8f] truncate mt-0.5">
-                              {app.candidate_email}
-                            </p>
-                          </div>
-                          <div className="flex-shrink-0 text-right">
-                            {isPending && (
-                              <span className="inline-flex items-center gap-1 text-[11px] text-[#8a8a8f]">
-                                <Clock className="h-3 w-3 animate-pulse" />
-                                Analisando
-                              </span>
-                            )}
-                            {hasError && (
-                              <span className="inline-flex items-center gap-1 text-[11px] text-rose-600">
-                                <AlertCircle className="h-3 w-3" />
-                                Erro
-                              </span>
-                            )}
-                            {aStatus === 'completed' &&
-                              stageScore !== null &&
-                              stageScore !== undefined && (
-                                <p className="font-satoshi font-black text-[22px] tracking-[-0.4px] text-[#1d1d1f] leading-none">
-                                  {stageScore}
-                                </p>
-                              )}
-                          </div>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <span
-                            className={cn(
-                              'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
-                              stageChipColors[app.status],
-                            )}
-                          >
-                            {stageLabels[app.status]}
-                          </span>
-                          {aStatus === 'completed' && verdict && (
-                            <span
-                              className={cn(
-                                'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
-                                VERDICT_COLORS[verdict] ?? '',
-                              )}
-                            >
-                              {VERDICT_LABELS[verdict] ?? verdict}
-                            </span>
-                          )}
-                          {aStatus === 'completed' &&
-                            !verdict &&
-                            app.ai_analysis?.recommendation && (
-                              <span
-                                className={cn(
-                                  'inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
-                                  recColors[app.ai_analysis.recommendation] ?? '',
-                                )}
-                              >
-                                {recLabels[app.ai_analysis.recommendation] ??
-                                  app.ai_analysis.recommendation}
-                              </span>
-                            )}
-                          {app.ai_suspected && (
-                            <span
-                              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-700"
-                              title="A resposta contém a palavra-canário escondida no enunciado. Provável uso de IA pra gerar a resposta."
-                            >
-                              <AlertCircle className="h-3 w-3" />
-                              IA suspeita
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Detalhe */}
-              <div>
-                {selected ? (
-                  <CandidateDetail
-                    key={selected.id}
-                    app={selected}
-                    jobTitle={job.title}
-                    highlightQuestion={job.highlight_question}
-                    highlightType={job.highlight_type}
-                    cohortStageScores={cohortStageScores}
-                    refetch={refetch}
-                    patchApplication={patchApplication}
-                    onDeleted={() => {
-                      setSelectedId(null);
-                      void refetch();
-                    }}
+            ) : (
+              <>
+                <div className="mb-5 flex flex-wrap gap-2">
+                  <StagePill
+                    label="Todas"
+                    count={applications.length}
+                    active={stageFilter === 'all'}
+                    onClick={() => setStageFilter('all')}
                   />
-                ) : (
-                  <div className="bg-white rounded-[28px] border border-gray-200 p-12 text-center">
-                    <p className="text-[14px] text-[#6b6b70]">
-                      Selecione um candidato pra ver a análise.
-                    </p>
+                  {STAGE_ORDER.map((s) => (
+                    <StagePill
+                      key={s}
+                      label={stageLabels[s]}
+                      count={counts[s]}
+                      active={stageFilter === s}
+                      onClick={() => setStageFilter(s)}
+                    />
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,340px)_1fr]">
+                  <div className="flex flex-col gap-2">
+                    {filtered.length === 0 ? (
+                      <div className="surface-card px-5 py-8 text-center">
+                        <p className="text-footnote text-ink-muted">
+                          Nenhum candidato nessa etapa.
+                        </p>
+                      </div>
+                    ) : (
+                      filtered.map((app) => (
+                        <CandidateListItem
+                          key={app.id}
+                          app={app}
+                          selected={selectedId === app.id}
+                          onSelect={() => setSelectedId(app.id)}
+                        />
+                      ))
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+
+                  <div>
+                    {selected ? (
+                      <CandidateDetail
+                        key={selected.id}
+                        app={selected}
+                        jobTitle={job.title}
+                        highlightQuestion={job.highlight_question}
+                        highlightType={job.highlight_type}
+                        cohortStageScores={cohortStageScores}
+                        refetch={refetch}
+                        patchApplication={patchApplication}
+                        onDeleted={() => {
+                          setSelectedId(null);
+                          void refetch();
+                        }}
+                      />
+                    ) : (
+                      <div className="surface-card flex min-h-[280px] flex-col items-center justify-center px-6 py-12 text-center">
+                        <span className="icon-tile mb-4 h-12 w-12">
+                          <Users className="h-5 w-5" strokeWidth={1.75} />
+                        </span>
+                        <p className="text-callout font-semibold text-ink">
+                          Selecione um candidato
+                        </p>
+                        <p className="mt-1 text-footnote text-ink-muted">
+                          A análise completa aparece aqui.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="vaga" className="mt-0">
+            <DescriptionPanel
+              job={job}
+              onUpdate={(description) => setJob({ ...job, description })}
+              onToggleBenefits={(show_benefits) => setJob({ ...job, show_benefits })}
+            />
+            <RequirementsPanel
+              job={job}
+              onUpdate={(requirements) => setJob({ ...job, requirements })}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
+  );
+}
+
+/**
+ * Item da lista de candidatos.
+ *
+ * Antes carregava, empilhado: nome, email, nota, chip de etapa, chip de
+ * veredito, chip de recomendacao e chip de "IA suspeita" — ate quatro pilulas
+ * coloridas embaixo do nome, cada uma com sua cor. Vinte candidatos na tela
+ * viravam oitenta pilulas e o olho nao achava nada.
+ *
+ * Agora a nota e a ancora (grande, colorida pelo tom da faixa), o nome e
+ * primario, o veredito e uma palavra sob a nota, e etapa/suspeita de IA sao
+ * marcadores discretos. O email saiu: e informacao de contato, mora no detalhe,
+ * nao ajuda a escolher quem abrir.
+ */
+function CandidateListItem({
+  app,
+  selected,
+  onSelect,
+}: {
+  app: ApplicationWithAnalysis;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const analysis = app.ai_analysis;
+  const stageScore = analysis?.stage_score ?? analysis?.score ?? null;
+  const verdict = analysis?.stage_verdict ?? null;
+  const aStatus = analysis?.status;
+  const isPending = analysisIsPending(app);
+  const hasError = aStatus === 'error';
+  const done = aStatus === 'completed' && stageScore !== null;
+  const tone = done ? toneForScore(stageScore) : 'neutral';
+
+  const verdictLabel = verdict
+    ? (VERDICT_LABELS[verdict] ?? verdict)
+    : analysis?.recommendation
+      ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
+      : null;
+  const verdictTone: Tone = verdict
+    ? (VERDICT_TONE[verdict] ?? 'neutral')
+    : analysis?.recommendation
+      ? (recTone[analysis.recommendation] ?? 'neutral')
+      : 'neutral';
+
+  return (
+    <button
+      onClick={onSelect}
+      aria-current={selected ? 'true' : undefined}
+      className={cn(
+        'w-full rounded-card border px-4 py-3.5 text-left transition-colors duration-200 ease-standard',
+        selected ? 'border-ink bg-surface' : 'border-line-soft bg-surface hover:border-line',
+      )}
+    >
+      <div className="flex items-center gap-3.5">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5">
+            <span className="truncate text-callout font-semibold text-ink">
+              {app.candidate_name}
+            </span>
+            {app.ai_suspected && (
+              <AlertCircle
+                className="h-3.5 w-3.5 shrink-0 text-warning"
+                aria-label="Suspeita de resposta gerada por IA"
+              />
+            )}
+          </p>
+          <p className="mt-1 flex items-center gap-1.5 text-caption text-ink-subtle">
+            <span>{stageLabels[app.status]}</span>
+            {isPending && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="h-3 w-3 animate-pulse" aria-hidden />
+                  analisando
+                </span>
+              </>
+            )}
+            {hasError && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="text-critical">erro na análise</span>
+              </>
+            )}
+          </p>
+        </div>
+
+        {done && (
+          <div className="shrink-0 text-right">
+            <p
+              className={cn(
+                'font-satoshi text-title-2 font-bold leading-none tabular-nums',
+                TONE_TEXT[tone],
+              )}
+            >
+              {stageScore}
+            </p>
+            {verdictLabel && (
+              <p className={cn('mt-1 text-eyebrow font-bold uppercase', TONE_TEXT[verdictTone])}>
+                {verdictLabel}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </button>
   );
 }
 
@@ -815,23 +912,26 @@ function StagePill({
   active: boolean;
   onClick: () => void;
 }) {
+  // Etapa sem ninguem fica esmaecida e nao clicavel: filtrar pra uma lista
+  // vazia nunca e o que o recrutador queria, e a contagem ja diz isso.
+  const empty = count === 0 && !active;
   return (
     <button
       onClick={onClick}
+      disabled={empty}
+      aria-pressed={active}
       className={cn(
-        'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-[13px] font-semibold transition-colors',
+        'inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-footnote font-semibold',
+        'transition-colors duration-200 ease-standard',
         active
-          ? 'bg-[#1d1d1f] border-[#1d1d1f] text-white'
-          : 'bg-white border-gray-200 text-[#6b6b70] hover:border-gray-400 hover:text-[#1d1d1f]',
+          ? 'border-ink bg-ink text-white'
+          : empty
+            ? 'cursor-not-allowed border-line-soft bg-surface text-ink-subtle opacity-50'
+            : 'border-line-soft bg-surface text-ink-muted hover:border-line hover:text-ink',
       )}
     >
       {label}
-      <span
-        className={cn(
-          'inline-flex min-w-[20px] justify-center rounded-full px-1.5 py-px text-[11px] font-bold',
-          active ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#8a8a8f]',
-        )}
-      >
+      <span className={cn('tabular-nums', active ? 'text-white/60' : 'text-ink-subtle')}>
         {count}
       </span>
     </button>
@@ -917,34 +1017,35 @@ function DescriptionPanel({
   }
 
   return (
-    <div className="mb-4 rounded-[28px] border border-gray-200 bg-white overflow-hidden">
-      <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+    <div className="surface-card mb-4 overflow-hidden">
+      <div className="flex items-start justify-between gap-4 border-b border-line-soft bg-canvas px-5 py-4 sm:px-6">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-start gap-3 text-left min-w-0"
+          aria-expanded={open}
+          className="flex min-w-0 items-start gap-3 text-left"
         >
-          <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-sky-600 text-white">
-            <FileText className="h-3.5 w-3.5" />
+          <span className="icon-tile mt-0.5 h-8 w-8 shrink-0">
+            <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-2">
-              <span className="font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
+              <span className="font-satoshi text-title-3 font-bold text-ink">
                 Descrição da vaga
               </span>
               {open ? (
-                <ChevronUp className="h-4 w-4 text-[#8a8a8f]" />
+                <ChevronUp className="h-4 w-4 text-ink-subtle" aria-hidden />
               ) : (
-                <ChevronDown className="h-4 w-4 text-[#8a8a8f]" />
+                <ChevronDown className="h-4 w-4 text-ink-subtle" aria-hidden />
               )}
             </span>
-            <span className="block text-[12px] text-[#6b6b70] mt-0.5">
+            <span className="mt-0.5 block text-caption text-ink-muted">
               É o que o candidato lê na career page.
             </span>
           </span>
         </button>
 
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {!editing && (
             <>
               <button
@@ -954,21 +1055,21 @@ function DescriptionPanel({
                   setEditing(true);
                   setOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
               >
-                <Pencil className="h-3.5 w-3.5" />
+                <Pencil className="h-3.5 w-3.5" aria-hidden />
                 Editar
               </button>
               <button
                 type="button"
                 onClick={() => void regenerate()}
                 disabled={generating}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
               >
                 {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
                 )}
                 Regerar
               </button>
@@ -1163,41 +1264,42 @@ function RequirementsPanel({
   }
 
   return (
-    <div className="mb-8 rounded-[28px] border border-gray-200 bg-white overflow-hidden">
-      <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+    <div className="surface-card mb-4 overflow-hidden">
+      <div className="flex items-start justify-between gap-4 border-b border-line-soft bg-canvas px-5 py-4 sm:px-6">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-start gap-3 text-left min-w-0"
+          aria-expanded={open}
+          className="flex min-w-0 items-start gap-3 text-left"
         >
-          <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#1d1d1f] text-white">
-            <Lock className="h-3.5 w-3.5" />
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-tile bg-ink text-white">
+            <Lock className="h-4 w-4" strokeWidth={2} aria-hidden />
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-2">
-              <span className="font-satoshi font-bold text-[16px] tracking-[-0.2px] text-[#1d1d1f]">
-                Requisitos da vaga (interno)
+              <span className="font-satoshi text-title-3 font-bold text-ink">
+                Requisitos (interno)
               </span>
               {open ? (
-                <ChevronUp className="h-4 w-4 text-[#8a8a8f]" />
+                <ChevronUp className="h-4 w-4 text-ink-subtle" aria-hidden />
               ) : (
-                <ChevronDown className="h-4 w-4 text-[#8a8a8f]" />
+                <ChevronDown className="h-4 w-4 text-ink-subtle" aria-hidden />
               )}
             </span>
-            <span className="block text-[12px] text-[#6b6b70] mt-0.5">
-              Uso interno. O candidato nunca vê. Alimenta a geração das perguntas e a análise.
+            <span className="mt-0.5 block text-caption text-ink-muted">
+              O candidato nunca vê. Alimenta a geração das perguntas e a análise.
             </span>
           </span>
         </button>
 
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {requirements && !editing && (
             <button
               type="button"
               onClick={startEdit}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
               Editar
             </button>
           )}
@@ -1206,12 +1308,12 @@ function RequirementsPanel({
               type="button"
               onClick={() => void generate()}
               disabled={generating}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
             >
               {generating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
               ) : (
-                <Sparkles className="h-3.5 w-3.5" />
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
               )}
               {requirements ? 'Regerar' : 'Gerar'}
             </button>
@@ -1691,23 +1793,30 @@ function CandidateDetail({
   ];
 
   return (
-    <div className="bg-white rounded-[28px] border border-gray-200 p-8 sticky top-8">
-      <div className="mb-5">
+    // Card do candidato: uma superficie so, com secoes separadas por hairline.
+    // Antes era um card grande contendo outros quatro cards com borda e fundo
+    // proprios (decisao, evidencias, scout da etapa, scout geral) — caixa dentro
+    // de caixa, cada uma repetindo padding e borda. A separacao agora e uma
+    // linha de 1px, que e o suficiente e nao rouba espaco horizontal.
+    <div className="surface-card sticky top-6 overflow-hidden">
+      {/* Faixa de identidade: fica sobre o canvas rebaixado pra ancorar o topo
+          do card sem precisar de sombra. */}
+      <div className="border-b border-line-soft bg-canvas px-5 py-5 sm:px-6">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-satoshi font-bold text-[24px] tracking-[-0.4px] text-[#1d1d1f] truncate">
-              {app.candidate_name}
-            </h2>
-            <p className="text-[13px] text-[#8a8a8f] mt-1 truncate">{app.candidate_email}</p>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="icon-tile h-11 w-11 shrink-0 font-satoshi text-callout font-bold">
+              {app.candidate_name.trim().charAt(0).toUpperCase() || '?'}
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate font-satoshi text-title-2 font-bold text-ink">
+                {app.candidate_name}
+              </h2>
+              <p className="truncate text-footnote text-ink-subtle">{app.candidate_email}</p>
+            </div>
           </div>
-          <span
-            className={cn(
-              'flex-shrink-0 inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border mt-1',
-              stageChipColors[app.status],
-            )}
-          >
+          <Chip tone={stageTone[app.status]} className="mt-1 shrink-0">
             {stageLabels[app.status]}
-          </span>
+          </Chip>
         </div>
 
         {(app.resume_path || app.linkedin_url) && (
@@ -1717,14 +1826,14 @@ function CandidateDetail({
                 type="button"
                 onClick={() => void openResume()}
                 disabled={loadingResume}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
               >
                 {loadingResume ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
                 ) : (
-                  <FileText className="h-3.5 w-3.5" />
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
                 )}
-                Ver currículo
+                Currículo
               </button>
             )}
             {app.linkedin_url && (
@@ -1732,9 +1841,9 @@ function CandidateDetail({
                 href={app.linkedin_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-[#0A66C2] transition-colors hover:border-gray-400"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
               >
-                <Linkedin className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} />
+                <Linkedin className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} aria-hidden />
                 LinkedIn
               </a>
             )}
@@ -1742,428 +1851,453 @@ function CandidateDetail({
         )}
       </div>
 
-      {/* Ações de etapa */}
-      {isFinal ? (
-        app.status === 'contratado' ? (
-          <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-600" />
-            <p className="text-[13px] font-medium text-emerald-800 flex-1">
-              Contratado. Agora faz parte do time.
-            </p>
-            <button
-              onClick={() => navigate('/app/time')}
-              className="text-[13px] font-semibold text-emerald-700 hover:text-emerald-900 transition-colors whitespace-nowrap"
-            >
-              Ver time
-            </button>
-          </div>
-        ) : (
-          <div className="mb-6 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-            <XCircle className="h-4 w-4 flex-shrink-0 text-[#8a8a8f]" />
-            <p className="text-[13px] font-medium text-[#6b6b70]">
-              Candidato reprovado nessa vaga.
-            </p>
-          </div>
-        )
-      ) : (
-        <div className="mb-6">
-          <div className="flex flex-wrap items-center gap-2">
-            {app.status === 'proposta' && (
-              <BrandCtaButton size="sm" onClick={() => void hire()} disabled={busy}>
-                Contratar
-              </BrandCtaButton>
-            )}
-            {next && (
-              <button
-                onClick={() => void advance(next)}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#1d1d1f] px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Avançar pra {stageLabels[next]}
-                <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </button>
-            )}
-            <button
-              onClick={() => setRejecting((v) => !v)}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-4 py-2 text-[13px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Reprovar
-            </button>
-          </div>
-
-          {rejecting && (
-            <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50/50 p-4">
-              <p className="text-[12px] font-semibold text-[#1d1d1f] mb-2">
-                Quer registrar o motivo? (opcional)
+      <div className="px-5 py-5 sm:px-6">
+        {/* Ações de etapa */}
+        {isFinal ? (
+          app.status === 'contratado' ? (
+            <div className="mb-6 flex items-center gap-2.5 rounded-card bg-positive-tint px-4 py-3">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-positive" aria-hidden />
+              <p className="flex-1 text-footnote font-medium text-positive">
+                Contratado. Agora faz parte do time.
               </p>
-              <Textarea
-                value={rejectNote}
-                onChange={(e) => setRejectNote(e.target.value)}
-                placeholder="Ex.: perfil distante do que a vaga pede agora."
-                rows={2}
-                className="bg-white text-[13px] mb-3"
-              />
+              <button
+                onClick={() => navigate('/app/time')}
+                className="whitespace-nowrap text-footnote font-semibold text-positive underline-offset-2 hover:underline"
+              >
+                Ver time
+              </button>
+            </div>
+          ) : (
+            <div className="mb-6 flex items-center gap-2.5 rounded-card bg-canvas px-4 py-3">
+              <XCircle className="h-4 w-4 shrink-0 text-ink-subtle" aria-hidden />
+              <p className="text-footnote font-medium text-ink-muted">
+                Candidato reprovado nessa vaga.
+              </p>
+            </div>
+          )
+        ) : (
+          <div className="mb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              {app.status === 'proposta' && (
+                <BrandCtaButton size="sm" onClick={() => void hire()} disabled={busy}>
+                  Contratar
+                </BrandCtaButton>
+              )}
+              {next && (
+                <button
+                  onClick={() => void advance(next)}
+                  disabled={busy}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-ink px-4 text-footnote font-semibold text-white transition-opacity duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Avançar pra {stageLabels[next]}
+                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                </button>
+              )}
+              {/* Reprovar e destrutivo mas reversivel, e nao e a acao esperada:
+                  fica terciario, sem borda vermelha competindo com o CTA. */}
+              <button
+                onClick={() => setRejecting((v) => !v)}
+                disabled={busy}
+                className="inline-flex h-9 items-center rounded-full px-3.5 text-footnote font-semibold text-ink-muted transition-colors hover:text-critical disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Reprovar
+              </button>
+            </div>
+
+            {rejecting && (
+              <div className="mt-3 rounded-card bg-critical-tint p-4">
+                <p className="mb-2 text-footnote font-semibold text-ink">
+                  Quer registrar o motivo? (opcional)
+                </p>
+                <Textarea
+                  value={rejectNote}
+                  onChange={(e) => setRejectNote(e.target.value)}
+                  placeholder="Ex.: perfil distante do que a vaga pede agora."
+                  rows={2}
+                  className="mb-3 bg-surface text-footnote"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => void reject()}
+                    disabled={busy}
+                    className="inline-flex h-9 items-center rounded-full bg-critical px-4 text-footnote font-semibold text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-50"
+                  >
+                    Confirmar reprovação
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRejecting(false);
+                      setRejectNote('');
+                    }}
+                    disabled={busy}
+                    className="inline-flex h-9 items-center rounded-full px-4 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {comms && comms.toStatus === app.status && (
+          <div className="mb-6 rounded-card bg-canvas p-4">
+            <p className="mb-2 text-eyebrow font-bold uppercase text-ink-subtle">
+              Aviso ao candidato
+            </p>
+            <div className="flex items-center gap-2">
+              {comms.emailSent ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-positive" aria-hidden />
+                  <p className="text-footnote font-medium text-ink">E-mail enviado</p>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4 shrink-0 text-ink-subtle" aria-hidden />
+                  <p className="text-footnote font-medium text-ink-muted">
+                    E-mail ainda não configurado
+                  </p>
+                </>
+              )}
+            </div>
+            {(comms.whatsappUrl || comms.formUrl) && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {comms.whatsappUrl && (
+                  <a
+                    href={comms.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+                    Enviar no WhatsApp
+                  </a>
+                )}
+                {comms.formUrl && (
+                  <button
+                    type="button"
+                    onClick={() => void copyFormLink(comms.formUrl!)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
+                  >
+                    {copiedForm ? (
+                      <Check className="h-3.5 w-3.5 text-positive" aria-hidden />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    {copiedForm ? 'Link copiado' : 'Copiar link do form'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {highlightQuestion && app.highlight_answer && (
+          <div className="mb-6 rounded-card bg-canvas p-4">
+            <p className="mb-1.5 text-eyebrow font-bold uppercase text-ink-subtle">
+              Pergunta de destaque
+            </p>
+            <p className="mb-2 text-footnote text-ink-muted">{highlightQuestion}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-callout font-semibold text-ink">
+                {formatHighlightAnswer(app.highlight_answer, highlightType)}
+              </span>
+              {app.highlight_matched === false && <Chip tone="warning">Fora do critério</Chip>}
+              {app.highlight_matched === true && (
+                <CheckCircle2
+                  className="h-4 w-4 text-positive"
+                  aria-label="Dentro do critério de destaque"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        <Tabs defaultValue="analise" className="border-t border-line-soft pt-5">
+          <TabsList className="mb-5 inline-flex h-auto gap-1 rounded-full bg-surface-sunken p-1">
+            <TabsTrigger
+              value="analise"
+              className="rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Análise
+            </TabsTrigger>
+            <TabsTrigger
+              value="respostas"
+              className="gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Respostas
+              {answersCount > 0 && (
+                <span className="tabular-nums text-ink-subtle">{answersCount}</span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="historico"
+              className="rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Histórico
+            </TabsTrigger>
+          </TabsList>
+
+          {/*
+            Ordem de leitura da analise, do julgamento pra evidencia:
+              decisao da etapa (nota + veredito)  ← o que fazer
+              pontos fortes / de atencao          ← por que
+              leitura da etapa                    ← detalhe por dimensao
+              scout geral (radar)                 ← panorama de longo prazo
+              perfil comportamental               ← quando a pessoa fez o teste
+              curriculo + racional                ← texto corrido, no fim
+            Antes o racional e as observacoes do CV disputavam o topo com a
+            decisao, e o recrutador lia paragrafo antes de saber o veredito.
+          */}
+          <TabsContent value="analise" className="mt-0">
+            {pendingAnalysis ? (
+              <div className="py-6 text-center">
+                <p className="inline-flex items-center gap-2 text-callout text-ink-muted">
+                  <Clock className="h-4 w-4 animate-pulse" aria-hidden />
+                  Análise rodando. O resultado aparece aqui em instantes.
+                </p>
+                {stuckAnalysis && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => void reanalyze()}
+                      disabled={busy}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                      Re-analisar
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : aStatus === 'error' ? (
+              <div className="rounded-card bg-critical-tint p-4">
+                <p className="mb-1 text-footnote font-semibold text-critical">Erro na análise</p>
+                <p className="mb-3 text-caption text-ink-muted">{analysis?.error_message}</p>
+                <button
+                  onClick={() => void reanalyze()}
+                  disabled={busy}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-critical px-4 text-footnote font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                  Re-analisar
+                </button>
+              </div>
+            ) : analysis ? (
+              <div>
+                <StageDecision
+                  analysis={analysis}
+                  dims={dims}
+                  cohortStageScores={cohortStageScores}
+                />
+                <EvidencePoints strengths={strengths} concerns={concerns} />
+                {stageDims.length > 0 && (
+                  <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
+                )}
+
+                {dims.length > 0 && (
+                  <div className="mb-6 border-t border-line-soft pt-6">
+                    <p className="mb-4 text-eyebrow font-bold uppercase text-ink-subtle">
+                      Scout geral
+                    </p>
+                    <ScoutCard
+                      flat
+                      name={app.candidate_name}
+                      subtitle={jobTitle}
+                      overall={analysis.score ?? overallFromDimensions(dims) ?? 0}
+                      dimensions={dims}
+                      badge={
+                        analysis.recommendation
+                          ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
+                          : null
+                      }
+                      pending={pendingAreas.length > 0 ? pendingAreas : undefined}
+                    />
+                  </div>
+                )}
+
+                {/* Perfil comportamental (DISC / Big Five / Garra). So aparece
+                    se a pessoa fez o teste — o componente renderiza vazio
+                    quando nao ha resultado, e o :empty tira o espaco. */}
+                <div className="mb-6 empty:mb-0 empty:hidden">
+                  <ProfileAssessmentCard email={app.candidate_email} />
+                </div>
+
+                {analysis.cv_observations && (
+                  <div className="mb-6 border-t border-line-soft pt-6">
+                    <p className="mb-2 flex items-center gap-2 text-eyebrow font-bold uppercase text-ink-subtle">
+                      <FileText className="h-3.5 w-3.5" aria-hidden />
+                      O que o currículo mostra
+                    </p>
+                    <p className="whitespace-pre-wrap text-footnote text-ink-muted">
+                      {analysis.cv_observations}
+                    </p>
+                  </div>
+                )}
+
+                {analysis.reasoning && (
+                  <div className="border-t border-line-soft pt-6">
+                    <p className="mb-2 text-eyebrow font-bold uppercase text-ink-subtle">
+                      Racional completo
+                    </p>
+                    <p className="whitespace-pre-wrap text-footnote text-ink-muted">
+                      {analysis.reasoning}
+                    </p>
+                  </div>
+                )}
+
+                {aStatus === 'completed' && (
+                  <div className="mt-6 border-t border-line-soft pt-5">
+                    <button
+                      onClick={() => void reanalyze()}
+                      disabled={busy}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
+                      title="Roda a análise de novo usando os requisitos atuais da vaga"
+                    >
+                      <RefreshCw
+                        className={cn('h-3.5 w-3.5', busy && 'animate-spin')}
+                        aria-hidden
+                      />
+                      Re-analisar
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </TabsContent>
+
+          {/* O que o candidato respondeu no formulário, na ordem de leitura */}
+          <TabsContent value="respostas" className="mt-0">
+            {answersLoading ? (
+              <p className="text-footnote text-ink-subtle">Carregando respostas...</p>
+            ) : !hasAnswerContent ? (
+              <p className="text-callout text-ink-muted">
+                Esse candidato ainda não preencheu o formulário.
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {app.why_interested && (
+                  <section>
+                    <p className="mb-2 text-eyebrow font-bold uppercase text-ink-subtle">
+                      Por que está interessado
+                    </p>
+                    <p className="whitespace-pre-wrap text-callout text-ink">
+                      {app.why_interested}
+                    </p>
+                  </section>
+                )}
+
+                {answerGroups.map((group) => (
+                  <section key={group.source}>
+                    <div className="mb-2 flex items-baseline gap-2">
+                      <p className="text-eyebrow font-bold uppercase text-ink-subtle">
+                        {group.label}
+                      </p>
+                      {group.average !== null && (
+                        <span
+                          className={cn(
+                            'text-caption font-bold tabular-nums',
+                            TONE_TEXT[toneForScore(group.average)],
+                          )}
+                        >
+                          {group.average}
+                        </span>
+                      )}
+                    </div>
+                    <div className="divide-y divide-line-soft rounded-card border border-line-soft">
+                      {group.items.map((item) => (
+                        <AnswerRow
+                          key={item.id}
+                          question={item.question_snapshot}
+                          answer={item.answer}
+                          score={item.score}
+                          open={openAnswers.has(item.id)}
+                          onToggle={() => toggleAnswer(item.id)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Linha do tempo */}
+          <TabsContent value="historico" className="mt-0">
+            <ol>
+              {timeline.map((entry, i) => {
+                const last = i === timeline.length - 1;
+                return (
+                  <li key={entry.key} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <span
+                        className={cn(
+                          'mt-1.5 h-2 w-2 shrink-0 rounded-full',
+                          last ? 'bg-brand' : 'bg-line',
+                        )}
+                        aria-hidden
+                      />
+                      {!last && <span className="mt-1 w-px flex-1 bg-line-soft" aria-hidden />}
+                    </div>
+                    <div className={cn('min-w-0', last ? 'pb-0' : 'pb-5')}>
+                      <p className="text-footnote font-semibold text-ink">{entry.label}</p>
+                      <p className="mt-0.5 text-caption text-ink-subtle">
+                        {formatEventDate(entry.date)}
+                      </p>
+                      {entry.note && (
+                        <p className="mt-1.5 whitespace-pre-wrap text-footnote text-ink-muted">
+                          {entry.note}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </TabsContent>
+        </Tabs>
+
+        {/* Zona de exclusão: reprocessar do zero nos testes */}
+        <div className="mt-6 border-t border-line-soft pt-5">
+          {confirmDelete ? (
+            <div className="rounded-card bg-critical-tint p-4">
+              <p className="mb-1 text-footnote font-semibold text-ink">
+                Excluir esse candidato de vez?
+              </p>
+              <p className="mb-3 text-caption text-ink-muted">
+                Apaga a candidatura, as respostas, a análise e o currículo. Não dá pra desfazer.
+              </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => void reject()}
-                  disabled={busy}
-                  className="rounded-full bg-rose-600 px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  onClick={() => void deleteApplication()}
+                  disabled={deleting}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-critical px-4 text-footnote font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
-                  Confirmar reprovação
+                  {deleting ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  Excluir de vez
                 </button>
                 <button
-                  onClick={() => {
-                    setRejecting(false);
-                    setRejectNote('');
-                  }}
-                  disabled={busy}
-                  className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                  className="inline-flex h-9 items-center rounded-full px-4 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
                 >
                   Cancelar
                 </button>
               </div>
             </div>
-          )}
-        </div>
-      )}
-
-      {comms && comms.toStatus === app.status && (
-        <div className="mb-6 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/70 to-violet-50/50 p-4">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
-            Aviso ao candidato
-          </p>
-          <div className="flex items-center gap-2">
-            {comms.emailSent ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-600" />
-                <p className="text-[13px] font-medium text-[#1d1d1f]">E-mail enviado</p>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="h-4 w-4 flex-shrink-0 text-[#8a8a8f]" />
-                <p className="text-[13px] font-medium text-[#6b6b70]">
-                  E-mail ainda não configurado
-                </p>
-              </>
-            )}
-          </div>
-          {(comms.whatsappUrl || comms.formUrl) && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {comms.whatsappUrl && (
-                <a
-                  href={comms.whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-emerald-700 transition-colors hover:border-emerald-400"
-                >
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  Enviar no WhatsApp
-                </a>
-              )}
-              {comms.formUrl && (
-                <button
-                  type="button"
-                  onClick={() => void copyFormLink(comms.formUrl!)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400"
-                >
-                  {copiedForm ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                  {copiedForm ? 'Link copiado' : 'Copiar link do form'}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {highlightQuestion && app.highlight_answer && (
-        <div className="mb-6">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2">
-            Pergunta de destaque
-          </p>
-          <p className="text-[13px] font-medium text-[#6b6b70] mb-2">{highlightQuestion}</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[15px] font-semibold text-[#1d1d1f]">
-              {formatHighlightAnswer(app.highlight_answer, highlightType)}
-            </span>
-            {app.highlight_matched === false && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
-                <AlertCircle className="h-3 w-3" />
-                Fora do critério de destaque
-              </span>
-            )}
-            {app.highlight_matched === true && (
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            )}
-          </div>
-        </div>
-      )}
-
-      <Tabs defaultValue="analise" className="border-t border-gray-100 pt-6">
-        <TabsList className="mb-5 h-auto w-full justify-start gap-1 rounded-full bg-gray-100 p-1">
-          <TabsTrigger
-            value="analise"
-            className="rounded-full px-4 py-1.5 text-[13px] font-semibold text-[#6b6b70] data-[state=active]:bg-white data-[state=active]:text-[#1d1d1f]"
-          >
-            Análise
-          </TabsTrigger>
-          <TabsTrigger
-            value="respostas"
-            className="gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold text-[#6b6b70] data-[state=active]:bg-white data-[state=active]:text-[#1d1d1f]"
-          >
-            Respostas
-            {answersCount > 0 && (
-              <span className="inline-flex min-w-[18px] justify-center rounded-full bg-sky-100 px-1.5 py-px text-[11px] font-bold text-sky-700">
-                {answersCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="historico"
-            className="rounded-full px-4 py-1.5 text-[13px] font-semibold text-[#6b6b70] data-[state=active]:bg-white data-[state=active]:text-[#1d1d1f]"
-          >
-            Histórico
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="analise" className="mt-0">
-          {analysis?.cv_observations && (
-            <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50/60 p-5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-2 flex items-center gap-2">
-                <FileText className="h-3.5 w-3.5" />
-                O que o currículo mostra
-              </p>
-              <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-                {analysis.cv_observations}
-              </p>
-            </div>
-          )}
-
-          <div className="mb-6 empty:mb-0 empty:hidden">
-            <ProfileAssessmentCard email={app.candidate_email} />
-          </div>
-
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] flex items-center gap-2">
-              Análise IA
-              {aStatus === 'completed' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
-            </p>
-            {aStatus === 'completed' && (
-              <button
-                onClick={() => void reanalyze()}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#6b6b70] transition-colors hover:border-gray-400 hover:text-[#1d1d1f] disabled:opacity-50"
-                title="Roda a análise de novo (usa os requisitos atuais da vaga)"
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
-                Re-analisar
-              </button>
-            )}
-          </div>
-
-          {pendingAnalysis ? (
-            <div>
-              <p className="text-[14px] text-[#8a8a8f] flex items-center gap-2">
-                <Clock className="h-4 w-4 animate-pulse" />
-                Análise rodando. O resultado aparece aqui em instantes.
-              </p>
-              {stuckAnalysis && (
-                <button
-                  onClick={() => void reanalyze()}
-                  disabled={busy}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-[13px] font-semibold text-[#1d1d1f] transition-colors hover:border-gray-400 disabled:opacity-50"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Re-analisar
-                </button>
-              )}
-            </div>
-          ) : aStatus === 'error' ? (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
-              <p className="text-[13px] font-semibold text-rose-700 mb-1">Erro na análise</p>
-              <p className="text-[12px] text-rose-600 mb-3">{analysis?.error_message}</p>
-              <button
-                onClick={() => void reanalyze()}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-4 py-2 text-[13px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-50"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Re-analisar
-              </button>
-            </div>
-          ) : dims.length > 0 && analysis ? (
-            <div>
-              <StageDecision analysis={analysis} dims={dims} cohortStageScores={cohortStageScores} />
-              <EvidencePoints strengths={strengths} concerns={concerns} />
-              {stageDims.length > 0 && (
-                <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
-              )}
-              <ScoutCard
-                name={app.candidate_name}
-                subtitle={jobTitle}
-                overall={analysis?.score ?? overallFromDimensions(dims) ?? 0}
-                dimensions={dims}
-                badge={
-                  analysis?.recommendation
-                    ? (recLabels[analysis.recommendation] ?? analysis.recommendation)
-                    : null
-                }
-                pending={pendingAreas.length > 0 ? pendingAreas : undefined}
-              />
-              {analysis?.reasoning && (
-                <p className="mt-5 text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-                  {analysis.reasoning}
-                </p>
-              )}
-            </div>
-          ) : analysis ? (
-            <div>
-              <StageDecision analysis={analysis} dims={[]} cohortStageScores={cohortStageScores} />
-              <EvidencePoints strengths={strengths} concerns={concerns} />
-              {stageDims.length > 0 && (
-                <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
-              )}
-              <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-                {analysis.reasoning}
-              </p>
-            </div>
-          ) : null}
-        </TabsContent>
-
-        {/* O que o candidato respondeu no formulário, na ordem de leitura */}
-        <TabsContent value="respostas" className="mt-0">
-          {answersLoading ? (
-            <p className="text-[13px] text-[#8a8a8f]">Carregando respostas...</p>
-          ) : !hasAnswerContent ? (
-            <p className="text-[14px] text-[#8a8a8f] leading-relaxed">
-              Esse candidato ainda não preencheu o formulário.
-            </p>
           ) : (
-            <div className="space-y-7">
-              {app.why_interested && (
-                <section>
-                  <div className="mb-3 flex items-center gap-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
-                      Por que está interessado
-                    </p>
-                    <span className="h-px flex-1 bg-gray-100" />
-                  </div>
-                  <p className="text-[14px] text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
-                    {app.why_interested}
-                  </p>
-                </section>
-              )}
-
-              {answerGroups.map((group) => (
-                <section key={group.source}>
-                  <div className="mb-3 flex items-center gap-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f]">
-                      {group.label}
-                    </p>
-                    {group.average !== null && (
-                      <span className="text-[11px] font-semibold tabular-nums text-[#8a8a8f]">
-                        média {group.average}
-                      </span>
-                    )}
-                    <span className="h-px flex-1 bg-gray-100" />
-                  </div>
-                  <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
-                    {group.items.map((item) => (
-                      <AnswerRow
-                        key={item.id}
-                        question={item.question_snapshot}
-                        answer={item.answer}
-                        score={item.score}
-                        open={openAnswers.has(item.id)}
-                        onToggle={() => toggleAnswer(item.id)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-1.5 text-caption font-medium text-ink-subtle transition-colors hover:text-critical"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              Excluir candidato
+            </button>
           )}
-        </TabsContent>
-
-        {/* Linha do tempo */}
-        <TabsContent value="historico" className="mt-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a8a8f] mb-4">
-            Linha do tempo
-          </p>
-          <ol className="space-y-4">
-            {timeline.map((entry, i) => (
-              <li key={entry.key} className="relative flex gap-3 pl-1">
-                <div className="flex flex-col items-center">
-                  <span
-                    className={cn(
-                      'mt-1 h-2 w-2 flex-shrink-0 rounded-full',
-                      i === timeline.length - 1 ? 'bg-sky-500' : 'bg-gray-300',
-                    )}
-                  />
-                  {i < timeline.length - 1 && <span className="w-px flex-1 bg-gray-200 mt-1" />}
-                </div>
-                <div className="pb-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#1d1d1f] leading-tight">
-                    {entry.label}
-                  </p>
-                  <p className="text-[11px] text-[#8a8a8f] mt-0.5">{formatEventDate(entry.date)}</p>
-                  {entry.note && (
-                    <p className="mt-1 text-[13px] text-[#6b6b70] leading-relaxed whitespace-pre-wrap">
-                      {entry.note}
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </TabsContent>
-      </Tabs>
-
-      {/* Zona de exclusão: reprocessar do zero nos testes */}
-      <div className="border-t border-gray-100 pt-6 mt-6">
-        {confirmDelete ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4">
-            <p className="text-[13px] font-semibold text-[#1d1d1f] mb-1">
-              Excluir esse candidato de vez?
-            </p>
-            <p className="text-[12px] text-[#6b6b70] mb-3">
-              Apaga a candidatura, as respostas, a análise e o currículo. Não dá pra desfazer.
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => void deleteApplication()}
-                disabled={deleting}
-                className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {deleting ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                Excluir de vez
-              </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-                className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#6b6b70] transition-colors hover:text-[#1d1d1f] disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#8a8a8f] transition-colors hover:text-rose-600"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Excluir candidato
-          </button>
-        )}
+        </div>
       </div>
     </div>
   );
