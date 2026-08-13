@@ -100,6 +100,51 @@ function effectiveFormat(format: QuestionFormat, options: string[]): QuestionFor
 
 type NavState = { name?: string; email?: string; phone?: string } | null;
 
+// Rascunho local. O formulário é longo (dezenas de perguntas), então perder tudo
+// num F5, numa aba fechada sem querer ou numa queda de conexão significa perder
+// o candidato. Guarda no aparelho a cada mudança e restaura ao voltar.
+type FormDraft = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  answers?: Record<string, string>;
+  selections?: Record<string, string[]>;
+  stepIndex?: number;
+  savedAt?: number;
+};
+
+// Rascunho velho quase sempre é de outro processo seletivo. Depois disso, some.
+const DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function draftKey(companySlug?: string, jobSlug?: string, applicationId?: string | null): string {
+  return `noren:form:${companySlug ?? ''}:${jobSlug ?? ''}:${applicationId ?? 'anon'}`;
+}
+
+function readDraft(key: string): FormDraft | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as FormDraft;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.savedAt === 'number' && Date.now() - parsed.savedAt > DRAFT_MAX_AGE_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed;
+  } catch {
+    // Modo privado, cota cheia ou JSON corrompido: segue sem rascunho.
+    return null;
+  }
+}
+
+function draftHasAnswers(draft: FormDraft | null): boolean {
+  if (!draft) return false;
+  const texts = Object.values(draft.answers ?? {}).some((v) => (v ?? '').trim().length > 0);
+  const picks = Object.values(draft.selections ?? {}).some((v) => (v ?? []).length > 0);
+  return texts || picks;
+}
+
 const CANDIDATE_STEPS: CandidateStep[] = [
   {
     type: 'candidate',
@@ -153,19 +198,26 @@ export function ApplicationForm() {
   const [jobQuestions, setJobQuestions] = useState<QuestionStep[]>([]);
   const [companyQuestions, setCompanyQuestions] = useState<QuestionStep[]>([]);
 
+  const storageKey = draftKey(companySlug, jobSlug, applicationId);
+  // Lido uma vez, na montagem, pra semear os campos abaixo.
+  const [initialDraft] = useState<FormDraft | null>(() => readDraft(storageKey));
+  const restoredDraft = draftHasAnswers(initialDraft);
+
   const [phase, setPhase] = useState<'cover' | 'form' | 'done'>('cover');
-  const [stepIndex, setStepIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(initialDraft?.stepIndex ?? 0);
   const [submitting, setSubmitting] = useState(false);
 
   // Respostas
-  const [name, setName] = useState(navState?.name ?? '');
-  const [email, setEmail] = useState(navState?.email ?? '');
-  const [phone, setPhone] = useState(navState?.phone ?? '');
-  const [city, setCity] = useState('');
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [name, setName] = useState(initialDraft?.name || navState?.name || '');
+  const [email, setEmail] = useState(initialDraft?.email || navState?.email || '');
+  const [phone, setPhone] = useState(initialDraft?.phone || navState?.phone || '');
+  const [city, setCity] = useState(initialDraft?.city ?? '');
+  const [answers, setAnswers] = useState<Record<string, string>>(initialDraft?.answers ?? {});
   // Respostas das perguntas de seleção, por refId. single_select guarda array
   // de 1 item; multi_select guarda todas as opções marcadas.
-  const [selections, setSelections] = useState<Record<string, string[]>>({});
+  const [selections, setSelections] = useState<Record<string, string[]>>(
+    initialDraft?.selections ?? {},
+  );
   // Campos do candidato que já chegaram preenchidos (via link individual). Esses
   // passos somem do formulário pra encurtar o caminho até as perguntas.
   const [prefilledFields, setPrefilledFields] = useState<Set<CandidateField>>(() => new Set());
@@ -289,20 +341,22 @@ export function ApplicationForm() {
       const email = (data.email ?? '').trim();
       const phone = (data.phone ?? '').trim();
       const city = (data.city ?? '').trim();
+      // O que a pessoa já digitou (rascunho) vale mais que o dado do servidor:
+      // se ela corrigiu o telefone, a correção não pode ser desfeita ao voltar.
       if (name) {
-        setName(name);
+        setName((prev) => (prev.trim() ? prev : name));
         filled.add('name');
       }
       if (email) {
-        setEmail(email);
+        setEmail((prev) => (prev.trim() ? prev : email));
         filled.add('email');
       }
       if (phone) {
-        setPhone(phone);
+        setPhone((prev) => (prev.trim() ? prev : phone));
         filled.add('phone');
       }
       if (city) {
-        setCity(city);
+        setCity((prev) => (prev.trim() ? prev : city));
         filled.add('city');
       }
       setPrefilledFields(filled);
@@ -312,6 +366,27 @@ export function ApplicationForm() {
       active = false;
     };
   }, [applicationId, accessToken]);
+
+  // Auto-save: grava a cada mudança. Não guarda enquanto envia nem depois de
+  // enviado, pra não ressuscitar um rascunho de candidatura já concluída.
+  useEffect(() => {
+    if (phase === 'done' || submitting) return;
+    try {
+      const draft: FormDraft = {
+        name,
+        email,
+        phone,
+        city,
+        answers,
+        selections,
+        stepIndex,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch {
+      // Sem espaço ou modo privado: o formulário continua funcionando normal.
+    }
+  }, [name, email, phone, city, answers, selections, stepIndex, phase, submitting, storageKey]);
 
   const candidateSteps = useMemo<CandidateStep[]>(
     () => CANDIDATE_STEPS.filter((step) => !prefilledFields.has(step.field)),
@@ -336,6 +411,15 @@ export function ApplicationForm() {
     }
     return map;
   }, [jobQuestions, companyQuestions]);
+
+  // O rascunho pode ter sido salvo quando o formulário tinha outro tamanho (a
+  // empresa mexeu nas perguntas). Sem isso, o candidato voltaria pra um passo
+  // que não existe mais e cairia numa tela vazia.
+  useEffect(() => {
+    if (steps.length > 0 && stepIndex > steps.length - 1) {
+      setStepIndex(steps.length - 1);
+    }
+  }, [steps.length, stepIndex]);
 
   const current = steps[stepIndex];
 
@@ -450,6 +534,12 @@ export function ApplicationForm() {
         answers: questionAnswers,
       });
       if (error) throw error;
+      // Enviado: o rascunho cumpriu o papel e sai de cena.
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        // Ignora: não enviar o formulário por causa disso seria pior.
+      }
       setPhase('done');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao enviar formulário');
@@ -573,15 +663,18 @@ export function ApplicationForm() {
               {job.companyName}
             </p>
             <h1 className="font-satoshi font-bold text-[34px] md:text-[48px] tracking-[-0.8px] leading-[1.08] text-[#1d1d1f] mb-5">
-              Você avançou no processo pra {job.title}
+              {restoredDraft
+                ? 'Suas respostas estão salvas'
+                : `Você avançou no processo pra ${job.title}`}
             </h1>
             <p className="text-[16px] md:text-[17px] text-[#6b6b70] leading-relaxed mb-8 max-w-md mx-auto">
-              Agora o time quer te conhecer de verdade. São perguntas na tela, uma por vez, no seu
-              ritmo. Reserve uns 15 minutos num lugar tranquilo.
+              {restoredDraft
+                ? 'Você já tinha começado por aqui. Guardamos tudo neste aparelho, é só continuar de onde parou.'
+                : 'Agora o time quer te conhecer de verdade. São perguntas na tela, uma por vez, no seu ritmo. Reserve uns 15 minutos num lugar tranquilo.'}
             </p>
             <div className="flex justify-center">
               <BrandCtaButton size="lg" onClick={() => setPhase('form')}>
-                Começar
+                {restoredDraft ? 'Continuar' : 'Começar'}
               </BrandCtaButton>
             </div>
           </div>
@@ -607,8 +700,13 @@ export function ApplicationForm() {
             >
               {job.companyName}
             </Link>
-            <span className="text-[12px] font-medium text-[#6b6b70]">
-              <span className="text-[#1d1d1f] font-bold">{stepIndex + 1}</span> de {steps.length}
+            <span className="flex items-center gap-3">
+              <span className="hidden sm:inline text-[12px] text-[#a8a8ad]">
+                Respostas salvas neste aparelho
+              </span>
+              <span className="text-[12px] font-medium text-[#6b6b70]">
+                <span className="text-[#1d1d1f] font-bold">{stepIndex + 1}</span> de {steps.length}
+              </span>
             </span>
           </div>
           <div

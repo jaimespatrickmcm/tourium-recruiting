@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
 
   const { data: existing } = await admin
     .from('applications')
-    .select('id, job_id, candidate_email')
+    .select('id, job_id, candidate_email, status')
     .eq('id', payload.applicationId)
     .maybeSingle();
   if (!existing || existing.job_id !== job.id) {
@@ -203,11 +203,18 @@ Deno.serve(async (req) => {
 
   const applicationId: string = existing.id;
 
+  // Preencher o formulário É a etapa de fit cultural. Se a pessoa preencheu
+  // ainda em triagem (ex.: chegou pelo token da área do candidato), avança
+  // sozinha, senão o recrutador moveria depois e ela receberia convite pro
+  // que já preencheu.
+  const promote = existing.status === 'triagem';
+
   // Atualiza a application existente com os campos do formulário completo.
   const update: Record<string, unknown> = {
     city: city || null,
     form_completed_at: new Date().toISOString(),
   };
+  if (promote) update.status = 'fit_cultural';
   if (phone) update.candidate_phone = phone;
   // Só liga o flag; nunca desliga um já marcado.
   if (aiSuspected) {
@@ -220,6 +227,23 @@ Deno.serve(async (req) => {
     .eq('id', applicationId);
   if (updateError) {
     return jsonResponse({ error: updateError.message ?? 'Falha ao atualizar aplicação' }, 500);
+  }
+
+  if (promote) {
+    // Registra na linha do tempo pra o recrutador ver que quem moveu foi o
+    // próprio preenchimento, não alguém do time.
+    const { error: eventError } = await admin.from('application_events').insert({
+      application_id: applicationId,
+      company_id: company.id,
+      actor_id: null,
+      type: 'stage_change',
+      from_status: 'triagem',
+      to_status: 'fit_cultural',
+      note: null,
+    });
+    if (eventError) {
+      console.error('[submit-application-form] evento de etapa:', eventError.message);
+    }
   }
 
   // Congela o critério interno (guidance + rubrica) de cada pergunta junto com
@@ -278,6 +302,18 @@ Deno.serve(async (req) => {
     });
 
   if (rows.length > 0) {
+    // Reenvio substitui: agora que a pessoa pode voltar e preencher de novo, as
+    // respostas antigas sairiam duplicadas e a análise leria a mesma pergunta
+    // duas vezes. O envio mais recente é o que vale.
+    if (!createdNow) {
+      const { error: clearError } = await admin
+        .from('application_answers')
+        .delete()
+        .eq('application_id', applicationId);
+      if (clearError) {
+        console.error('[submit-application-form] limpar respostas antigas:', clearError.message);
+      }
+    }
     const { error: answersError } = await admin.from('application_answers').insert(rows);
     if (answersError) {
       return jsonResponse({ error: answersError.message ?? 'Falha ao salvar respostas' }, 500);
