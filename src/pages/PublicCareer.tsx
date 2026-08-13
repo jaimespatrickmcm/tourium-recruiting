@@ -228,8 +228,28 @@ export function PublicCareer() {
             candidatura e, se você avançar, as próximas etapas chegam no seu email.
           </p>
 
+          <div className="max-w-md mx-auto rounded-[20px] border border-sky-100 bg-sky-50/50 p-5 text-left mb-6">
+            <p className="font-satoshi font-bold text-[16px] text-[#1d1d1f] mb-1.5">
+              Você ganhou uma análise de perfil
+            </p>
+            <p className="text-[14px] text-[#6b6b70] leading-relaxed">
+              Por se candidatar, você pode fazer sua análise de perfil comportamental (DISC, Big
+              Five e Garra). São só perguntas de marcar, o resultado chega no seu email e fica
+              vinculado ao seu perfil. Dá pra fazer um método de cada vez.
+            </p>
+            <div className="mt-4">
+              <Link
+                to="/perfil/analise"
+                state={{ email }}
+                className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-[#0f0f14] text-white font-semibold text-[14px] hover:bg-[#0f0f14]/90 transition-colors"
+              >
+                Fazer minha análise
+              </Link>
+            </div>
+          </div>
+
           <div className="text-[13px] text-[#8a8a8f]">
-            Enquanto isso, você pode{' '}
+            Você também pode{' '}
             <Link to="/candidato" className="font-semibold text-[#1d1d1f] underline hover:no-underline">
               acessar seu perfil
             </Link>{' '}

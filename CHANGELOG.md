@@ -2,6 +2,21 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.7.0] - 2026-08-13
+
+Análise de perfil comportamental (DISC, Big Five e Garra) como benefício da candidatura.
+
+### Added
+- Página pública `/perfil/analise`: o candidato escolhe fazer um método por vez (com explicação de cada um) ou a análise completa de uma vez, uns 15 minutos no total, só com perguntas de marcar.
+- DISC com as 26 questões de ranking (toque na ordem de identificação), Big Five com 44 afirmações e Garra (Grit) com 10, na escala de 1 a 5. Pontuação calculada no servidor.
+- Resultado na tela ao fim de cada método e email consolidado com tudo que já foi concluído, vinculado ao email do candidato.
+- Card "Você ganhou uma análise de perfil" na tela de candidatura enviada.
+- Recrutador vê o resultado no detalhe do candidato (DISC predominante com percentuais, médias do Big Five e % de garra), só pra candidatos da própria empresa.
+- Consentimento explícito no início do teste; cada envio registrado no audit log.
+
+### Changed
+- O cálculo da Garra corrige a escala original de Duckworth (itens de consistência de interesse pontuam invertidos), diferente da planilha antiga que somava tudo direto.
+
 ## [0.6.0] - 2026-08-13
 
 Application form vira etapa por convite: a candidatura termina na candidatura.
