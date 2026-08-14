@@ -697,7 +697,20 @@ export function ApplicationForm() {
     );
   }
 
-  const progress = steps.length > 0 ? ((stepIndex + 1) / steps.length) * 100 : 100;
+  // Progresso por seção, sem contador de perguntas: mostrar "2 de 28" logo na
+  // entrada mata a paciência antes da primeira resposta. A pessoa vê em qual
+  // capítulo está e um segmento por seção enchendo conforme avança.
+  const sections: string[] = [];
+  for (const s of steps) {
+    if (sections[sections.length - 1] !== s.sectionLabel) sections.push(s.sectionLabel);
+  }
+  const currentSectionIndex = current ? sections.indexOf(current.sectionLabel) : 0;
+  const sectionSteps = current
+    ? steps.filter((s) => s.sectionLabel === current.sectionLabel)
+    : [];
+  const stepWithinSection = current
+    ? steps.slice(0, stepIndex + 1).filter((s) => s.sectionLabel === current.sectionLabel).length
+    : 0;
 
   return (
     <main className="relative min-h-screen bg-white flex flex-col">
@@ -718,21 +731,39 @@ export function ApplicationForm() {
                 Respostas salvas neste aparelho
               </span>
               <span className="text-caption font-medium text-ink-muted">
-                <span className="text-ink font-bold">{stepIndex + 1}</span> de {steps.length}
+                <span className="text-ink font-bold">{current?.sectionLabel}</span>
+                {sections.length > 1 && (
+                  <span className="text-[#a8a8ad]"> · {currentSectionIndex + 1} de {sections.length}</span>
+                )}
               </span>
             </span>
           </div>
           <div
-            className="h-1 bg-surface-sunken rounded-full overflow-hidden"
+            className="flex gap-1"
             role="progressbar"
-            aria-valuenow={stepIndex + 1}
+            aria-valuenow={currentSectionIndex + 1}
             aria-valuemin={1}
-            aria-valuemax={steps.length}
+            aria-valuemax={sections.length}
+            aria-label={`Seção ${current?.sectionLabel}`}
           >
-            <div
-              className="h-full holo-gradient rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progress}%` }}
-            />
+            {sections.map((label, si) => {
+              const fill =
+                si < currentSectionIndex
+                  ? 100
+                  : si > currentSectionIndex
+                    ? 0
+                    : sectionSteps.length > 0
+                      ? (stepWithinSection / sectionSteps.length) * 100
+                      : 0;
+              return (
+                <div key={label} className="h-1 flex-1 bg-surface-sunken rounded-full overflow-hidden">
+                  <div
+                    className="h-full holo-gradient rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${fill}%` }}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
