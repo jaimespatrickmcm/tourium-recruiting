@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Target, UserMinus, UserPlus } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Plus, Target, Trash2, UserMinus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { ScoutCard } from '@/components/scout-card';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
+import { invokeEdge } from '@/lib/functions';
 import { SCOUT_AREAS, areaLabel, type ScoutAreaKey } from '@/lib/scout-areas';
 import {
   groupScoreBatches,
@@ -25,11 +26,14 @@ import type { GoalStatus } from '@/types/database';
 
 export function TeamDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [collaborator, setCollaborator] = useState<Collaborator | null>(null);
   const [scores, setScores] = useState<CollaboratorScore[]>([]);
   const [goals, setGoals] = useState<DevelopmentGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -118,6 +122,22 @@ export function TeamDetail() {
     void load();
   }
 
+  async function deleteCollaborator() {
+    if (!collaborator) return;
+    const name = collaborator.full_name;
+    setDeleting(true);
+    const { error } = await invokeEdge('delete-collaborator', {
+      collaboratorId: collaborator.id,
+    });
+    if (error) {
+      toast.error(error.message || 'Não deu pra excluir.');
+      setDeleting(false);
+      return;
+    }
+    toast.success(`${name} saiu do time.`);
+    navigate('/app/time');
+  }
+
   return (
     <div className="relative min-h-screen bg-white">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[400px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.05),transparent_70%)]" />
@@ -190,6 +210,50 @@ export function TeamDetail() {
             <GoalsSection collaborator={collaborator} goals={goals} onChanged={load} />
             <TimelineSection collaborator={collaborator} batches={batches} goals={goals} />
           </div>
+        </div>
+
+        {/* Zona de exclusão: apaga de vez, pra limpar o time nos testes.
+            Desligar continua sendo o caminho normal (preserva o histórico). */}
+        <div className="mt-10 border-t border-line-soft pt-5">
+          {confirmDelete ? (
+            <div className="rounded-card bg-critical-tint p-4">
+              <p className="mb-1 text-footnote font-semibold text-ink">
+                Excluir {collaborator.full_name} de vez?
+              </p>
+              <p className="mb-3 text-caption text-ink-muted">
+                Apaga a pessoa, as avaliações e as metas. A candidatura de origem, se houver,
+                continua no pipeline. Não dá pra desfazer.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void deleteCollaborator()}
+                  disabled={deleting}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-critical px-4 text-footnote font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  {deleting ? 'Excluindo...' : 'Excluir de vez'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                  className="inline-flex h-9 items-center rounded-full px-4 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-1.5 text-caption font-medium text-ink-subtle transition-colors hover:text-critical"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              Excluir do time
+            </button>
+          )}
         </div>
       </div>
     </div>
