@@ -2,7 +2,16 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
-## [0.7.0] - 2026-08-13
+## [0.7.1] - 2026-08-14
+
+Dá pra tirar alguém do time.
+
+### Added
+- Excluir colaborador na área de time, pela lixeira no card da lista ou pela zona de exclusão no fim da página da pessoa. Apaga as avaliações e as metas junto.
+- Edge Function `delete-collaborator`: valida o login, confere que a pessoa é da mesma empresa (outra empresa recebe 403) e registra a exclusão no audit log.
+
+### Changed
+- O card da lista de time virou um bloco com o link em overlay, pra caber o botão de excluir sem aninhar botão dentro de link.
 
 Análise de perfil comportamental (DISC, Big Five e Garra) como benefício da candidatura.
 

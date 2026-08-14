@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { PageShell, EmptyState } from '@/components/page-shell';
@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { invokeEdge } from '@/lib/functions';
 import { useCompany } from '@/hooks/use-company';
 import {
   useCollaborators,
@@ -35,6 +36,7 @@ export function Team() {
   const { collaborators, loading, refetch } = useCollaborators();
   const [filter, setFilter] = useState<StatusFilter>('ativo');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [toRemove, setToRemove] = useState<CollaboratorWithOverall | null>(null);
 
   const filtered =
     filter === 'todos' ? collaborators : collaborators.filter((c) => c.status === filter);
@@ -107,7 +109,7 @@ export function Team() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c) => (
-            <CollaboratorCard key={c.id} collaborator={c} />
+            <CollaboratorCard key={c.id} collaborator={c} onRemove={() => setToRemove(c)} />
           ))}
         </div>
       )}
@@ -120,13 +122,37 @@ export function Team() {
           void refetch();
         }}
       />
+
+      <RemoveCollaboratorDialog
+        collaborator={toRemove}
+        onOpenChange={(open) => {
+          if (!open) setToRemove(null);
+        }}
+        onRemoved={() => {
+          setToRemove(null);
+          void refetch();
+        }}
+      />
     </PageShell>
   );
 }
 
-function CollaboratorCard({ collaborator: c }: { collaborator: CollaboratorWithOverall }) {
+function CollaboratorCard({
+  collaborator: c,
+  onRemove,
+}: {
+  collaborator: CollaboratorWithOverall;
+  onRemove: () => void;
+}) {
   return (
-    <Link to={`/app/time/${c.id}`} className="surface-card-interactive block p-5">
+    // O link cobre o card inteiro por overlay pra que o botão de excluir possa
+    // viver dentro do mesmo cartão sem virar âncora aninhada.
+    <div className="surface-card-interactive relative p-5">
+      <Link
+        to={`/app/time/${c.id}`}
+        className="absolute inset-0 rounded-card"
+        aria-label={`Abrir ${c.full_name}`}
+      />
       <div className="flex items-start gap-3">
         <span className="icon-tile h-12 w-12 shrink-0 font-satoshi text-title-3 font-bold">
           {c.full_name.trim().charAt(0).toUpperCase() || '?'}
@@ -150,10 +176,18 @@ function CollaboratorCard({ collaborator: c }: { collaborator: CollaboratorWithO
           </div>
         )}
       </div>
-      <div className="mt-4">
+      <div className="mt-4 flex items-center justify-between gap-3">
         <StatusChip status={c.status} />
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Excluir ${c.full_name}`}
+          className="relative z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-ink-subtle transition-colors hover:bg-critical-tint hover:text-critical"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -178,6 +212,68 @@ function EmptyTeam({ onAdd }: { onAdd: () => void }) {
       action={<BrandCtaButton onClick={onAdd}>Adicionar colaborador</BrandCtaButton>}
       hint="Adicione manualmente quem já estava no time antes do Noren."
     />
+  );
+}
+
+function RemoveCollaboratorDialog({
+  collaborator,
+  onOpenChange,
+  onRemoved,
+}: {
+  collaborator: CollaboratorWithOverall | null;
+  onOpenChange: (open: boolean) => void;
+  onRemoved: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!collaborator) return;
+    setDeleting(true);
+    const { error } = await invokeEdge('delete-collaborator', {
+      collaboratorId: collaborator.id,
+    });
+    setDeleting(false);
+    if (error) {
+      toast.error(error.message || 'Não deu pra excluir.');
+      return;
+    }
+    toast.success(`${collaborator.full_name} saiu do time.`);
+    onRemoved();
+  }
+
+  return (
+    <Dialog open={collaborator !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-card bg-white sm:rounded-card">
+        <DialogHeader>
+          <DialogTitle className="font-satoshi font-bold text-[22px] tracking-[-0.3px] text-ink">
+            Excluir {collaborator?.full_name}?
+          </DialogTitle>
+          <DialogDescription className="text-callout text-ink-muted">
+            Apaga a pessoa, as avaliações e as metas de desenvolvimento. A candidatura de origem,
+            se houver, continua no pipeline. Não dá pra desfazer.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center gap-2 pt-2">
+          <button
+            type="button"
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            className="inline-flex h-10 items-center gap-1.5 rounded-full bg-critical px-5 text-footnote font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            {deleting ? 'Excluindo...' : 'Excluir de vez'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={deleting}
+            className="inline-flex h-10 items-center rounded-full px-4 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
