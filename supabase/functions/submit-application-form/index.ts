@@ -302,17 +302,21 @@ Deno.serve(async (req) => {
     });
 
   if (rows.length > 0) {
-    // Reenvio substitui: agora que a pessoa pode voltar e preencher de novo, as
-    // respostas antigas sairiam duplicadas e a análise leria a mesma pergunta
+    // Reenvio substitui: a pessoa pode voltar e preencher de novo, e sem limpar
+    // as respostas antigas sairiam duplicadas e a análise leria a mesma pergunta
     // duas vezes. O envio mais recente é o que vale.
-    if (!createdNow) {
-      const { error: clearError } = await admin
-        .from('application_answers')
-        .delete()
-        .eq('application_id', applicationId);
-      if (clearError) {
-        console.error('[submit-application-form] limpar respostas antigas:', clearError.message);
-      }
+    //
+    // Antes isso era condicionado a `createdNow`, que existia quando esta função
+    // ainda podia CRIAR a candidatura. Com o form por convite ela sempre já
+    // existe (vem do link individual), o caminho de criação saiu e a variável
+    // ficou órfã: `ReferenceError: createdNow is not defined`, 500 em todo
+    // envio. Como a candidatura nunca é nova aqui, a limpeza é sempre.
+    const { error: clearError } = await admin
+      .from('application_answers')
+      .delete()
+      .eq('application_id', applicationId);
+    if (clearError) {
+      console.error('[submit-application-form] limpar respostas antigas:', clearError.message);
     }
     const { error: answersError } = await admin.from('application_answers').insert(rows);
     if (answersError) {
