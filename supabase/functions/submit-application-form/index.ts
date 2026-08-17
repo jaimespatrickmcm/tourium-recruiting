@@ -25,6 +25,8 @@ type AnswerInput = {
   refId?: string | null;
   question: string;
   answer?: string | null;
+  /** 'audio' quando a pessoa falou e a gente transcreveu. Default 'typed'. */
+  inputMode?: string | null;
   canaryToken?: string | null;
 };
 
@@ -298,6 +300,9 @@ Deno.serve(async (req) => {
         answer: (a.answer ?? '').trim(),
         guidance_snapshot: freeze ? (criteria?.guidance ?? '').slice(0, MAX_SNAPSHOT) : null,
         rubric_snapshot: freeze ? (criteria?.scoring_rubric ?? '').slice(0, MAX_SNAPSHOT) : null,
+        // Só 'audio' explícito conta; qualquer outra coisa vira 'typed'. O valor
+        // vem do cliente, então não pode entrar cru numa coluna com check.
+        input_mode: a.inputMode === 'audio' ? 'audio' : 'typed',
       };
     });
 

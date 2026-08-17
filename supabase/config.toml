@@ -101,6 +101,12 @@ verify_jwt = true
 [functions.application-prefill]
 verify_jwt = false
 
+# transcribe-audio: público, chamado do formulário do candidato. Endpoint PAGO,
+# então o gate interno é o mesmo do submit: precisa da candidatura E do token do
+# link individual do e-mail. O áudio nunca é armazenado.
+[functions.transcribe-audio]
+verify_jwt = false
+
 # notify-stage-change: recrutador logado. Manda e-mail da virada de etapa e
 # devolve link do form + link de WhatsApp. Valida JWT + ownership internamente.
 [functions.notify-stage-change]

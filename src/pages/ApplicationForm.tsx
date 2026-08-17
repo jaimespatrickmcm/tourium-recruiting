@@ -8,6 +8,7 @@ import { BrandCtaButton, BrandCtaLink } from '@/components/brand-cta';
 import { supabase } from '@/lib/supabase';
 import { invokeEdge } from '@/lib/functions';
 import { makeCanaryToken, canaryInjection } from '@/lib/canary';
+import { AudioAnswerButton, audioRecordingSupported } from '@/components/audio-answer-button';
 import { parseOptions } from '@/hooks/use-questions';
 import type { QuestionFormat, QuestionKind } from '@/types/database';
 
@@ -118,6 +119,8 @@ type FormDraft = {
   city?: string;
   answers?: Record<string, string>;
   selections?: Record<string, string[]>;
+  /** refIds respondidos falando. Array porque Set não sobrevive ao JSON. */
+  audioRefs?: string[];
   stepIndex?: number;
   savedAt?: number;
 };
@@ -221,6 +224,16 @@ export function ApplicationForm() {
   const [phone, setPhone] = useState(initialDraft?.phone || navState?.phone || '');
   const [city, setCity] = useState(initialDraft?.city ?? '');
   const [answers, setAnswers] = useState<Record<string, string>>(initialDraft?.answers ?? {});
+  // Quais respostas foram FALADAS. Vai junto no envio porque a análise pontua
+  // "comunicação" pela clareza da escrita, e fala transcrita não tem pontuação
+  // nem parágrafo: sem essa marca, quem grava perde nota por não escrever bem
+  // um texto que nunca escreveu.
+  const [audioRefs, setAudioRefs] = useState<Set<string>>(
+    () => new Set(initialDraft?.audioRefs ?? []),
+  );
+  // Checado uma vez: navegador sem MediaRecorder (ou sem codec suportado) não
+  // mostra o botão, em vez de mostrar um botão que falha ao ser tocado.
+  const canRecordAudio = useMemo(() => audioRecordingSupported(), []);
   // Respostas das perguntas de seleção, por refId. single_select guarda array
   // de 1 item; multi_select guarda todas as opções marcadas.
   const [selections, setSelections] = useState<Record<string, string[]>>(
@@ -390,6 +403,7 @@ export function ApplicationForm() {
         city,
         answers,
         selections,
+        audioRefs: [...audioRefs],
         stepIndex,
         savedAt: Date.now(),
       };
@@ -397,7 +411,19 @@ export function ApplicationForm() {
     } catch {
       // Sem espaço ou modo privado: o formulário continua funcionando normal.
     }
-  }, [name, email, phone, city, answers, selections, stepIndex, phase, submitting, storageKey]);
+  }, [
+    name,
+    email,
+    phone,
+    city,
+    answers,
+    selections,
+    audioRefs,
+    stepIndex,
+    phase,
+    submitting,
+    storageKey,
+  ]);
 
   const candidateSteps = useMemo<CandidateStep[]>(
     () => CANDIDATE_STEPS.filter((step) => !prefilledFields.has(step.field)),
@@ -528,6 +554,7 @@ export function ApplicationForm() {
             refId: q.refId,
             question: q.question,
             answer,
+            inputMode: q.refId && audioRefs.has(q.refId) ? 'audio' : 'typed',
             canaryToken: q.refId ? canaryByRef[q.refId] : undefined,
           };
         })
@@ -874,7 +901,7 @@ export function ApplicationForm() {
                   onChange={(e) =>
                     setAnswers((prev) => ({ ...prev, [current.refId ?? '']: e.target.value }))
                   }
-                  placeholder="Escreva sua resposta aqui."
+                  placeholder="Escreva sua resposta aqui, ou toque em Falar."
                   rows={7}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -884,6 +911,31 @@ export function ApplicationForm() {
                   }}
                   className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
                 />
+              )}
+
+              {/* Responder falando. A transcrição é ACRESCENTADA ao que já
+                  existe, nunca substitui: quem digitou metade e resolveu falar
+                  o resto não pode perder o que escreveu. */}
+              {current.type === 'question' && current.format === 'text' && canRecordAudio && (
+                <div className="mt-3">
+                  <AudioAnswerButton
+                    applicationId={applicationId}
+                    token={accessToken}
+                    disabled={submitting}
+                    onTranscribed={(text) => {
+                      const ref = current.refId ?? '';
+                      setAnswers((prev) => {
+                        const existing = (prev[ref] ?? '').trim();
+                        return { ...prev, [ref]: existing ? `${existing} ${text}` : text };
+                      });
+                      setAudioRefs((prev) => new Set(prev).add(ref));
+                    }}
+                  />
+                  <p className="mt-2 text-caption text-ink-subtle">
+                    Responder falando costuma ser mais rápido, e você conta a história do seu
+                    jeito. A gente transcreve e você revisa antes de enviar.
+                  </p>
+                </div>
               )}
 
               {current.type === 'question' &&
