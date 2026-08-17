@@ -292,6 +292,20 @@ const STAGE_LINK_LABEL: Partial<Record<ApplicationStatus, string>> = {
   entrevista: 'Copiar link da agenda',
 };
 
+// Versão atual do pipeline de análise. Tem que bater com
+// ANALYSIS_PIPELINE_VERSION no edge function analyze-candidate: é a comparação
+// que diz quais análises ficaram pra trás depois de uma mudança de régua.
+const CURRENT_PIPELINE_VERSION = 2;
+
+// Quantas re-análises rodam ao mesmo tempo. Cada uma leva 60-90s, então
+// sequencial faria 45 candidatos levarem quase uma hora. Três em paralelo cabe
+// no limite da edge function sem derrubar a fila.
+const REANALYZE_CONCURRENCY = 3;
+
+// Custo médio observado por análise em ai_analyses.cost_cents. Serve pra avisar
+// antes de gastar, não pra cobrar: é estimativa, e está dito como tal na tela.
+const CENTS_PER_ANALYSIS = 8;
+
 // Retorno da edge function notify-stage-change: o que rolou de comunicação com o
 // candidato depois da virada de etapa.
 type StageComms = {
@@ -856,6 +870,12 @@ export function JobDetail() {
   const [job, setJob] = useState<Job | null>(null);
   const [jobLoading, setJobLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [batch, setBatch] = useState<{
+    total: number;
+    done: number;
+    failed: number;
+    running: boolean;
+  } | null>(null);
   const [stageFilter, setStageFilter] = useState<'all' | ApplicationStatus>('all');
 
   const { applications, loading: appsLoading, refetch, patchApplication } = useApplications(id);
@@ -908,6 +928,51 @@ export function JobDetail() {
     )
     .map((a) => a.ai_analysis!.stage_score as number);
 
+  // Análises feitas com régua antiga. Depois das mudanças de calibragem (nota
+  // por pergunta, potencial calculado, campo de cadastro fora da média), a nota
+  // velha e a nova não são comparáveis, então deixar as duas convivendo na
+  // mesma lista faz o recrutador ordenar candidato por régua diferente.
+  const outdated = applications.filter(
+    (a) =>
+      a.ai_analysis?.status === 'completed' &&
+      (a.ai_analysis?.pipeline_version ?? 1) < CURRENT_PIPELINE_VERSION,
+  );
+
+  // Reprocessa em fila, com poucos ao mesmo tempo. Não dispara sozinho e não
+  // recomeça do zero: quem já está na versão nova fica de fora, então rodar de
+  // novo depois de uma falha só refaz o que faltou.
+  async function reanalyzeOutdated() {
+    const queue = [...outdated];
+    if (queue.length === 0) return;
+    setBatch({ total: queue.length, done: 0, failed: 0, running: true });
+
+    let done = 0;
+    let failed = 0;
+    async function worker() {
+      for (;;) {
+        const next = queue.shift();
+        if (!next) return;
+        const { error } = await invokeEdge('analyze-candidate', { applicationId: next.id });
+        if (error) failed += 1;
+        done += 1;
+        setBatch({ total: outdated.length, done, failed, running: true });
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(REANALYZE_CONCURRENCY, queue.length) }, () => worker()),
+    );
+
+    setBatch({ total: outdated.length, done, failed, running: false });
+    await refetch();
+    if (failed > 0) {
+      toast.warning(
+        `${done - failed} reprocessados, ${failed} falharam. Rode de novo pra tentar só os que faltaram.`,
+      );
+    } else {
+      toast.success(`${done} candidatos reprocessados com a régua nova.`);
+    }
+  }
+
   return (
     <div className="relative min-h-screen bg-canvas">
       <div className="canvas-tint pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
@@ -958,6 +1023,38 @@ export function JobDetail() {
           guarda a configuracao. Mesmo principio da navegacao principal:
           operacao na frente, setup a um clique.
         */}
+        {/* Barra de reprocessamento. Só aparece quando existe análise feita com
+            régua antiga, e some sozinha quando não sobra nenhuma. Não dispara
+            automático de propósito: reprocessar custa e sobrescreve a leitura
+            atual, então quem decide é quem está olhando a tela. */}
+        {outdated.length > 0 && (
+          <div className="mb-6 flex flex-col gap-3 rounded-card border border-line-soft bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-callout font-semibold text-ink">
+                {outdated.length} análise{outdated.length === 1 ? '' : 's'} com a régua antiga
+              </p>
+              <p className="mt-1 text-caption text-ink-muted">
+                {batch?.running
+                  ? `Reprocessando ${batch.done} de ${batch.total}. Pode deixar a aba aberta.`
+                  : `Foram feitas antes da nota por pergunta e do potencial calculado, então não dá pra comparar com as novas. Custo estimado de US$ ${((outdated.length * CENTS_PER_ANALYSIS) / 100).toFixed(2)}.`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void reanalyzeOutdated()}
+              disabled={batch?.running}
+              className="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-full bg-ink px-4 text-footnote font-semibold text-surface transition-opacity hover:opacity-90 disabled:opacity-50 sm:self-auto"
+            >
+              {batch?.running ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {batch?.running ? `${batch.done}/${batch.total}` : 'Reprocessar todos'}
+            </button>
+          </div>
+        )}
+
         <Tabs defaultValue="pipeline">
           <TabsList className="mb-7 inline-flex h-auto gap-1 rounded-full bg-surface-sunken p-1">
             <TabsTrigger
