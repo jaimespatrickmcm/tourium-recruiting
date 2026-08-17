@@ -281,6 +281,15 @@ function verdictFromScore(score: number): StageVerdict {
 
 const MODEL = 'gpt-5';
 
+// Versão do pipeline. SOBE sempre que uma mudança no prompt ou no cálculo torne
+// as análises anteriores incomparáveis com as novas, e a tela passa a mostrar
+// quantas ficaram pra trás. Histórico das que exigiram reprocessamento:
+//   2 = nota por pergunta vira a base do fit da etapa, veredito calculado por
+//       faixa, potencial como projeção, raciocínio como área, sinal de
+//       liderança, revisão cruzada entre respostas, campo de cadastro fora da
+//       nota, e resposta falada julgada por conteúdo e não por forma.
+const ANALYSIS_PIPELINE_VERSION = 2;
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -996,6 +1005,7 @@ Deno.serve(async (req) => {
         leadership_signal: result.leadership_signal,
         dna_version_used: dnaVersion,
         model_used: MODEL,
+        pipeline_version: ANALYSIS_PIPELINE_VERSION,
         cost_cents: costCents,
         status: 'completed',
         error_message: null,
