@@ -208,6 +208,11 @@ Deno.serve(async (req) => {
 
   const applicationId = (payload.applicationId ?? '').trim();
   const toStatus = (payload.toStatus ?? '').trim();
+  // linkOnly: o recrutador só quer o link pra mandar na mão (o candidato não
+  // achou o e-mail, caiu em spam, trocou de endereço). Gera o link e NÃO envia
+  // e-mail. Sem isso, pegar o link de novo significaria disparar outro e-mail
+  // pro candidato, que é exatamente o que já não funcionou.
+  const linkOnly = payload.linkOnly === true;
   // O link que vai pro candidato precisa ser o endereço público de produção.
   // APP_URL manda; o origin do navegador é só plano B (senão vaza localhost).
   const configuredAppUrl = (Deno.env.get('APP_URL') ?? '').trim().replace(/\/+$/, '');
@@ -280,7 +285,8 @@ Deno.serve(async (req) => {
 
   // 4) Se for fit_cultural, mint token pro form individual do candidato.
   let formUrl: string | null = null;
-  if (toStatus === 'fit_cultural' && candidateEmail && origin && companySlug && jobSlug) {
+  const wantsFormLink = toStatus === 'fit_cultural' || (linkOnly && toStatus === 'triagem');
+  if (wantsFormLink && candidateEmail && origin && companySlug && jobSlug) {
     try {
       const token = generateToken();
       const tokenHash = await sha256Hex(token);
@@ -310,7 +316,7 @@ Deno.serve(async (req) => {
   let emailSent = false;
   let emailError: string | null = null;
 
-  if (spec && candidateEmail) {
+  if (spec && candidateEmail && !linkOnly) {
     if (!emailConfigured()) {
       emailError = 'E-mail ainda não configurado';
     } else {
@@ -360,6 +366,9 @@ Deno.serve(async (req) => {
     emailSent,
     emailError,
     formUrl,
+    // Vai no retorno pra o botão "copiar link da etapa" achar o link da agenda
+    // quando o candidato já está em entrevista.
+    schedulingUrl,
     whatsappUrl,
     toStatus,
   });
