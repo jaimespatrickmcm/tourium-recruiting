@@ -283,11 +283,21 @@ function AnswerRow({
   );
 }
 
+// Etapas que têm um link pra mandar pro candidato, e o texto do botão. Etapa
+// fora daqui (proposta, contratado, reprovado) não tem link, então o botão nem
+// aparece em vez de aparecer e copiar vazio.
+const STAGE_LINK_LABEL: Partial<Record<ApplicationStatus, string>> = {
+  triagem: 'Copiar link do formulário',
+  fit_cultural: 'Copiar link do formulário',
+  entrevista: 'Copiar link da agenda',
+};
+
 // Retorno da edge function notify-stage-change: o que rolou de comunicação com o
 // candidato depois da virada de etapa.
 type StageComms = {
   toStatus: string;
   formUrl: string | null;
+  schedulingUrl: string | null;
   whatsappUrl: string | null;
   emailSent: boolean;
 };
@@ -1753,6 +1763,8 @@ function CandidateDetail({
   const [deleting, setDeleting] = useState(false);
   const [comms, setComms] = useState<StageComms | null>(null);
   const [copiedForm, setCopiedForm] = useState(false);
+  const [copiedStageLink, setCopiedStageLink] = useState(false);
+  const [loadingStageLink, setLoadingStageLink] = useState(false);
 
   // Dispara a comunicação com o candidato (e-mail + link de WhatsApp) depois de
   // uma virada de etapa. Best-effort: nunca quebra a mudança de etapa. Se falhar,
@@ -1769,6 +1781,34 @@ function CandidateDetail({
     } catch (err) {
       console.error('[JobDetail] notify-stage-change error:', err);
       toast('Etapa atualizada. A notificação ao candidato não saiu agora.');
+    }
+  }
+
+  // Pega o link da etapa atual SEM disparar e-mail. Gerar o link de novo por
+  // "notificar de novo" mandaria outro e-mail pro candidato, que é justamente o
+  // que já não chegou nele.
+  async function copyStageLink() {
+    setLoadingStageLink(true);
+    try {
+      const { data, error } = await invokeEdge<StageComms>('notify-stage-change', {
+        applicationId: app.id,
+        toStatus: app.status,
+        origin: window.location.origin,
+        linkOnly: true,
+      });
+      if (error || !data) throw error ?? new Error('sem retorno');
+      const url = data.formUrl ?? data.schedulingUrl ?? null;
+      if (!url) {
+        toast.error('Ainda não há link pra esta etapa.');
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopiedStageLink(true);
+      window.setTimeout(() => setCopiedStageLink(false), 2000);
+    } catch {
+      toast.error('Não deu pra gerar o link agora. Tente de novo.');
+    } finally {
+      setLoadingStageLink(false);
     }
   }
 
@@ -2328,6 +2368,35 @@ function CandidateDetail({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Link da etapa, disponível SEMPRE, não só logo depois da virada.
+            O caso real é o candidato que não achou o e-mail (spam, endereço
+            velho, caixa cheia): o recrutador precisa pegar o link e mandar no
+            WhatsApp. Antes o link só existia no painel que aparecia por alguns
+            instantes após mudar de etapa, então quem voltasse no card depois
+            não tinha de onde tirar. */}
+        {STAGE_LINK_LABEL[app.status] && (
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void copyStageLink()}
+              disabled={loadingStageLink}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+            >
+              {loadingStageLink ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : copiedStageLink ? (
+                <Check className="h-3.5 w-3.5 text-positive" aria-hidden />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {copiedStageLink ? 'Link copiado' : STAGE_LINK_LABEL[app.status]}
+            </button>
+            <span className="text-caption text-ink-subtle">
+              Pra mandar na mão se o candidato não achou o e-mail.
+            </span>
           </div>
         )}
 
