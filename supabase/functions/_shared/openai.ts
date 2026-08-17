@@ -53,6 +53,53 @@ export async function callOpenAI(args: {
   return { text, usage };
 }
 
+// Transcrição de áudio. O arquivo passa por aqui e não é guardado em lugar
+// nenhum: chega, vira texto, some.
+//
+// Tenta o modelo novo e cai pro whisper-1 se a conta não tiver acesso a ele.
+// Sem esse fallback, uma conta antiga quebraria o botão de áudio inteiro com um
+// erro de modelo desconhecido, que é o tipo de falha difícil de diagnosticar de
+// dentro do formulário do candidato.
+const TRANSCRIBE_MODELS = ['gpt-4o-transcribe', 'whisper-1'];
+
+export async function transcribeAudio(args: {
+  apiKey: string;
+  audio: Blob;
+  filename: string;
+  language?: string;
+}): Promise<{ text: string; modelUsed: string }> {
+  let lastError: OpenAIError | null = null;
+
+  for (const model of TRANSCRIBE_MODELS) {
+    const form = new FormData();
+    form.append('file', args.audio, args.filename);
+    form.append('model', model);
+    // Fixar o idioma melhora a transcrição e evita o modelo "traduzir" sozinho
+    // um trecho em inglês no meio da fala.
+    form.append('language', args.language ?? 'pt');
+
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${args.apiKey}` },
+      body: form,
+    });
+
+    if (res.ok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = (await res.json()) as any;
+      return { text: String(data?.text ?? '').trim(), modelUsed: model };
+    }
+
+    const errText = await res.text();
+    lastError = new OpenAIError(`OpenAI ${res.status}: ${errText.slice(0, 300)}`, res.status);
+    // 400/404 costuma ser "modelo não existe pra esta conta": vale tentar o
+    // próximo. Qualquer outro status é problema real e para aqui.
+    if (res.status !== 400 && res.status !== 404) break;
+  }
+
+  throw lastError ?? new OpenAIError('Falha desconhecida na transcrição', 500);
+}
+
 // Custo em centavos de dólar. GPT-5: ~$1.25/1M input, ~$10/1M output.
 export function openaiCostCents(usage: OpenAIUsage): number {
   return Math.round(((usage.input_tokens * 1.25 + usage.output_tokens * 10) / 1_000_000) * 100);

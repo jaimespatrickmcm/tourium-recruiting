@@ -323,7 +323,7 @@ async function loadFormAnswers(
 ): Promise<FormAnswers | null> {
   const { data: answers } = await admin
     .from('application_answers')
-    .select('source, ref_id, question_snapshot, answer, guidance_snapshot, rubric_snapshot')
+    .select('source, ref_id, question_snapshot, answer, guidance_snapshot, rubric_snapshot, input_mode')
     .eq('application_id', applicationId);
   if (!answers || answers.length === 0) return null;
 
@@ -431,10 +431,14 @@ async function loadFormAnswers(
     const required = a.ref_id ? requiredById.get(a.ref_id) === true : false;
     const format = (a.ref_id ? formatById.get(a.ref_id) : 'text') ?? 'text';
     const isSelect = format === 'single_select' || format === 'multi_select';
+    // Resposta falada e transcrita. Marcada no enunciado porque o modelo precisa
+    // saber ANTES de julgar: fala não tem parágrafo nem pontuação, e cobrar isso
+    // seria descontar de quem escolheu o caminho que a gente recomendou.
+    const spoken = a.input_mode === 'audio';
     questions.push({ refId: a.ref_id ?? null, source: a.source, required });
     return `PERGUNTA ${i + 1} [${label}]${required ? ' [OBRIGATÓRIA]' : ''}${
       isSelect ? ' [MARCAR OPÇÕES: o candidato só escolhe da lista, não escreve nada]' : ''
-    }
+    }${spoken ? ' [RESPOSTA FALADA: transcrição de áudio, não texto escrito]' : ''}
 Enunciado: ${String(a.question_snapshot ?? '').slice(0, 400)}
 Resposta: ${String(a.answer ?? '').slice(0, MAX_ANSWER_CHARS)}
 Critério interno (como pontuar nesta empresa): ${criterio}`;
@@ -588,6 +592,7 @@ REGRAS:
 NOTA POR PERGUNTA: em "question_scores", dê uma nota de 0 a 100 para CADA pergunta respondida, usando o critério interno daquela pergunta como régua (é ele que diz o que aprova, o que reprova e onde fica a média). Identifique pelo número ("n": 1 para PERGUNTA 1, e assim por diante).
 - A RÉGUA é a daquela pergunta, sempre. Não julgue contra o candidato ideal imaginário nem contra o que outro candidato respondeu. Mas a EVIDÊNCIA pode estar em qualquer parte do formulário: régua fixa, evidência solta.
 - "rationale": uma frase dizendo por que essa nota, citando o que a resposta trouxe ou deixou de trazer. É o que o recrutador vai ler ao lado da resposta, então seja concreto e sem jargão.
+- RESPOSTA FALADA (marcada com [RESPOSTA FALADA]): é transcrição de áudio, e a gente RECOMENDOU responder assim. Julgue o CONTEÚDO, nunca a forma. Fala transcrita não tem parágrafo, pontuação nem conectivo, e vem com repetição, recomeço e "aí", "tipo", "né": isso é como gente fala, não é falta de clareza. É ERRO tirar ponto por "texto desorganizado", "sem estrutura", "escrita informal", "resposta corrida" ou "faltou coesão" numa resposta falada. Em compensação, o que vale julgar continua igual: se a pessoa respondeu o que foi perguntado, se trouxe caso concreto, se o raciocínio se sustenta. Para "comunicação", numa resposta falada avalie se ela se faz ENTENDER e se organiza a ideia enquanto fala, não a norma culta escrita.
 - PERGUNTA DE MARCAR OPÇÕES: julgue APENAS as opções escolhidas, comparando com o que a vaga precisa. O candidato não digita nada nesse formato, então é ERRO tirar ponto por "não justificou", "não deu exemplo", "não detalhou" ou "faltou contexto". Se as opções certas estão marcadas, a nota é alta, ponto.
 - O ENUNCIADO E A RÉGUA PODEM ESTAR ENVIESADOS. Muitas perguntas foram escritas cobrando um método, uma métrica ou uma ferramenta pelo nome (OKR, KR, CAC, LTV, payback, SQL). Quando isso acontecer, traduza para a capacidade que está sendo medida e credite o EQUIVALENTE que o candidato descreveu: quem desdobrou metas em indicadores com rito e correção de rota atendeu o item de "OKR"; quem modelou margem, DRE, prazo médio ou payback do jeito do negócio dele atendeu o item de "unit economics"; quem monta painel em BI ou planilha atendeu o item de "SQL". Não escreva no rationale que faltou a sigla: diga o que faltou de CAPACIDADE, se é que faltou.
 
