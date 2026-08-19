@@ -68,6 +68,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import { cn } from '@/lib/utils';
+import {
+  SCORED_STAGES,
+  missingEvidenceLabel,
+  type StageScore,
+} from '@/lib/stage-scores';
 import type {
   ApplicationStatus,
   ApplicationEventType,
@@ -472,6 +477,74 @@ const EVIDENCE_STAGE_LABELS: Record<string, string> = {
   cv: 'Baseado só no currículo',
   form: 'Com respostas do formulário',
 };
+
+// Trilha de notas por etapa. Cada etapa aparece com a nota que ela mesma gerou,
+// e a etapa atual vem destacada.
+//
+// Existe porque a nota vigente sozinha nao conta a historia: quando o candidato
+// avanca, ai_analyses e sobrescrita e a nota da triagem sumia. O log
+// application_stage_scores preserva, e aqui ele vira leitura.
+//
+// Etapa sem nota nao recebe numero nenhum. E o caso da entrevista, que ainda nao
+// tem fonte de dado no produto: reaproveitar a nota do formulario ali mediria
+// outra coisa e daria ao recrutador a impressao de que a entrevista foi avaliada.
+function StageTrackRail({
+  track,
+  currentStatus,
+}: {
+  track: Map<ApplicationStatus, StageScore>;
+  currentStatus: ApplicationStatus;
+}) {
+  // So faz sentido a partir de duas etapas com nota, ou quando a atual e uma das
+  // pontuaveis. Candidato recem-chegado nao precisa de trilha de um item so.
+  const relevant = SCORED_STAGES.filter(
+    (stage) => track.has(stage) || stage === currentStatus,
+  );
+  if (relevant.length < 2) return null;
+
+  return (
+    <div className="mb-6 flex flex-wrap items-stretch gap-2">
+      {relevant.map((stage) => {
+        const entry = track.get(stage) ?? null;
+        const isCurrent = stage === currentStatus;
+        const score = entry?.score ?? null;
+        return (
+          <div
+            key={stage}
+            aria-current={isCurrent ? 'step' : undefined}
+            className={cn(
+              'min-w-[104px] flex-1 rounded-tile border px-3 py-2.5',
+              isCurrent ? 'border-ink bg-surface' : 'border-line-soft bg-canvas',
+            )}
+          >
+            <p
+              className={cn(
+                'text-eyebrow font-bold uppercase',
+                isCurrent ? 'text-ink' : 'text-ink-subtle',
+              )}
+            >
+              {stageLabels[stage]}
+            </p>
+            {score !== null ? (
+              <p
+                className={cn(
+                  'mt-1 font-satoshi text-title-3 font-bold leading-none tabular-nums',
+                  isCurrent ? TONE_TEXT[toneForScore(score)] : 'text-ink-muted',
+                )}
+              >
+                {score}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-caption leading-snug text-ink-subtle">
+                {missingEvidenceLabel(stage, track) ?? 'sem avaliação'}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // Decisão da etapa: o fit calibrado ao estágio (só CV vs com formulário), com
 // veredito de avançar, avaliar melhor ou cortar, e comparação no mesmo estágio.
@@ -1201,13 +1274,26 @@ function CandidateListItem({
   onSelect: () => void;
 }) {
   const analysis = app.ai_analysis;
-  const stageScore = analysis?.stage_score ?? analysis?.score ?? null;
-  const verdict = analysis?.stage_verdict ?? null;
+  // A nota mostrada é a da ETAPA ATUAL, não a análise vigente solta. Antes,
+  // quem fosse movido pra fit cultural sem ter respondido o formulário aparecia
+  // com nota de fit cultural que na verdade tinha saído do currículo, e não
+  // dava pra distinguir no board quem respondeu de quem só mudou de coluna.
+  const track = app.stage_track;
+  const currentStage = track.get(app.status) ?? null;
+  const stageScore = currentStage?.score ?? null;
+  const verdict = currentStage?.verdict ?? null;
+  const waitingFor = missingEvidenceLabel(app.status, track);
   const aStatus = analysis?.status;
   const isPending = analysisIsPending(app);
   const hasError = aStatus === 'error';
   const done = aStatus === 'completed' && stageScore !== null;
   const tone = done ? toneForScore(stageScore) : 'neutral';
+  // Etapa atual sem nota: mostra a última que teve, esmaecida e com o rótulo
+  // da etapa de onde veio. Some melhor que um espaço vazio e não mente sobre
+  // qual etapa foi avaliada.
+  const lastScored = !done
+    ? [...track.values()].sort((a, b) => (b.ranAt ?? '').localeCompare(a.ranAt ?? ''))[0] ?? null
+    : null;
 
   const verdictLabel = verdict ? (VERDICT_LABELS[verdict] ?? verdict) : null;
   const verdictTone: Tone = verdict ? (VERDICT_TONE[verdict] ?? 'neutral') : 'neutral';
@@ -1251,10 +1337,29 @@ function CandidateListItem({
                 <span className="text-critical">erro na análise</span>
               </>
             )}
+            {/* Respondeu o formulário. O dado já existia em form_completed_at e
+                nunca aparecia na tela, então não dava pra saber pelo board quem
+                tinha respondido. É o que separa "avançou de etapa" de "mandou
+                material novo pra ser avaliado". */}
+            {app.form_completed_at && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1 text-positive">
+                  <CheckCircle2 className="h-3 w-3" aria-hidden />
+                  respondeu
+                </span>
+              </>
+            )}
+            {!app.form_completed_at && waitingFor && !isPending && !hasError && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="text-ink-subtle">{waitingFor}</span>
+              </>
+            )}
           </p>
         </div>
 
-        {done && (
+        {done ? (
           <div className="shrink-0 text-right">
             <p
               className={cn(
@@ -1270,6 +1375,18 @@ function CandidateListItem({
               </p>
             )}
           </div>
+        ) : (
+          lastScored &&
+          lastScored.score !== null && (
+            <div className="shrink-0 text-right">
+              <p className="font-satoshi text-callout font-bold leading-none tabular-nums text-ink-subtle">
+                {lastScored.score}
+              </p>
+              <p className="mt-1 text-eyebrow font-semibold uppercase text-ink-subtle">
+                {stageLabels[lastScored.stage]}
+              </p>
+            </div>
+          )
         )}
       </div>
     </button>
@@ -1862,6 +1979,7 @@ function CandidateDetail({
   const [copiedForm, setCopiedForm] = useState(false);
   const [copiedStageLink, setCopiedStageLink] = useState(false);
   const [loadingStageLink, setLoadingStageLink] = useState(false);
+  const [loadingWhatsapp, setLoadingWhatsapp] = useState(false);
 
   // Dispara a comunicação com o candidato (e-mail + link de WhatsApp) depois de
   // uma virada de etapa. Best-effort: nunca quebra a mudança de etapa. Se falhar,
@@ -1884,6 +2002,44 @@ function CandidateDetail({
   // Pega o link da etapa atual SEM disparar e-mail. Gerar o link de novo por
   // "notificar de novo" mandaria outro e-mail pro candidato, que é justamente o
   // que já não chegou nele.
+  // Abre o WhatsApp com o link da etapa. O botao existia so dentro do painel
+  // que aparecia por instantes depois de virar a etapa: bastava recarregar a
+  // pagina pra ele sumir, e era exatamente quando o recrutador precisava dele.
+  //
+  // A janela e aberta ANTES do await, ainda dentro do clique. Bloqueador de
+  // popup so confia em window.open disparado por gesto do usuario; abrir depois
+  // da resposta da funcao seria bloqueado silenciosamente.
+  async function openStageWhatsapp() {
+    const win = window.open('', '_blank');
+    setLoadingWhatsapp(true);
+    try {
+      const { data, error } = await invokeEdge<StageComms>('notify-stage-change', {
+        applicationId: app.id,
+        toStatus: app.status,
+        origin: window.location.origin,
+        linkOnly: true,
+      });
+      if (error || !data) throw error ?? new Error('sem retorno');
+      if (!data.whatsappUrl) {
+        win?.close();
+        toast.error('Esse candidato não tem telefone cadastrado.');
+        return;
+      }
+      if (win) {
+        win.location.href = data.whatsappUrl;
+      } else {
+        // Popup bloqueado: em vez de falhar calado, entrega o link pra mao.
+        await navigator.clipboard.writeText(data.whatsappUrl);
+        toast.success('Link do WhatsApp copiado. Cole no navegador.');
+      }
+    } catch {
+      win?.close();
+      toast.error('Não deu pra montar a mensagem agora. Tente de novo.');
+    } finally {
+      setLoadingWhatsapp(false);
+    }
+  }
+
   async function copyStageLink() {
     setLoadingStageLink(true);
     try {
@@ -2491,6 +2647,19 @@ function CandidateDetail({
               )}
               {copiedStageLink ? 'Link copiado' : STAGE_LINK_LABEL[app.status]}
             </button>
+            <button
+              type="button"
+              onClick={() => void openStageWhatsapp()}
+              disabled={loadingWhatsapp}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+            >
+              {loadingWhatsapp ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+              )}
+              WhatsApp
+            </button>
             <span className="text-caption text-ink-subtle">
               Pra mandar na mão se o candidato não achou o e-mail.
             </span>
@@ -2641,6 +2810,7 @@ function CandidateDetail({
               </div>
             ) : analysis ? (
               <div>
+                <StageTrackRail track={app.stage_track} currentStatus={app.status} />
                 <StageDecision
                   analysis={analysis}
                   dims={dims}
