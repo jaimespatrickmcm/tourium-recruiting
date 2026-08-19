@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { ApplicationStatus, Json } from '@/types/database';
+import { buildStageTrack, type StageScore, type StageScoreRow } from '@/lib/stage-scores';
 
 export type ApplicationAnalysis = {
   score: number | null;
@@ -45,6 +46,13 @@ export type ApplicationWithAnalysis = {
   highlight_answer: string | null;
   highlight_matched: boolean | null;
   ai_analysis: ApplicationAnalysis | null;
+  /**
+   * Nota de cada etapa que tem evidência própria. Vem do log append-only
+   * application_stage_scores, não de ai_analyses: ai_analyses guarda só a
+   * análise vigente, então a nota da triagem se perderia quando o candidato
+   * avançasse pro fit cultural.
+   */
+  stage_track: Map<ApplicationStatus, StageScore>;
 };
 
 const POLL_INTERVAL_MS = 5000;
@@ -78,6 +86,25 @@ export function useApplications(jobId: string | undefined) {
       })) as ApplicationWithAnalysis[];
 
       // Score desc, sem score por último
+      // Histórico de notas por etapa, numa consulta só pra vaga inteira. Sem
+      // isso a trilha do card dependeria de uma consulta por candidato.
+      const ids = normalized.map((a) => a.id);
+      const byApp = new Map<string, StageScoreRow[]>();
+      if (ids.length > 0) {
+        const { data: history } = await supabase
+          .from('application_stage_scores')
+          .select('application_id, evidence_stage, stage_score, stage_verdict, created_at')
+          .in('application_id', ids);
+        for (const row of (history ?? []) as StageScoreRow[]) {
+          const list = byApp.get(row.application_id) ?? [];
+          list.push(row);
+          byApp.set(row.application_id, list);
+        }
+      }
+      for (const app of normalized) {
+        app.stage_track = buildStageTrack(byApp.get(app.id) ?? [], app.ai_analysis);
+      }
+
       normalized.sort((a, b) => (b.ai_analysis?.score ?? -1) - (a.ai_analysis?.score ?? -1));
       setApplications(normalized);
     }

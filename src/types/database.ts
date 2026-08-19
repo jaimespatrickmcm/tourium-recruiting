@@ -408,6 +408,29 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['applicant_profiles']['Row']>;
         Relationships: [];
       };
+      application_stage_scores: {
+        Row: {
+          id: string;
+          application_id: string;
+          company_id: string;
+          evidence_stage: string;
+          stage_score: number | null;
+          stage_verdict: string | null;
+          score: number | null;
+          dimensions: Json | null;
+          stage_dimensions: Json | null;
+          question_scores: Json | null;
+          model_used: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['application_stage_scores']['Row']> & {
+          application_id: string;
+          company_id: string;
+          evidence_stage: string;
+        };
+        Update: Partial<Database['public']['Tables']['application_stage_scores']['Row']>;
+        Relationships: [];
+      };
     };
     Views: {
       company_public_profiles: {
