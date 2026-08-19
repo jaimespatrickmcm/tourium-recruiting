@@ -104,9 +104,49 @@ export function stageForEvidence(evidence: string | null): ApplicationStatus | n
   return null;
 }
 
+// Ordem do funil, pra saber se uma etapa está atrás, é a atual, ou está à
+// frente de onde o candidato se encontra.
+const FUNNEL_ORDER: ApplicationStatus[] = [
+  'triagem',
+  'fit_cultural',
+  'entrevista',
+  'proposta',
+  'contratado',
+];
+
 /**
- * O que falta pra etapa ter nota. Null quando a etapa já tem, ou quando ela não
- * é do tipo que recebe nota (proposta, contratado, reprovado).
+ * Texto de uma etapa SEM nota, levando em conta onde o candidato está.
+ *
+ * A distinção importa. "Aguardando" promete que o sistema ainda vai fazer
+ * alguma coisa, e isso só é verdade pra etapa atual. Numa etapa que o candidato
+ * já passou, ninguém está esperando nada: a nota simplesmente não ficou
+ * registrada, porque a análise original era de currículo, foi sobrescrita
+ * quando ele respondeu o formulário, e o log por etapa só passou a existir em
+ * 13/08. Dizer "aguardando análise" pra quem já avançou é mentira sobre o
+ * proprio estado do processo.
+ */
+export function stageStateLabel(
+  stage: ApplicationStatus,
+  currentStatus: ApplicationStatus,
+  track: Map<ApplicationStatus, StageScore>,
+): string | null {
+  if (track.has(stage)) return null;
+
+  // Reprovado sai do funil: toda etapa sem nota é passado, não espera.
+  if (currentStatus === 'reprovado') return 'sem nota registrada';
+
+  const stageIdx = FUNNEL_ORDER.indexOf(stage);
+  const currentIdx = FUNNEL_ORDER.indexOf(currentStatus);
+  if (stageIdx < 0 || currentIdx < 0) return 'sem nota registrada';
+
+  if (currentIdx > stageIdx) return 'sem nota registrada';
+  if (currentIdx === stageIdx) return missingEvidenceLabel(stage, track);
+  return 'ainda não avaliada';
+}
+
+/**
+ * O que falta pra etapa ATUAL ter nota. Null quando a etapa já tem, ou quando
+ * ela não é do tipo que recebe nota (proposta, contratado, reprovado).
  */
 export function missingEvidenceLabel(
   status: ApplicationStatus,

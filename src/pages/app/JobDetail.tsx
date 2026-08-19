@@ -71,6 +71,7 @@ import { cn } from '@/lib/utils';
 import {
   SCORED_STAGES,
   missingEvidenceLabel,
+  stageStateLabel,
   type StageScore,
 } from '@/lib/stage-scores';
 import type {
@@ -536,7 +537,7 @@ function StageTrackRail({
               </p>
             ) : (
               <p className="mt-1.5 text-caption leading-snug text-ink-subtle">
-                {missingEvidenceLabel(stage, track) ?? 'sem avaliação'}
+                {stageStateLabel(stage, currentStatus, track) ?? 'sem avaliação'}
               </p>
             )}
           </div>
