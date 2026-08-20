@@ -5,7 +5,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { ApplicationStatus, Json } from '@/types/database';
-import { buildStageTrack, type StageScore, type StageScoreRow } from '@/lib/stage-scores';
+import {
+  buildStageTrack,
+  compareForBoard,
+  type StageScore,
+  type StageScoreRow,
+} from '@/lib/stage-scores';
 
 export type ApplicationAnalysis = {
   score: number | null;
@@ -105,7 +110,7 @@ export function useApplications(jobId: string | undefined) {
         app.stage_track = buildStageTrack(byApp.get(app.id) ?? [], app.ai_analysis);
       }
 
-      normalized.sort((a, b) => (b.ai_analysis?.score ?? -1) - (a.ai_analysis?.score ?? -1));
+      normalized.sort(compareForBoard);
       setApplications(normalized);
     }
     setLoading(false);

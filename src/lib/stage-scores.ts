@@ -158,3 +158,56 @@ export function missingEvidenceLabel(
   if (status === 'entrevista') return 'entrevista ainda não avaliada';
   return null;
 }
+
+/**
+ * Nota que representa o candidato na lista do board.
+ *
+ * Primeiro a nota da etapa em que ele está: é a que o card mostra em destaque e
+ * a que responde "ele passa desta fase?". Se a etapa atual ainda não tem
+ * evidência, cai na última nota que ele tirou em alguma etapa, que é justamente
+ * a que o card mostra esmaecida. Assim a ordem da lista bate com o número que
+ * aparece nela.
+ */
+export function boardScore(
+  status: ApplicationStatus,
+  track: Map<ApplicationStatus, StageScore>,
+): number {
+  const current = track.get(status);
+  if (current?.score != null) return current.score;
+
+  const latest = [...track.values()]
+    .filter((entry) => entry.score != null)
+    .sort((a, b) => (b.ranAt ?? '').localeCompare(a.ranAt ?? ''))[0];
+  return latest?.score ?? -1;
+}
+
+/** Tem nota PRÓPRIA da etapa em que está, ou seja, já pode ser avaliado nela. */
+export function isScoredForCurrentStage(
+  status: ApplicationStatus,
+  track: Map<ApplicationStatus, StageScore>,
+): boolean {
+  return track.get(status)?.score != null;
+}
+
+/**
+ * Ordem do board.
+ *
+ * Antes era só `score` (o scout geral) decrescente, o que tinha dois problemas:
+ * ordenava por um número diferente do que o card mostra, e misturava quem já foi
+ * avaliado na etapa com quem sequer entregou o material da etapa. Candidato que
+ * está em fit cultural sem ter respondido o formulário não tem como ser
+ * avaliado ali, então aparecer no topo é ruído: o recrutador olha a lista pra
+ * decidir quem avança, e quem não pode ser avaliado não entra nessa decisão.
+ *
+ * Regra: quem tem nota da etapa vem primeiro, e dentro de cada grupo a ordem é
+ * pela nota decrescente.
+ */
+export function compareForBoard(
+  a: { status: ApplicationStatus; stage_track: Map<ApplicationStatus, StageScore> },
+  b: { status: ApplicationStatus; stage_track: Map<ApplicationStatus, StageScore> },
+): number {
+  const aScored = isScoredForCurrentStage(a.status, a.stage_track);
+  const bScored = isScoredForCurrentStage(b.status, b.stage_track);
+  if (aScored !== bScored) return aScored ? -1 : 1;
+  return boardScore(b.status, b.stage_track) - boardScore(a.status, a.stage_track);
+}
