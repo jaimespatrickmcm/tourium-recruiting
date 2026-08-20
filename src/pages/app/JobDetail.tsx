@@ -951,6 +951,7 @@ export function JobDetail() {
     failed: number;
     running: boolean;
   } | null>(null);
+  const [tab, setTab] = useState('pipeline');
   const [stageFilter, setStageFilter] = useState<'all' | ApplicationStatus>('all');
 
   const { applications, loading: appsLoading, refetch, patchApplication } = useApplications(id);
@@ -1049,25 +1050,30 @@ export function JobDetail() {
   }
 
   return (
-    <div className="relative min-h-screen bg-canvas">
+    // App shell no desktop: a PAGINA nao rola, so as colunas rolam por dentro.
+    // Isso e o que faz o mouse nunca precisar sair da coluna pra alcancar o
+    // scroll da pagina. No mobile continua pagina normal, empilhada.
+    <div className="relative min-h-screen bg-canvas lg:flex lg:h-screen lg:min-h-0 lg:flex-col lg:overflow-hidden">
       <div className="canvas-tint pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
 
-      <div className="relative mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
-        <button
-          onClick={() => navigate('/app/jobs')}
-          className="mb-6 inline-flex items-center gap-2 text-footnote font-medium text-ink-muted transition-colors hover:text-ink"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Vagas
-        </button>
-
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col px-5 py-8 sm:px-8 sm:py-12 lg:min-h-0 lg:flex-1 lg:py-6">
+        {/* Cabecalho em UMA linha. Antes eram ~180px empilhados (botao voltar,
+            eyebrow "Vaga", titulo em display, contagem) e cada pixel ali sai da
+            altura do board, que e onde o trabalho acontece. O titulo continua
+            legivel; o que saiu foi respiro decorativo. */}
+        <div className="mb-5 flex shrink-0 items-center gap-3 lg:mb-4">
+          <button
+            onClick={() => navigate('/app/jobs')}
+            aria-label="Voltar para a lista de vagas"
+            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-muted transition-colors duration-200 hover:bg-canvas hover:text-ink"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </button>
           <div className="min-w-0 flex-1">
-            <p className="mb-3 text-eyebrow font-bold uppercase text-ink-subtle">Vaga</p>
-            <h1 className="font-satoshi text-title-1 font-bold text-ink sm:text-display">
+            <h1 className="truncate font-satoshi text-title-3 font-bold text-ink sm:text-title-2">
               {job.title}
             </h1>
-            <p className="mt-3 text-footnote text-ink-subtle">
+            <p className="mt-0.5 text-caption text-ink-subtle">
               {applications.length} candidato{applications.length === 1 ? '' : 's'} ·{' '}
               {job.status === 'active' ? 'Ativa' : job.status === 'paused' ? 'Pausada' : 'Encerrada'}
             </p>
@@ -1077,10 +1083,10 @@ export function JobDetail() {
               href={`/careers/${company.slug}/${job.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-full border border-line bg-surface px-4 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors duration-200 hover:bg-canvas"
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              Career page
+              <span className="hidden sm:inline">Career page</span>
             </a>
           )}
         </div>
@@ -1103,7 +1109,7 @@ export function JobDetail() {
             automático de propósito: reprocessar custa e sobrescreve a leitura
             atual, então quem decide é quem está olhando a tela. */}
         {outdated.length > 0 && (
-          <div className="mb-6 flex flex-col gap-3 rounded-card border border-line-soft bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-4 flex shrink-0 flex-col gap-2 rounded-card border border-line-soft bg-surface px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="min-w-0">
               <p className="text-callout font-semibold text-ink">
                 {outdated.length} análise{outdated.length === 1 ? '' : 's'} com a régua antiga
@@ -1130,8 +1136,16 @@ export function JobDetail() {
           </div>
         )}
 
-        <Tabs defaultValue="pipeline">
-          <TabsList className="mb-7 inline-flex h-auto gap-1 rounded-full bg-surface-sunken p-1">
+        <Tabs
+          value={tab}
+          onValueChange={setTab}
+          className="flex flex-col lg:min-h-0 lg:flex-1"
+        >
+          {/* Abas e filtro de etapa na MESMA linha. Empilhados custavam ~100px
+              de altura que o board precisa mais. As pilhas quebram sozinhas em
+              tela estreita. */}
+          <div className="mb-5 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 lg:mb-4">
+          <TabsList className="inline-flex h-auto gap-1 rounded-full bg-surface-sunken p-1">
             <TabsTrigger
               value="pipeline"
               className="gap-2 rounded-full px-4 py-2 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
@@ -1146,8 +1160,28 @@ export function JobDetail() {
               Sobre a vaga
             </TabsTrigger>
           </TabsList>
+            {tab === 'pipeline' && applications.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <StagePill
+                  label="Todas"
+                  count={applications.length}
+                  active={stageFilter === 'all'}
+                  onClick={() => setStageFilter('all')}
+                />
+                {STAGE_ORDER.map((s) => (
+                  <StagePill
+                    key={s}
+                    label={stageLabels[s]}
+                    count={counts[s]}
+                    active={stageFilter === s}
+                    onClick={() => setStageFilter(s)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
-          <TabsContent value="pipeline" className="mt-0">
+          <TabsContent value="pipeline" className="mt-0 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
             {applications.length === 0 ? (
               <EmptyState
                 icon={<Users className="h-7 w-7" strokeWidth={1.75} />}
@@ -1163,35 +1197,25 @@ export function JobDetail() {
               />
             ) : (
               <>
-                <div className="mb-5 flex flex-wrap gap-2">
-                  <StagePill
-                    label="Todas"
-                    count={applications.length}
-                    active={stageFilter === 'all'}
-                    onClick={() => setStageFilter('all')}
-                  />
-                  {STAGE_ORDER.map((s) => (
-                    <StagePill
-                      key={s}
-                      label={stageLabels[s]}
-                      count={counts[s]}
-                      active={stageFilter === s}
-                      onClick={() => setStageFilter(s)}
-                    />
-                  ))}
-                </div>
+                {/* O board ocupa a altura que sobra do app shell, via
+                    flex-1 + min-h-0 encadeados desde a raiz. min-h-0 e o que faz
+                    funcionar: sem ele um filho flex se recusa a encolher abaixo
+                    do proprio conteudo e o overflow nunca chega a existir.
 
-                {/* Cada coluna rola por conta propria a partir de lg.
-                    Antes as duas rolavam juntas com a pagina: pra selecionar
-                    alguem no fim da lista o recrutador descia ate embaixo, e ai
-                    tinha que subir de volta pro topo pra ler a analise. O card
-                    de detalhe ja era sticky, mas sticky nao resolve quando o
-                    proprio card e mais alto que a tela: ele gruda no topo e o
-                    resto fica inalcancavel. Com altura de viewport e rolagem
-                    interna, os dois lados ficam sempre visiveis.
+                    A tentativa anterior era h-[calc(100vh-3rem)] aqui, e ficou
+                    pior que o problema: a grade comeca ~450px abaixo do topo,
+                    entao uma caixa de 100vh terminava bem fora da tela. Sobravam
+                    tres cards visiveis, e como as colunas capturavam a rolagem,
+                    o usuario tinha que levar o mouse pra fora delas pra rolar a
+                    pagina e alcancar o resto. Agora a pagina nao rola no
+                    desktop: nao existe rolagem de pagina pra alcancar.
+
                     No mobile continua empilhado e rolando normal. */}
-                <div className="grid grid-cols-1 gap-5 lg:h-[calc(100vh-3rem)] lg:grid-cols-[minmax(0,340px)_1fr]">
-                  <div className="flex flex-col gap-2 lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
+                <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,340px)_1fr] lg:gap-0">
+                  {/* overscroll-contain: chegar no fim da lista nao "vaza" o
+                      scroll pra pagina atras. A borda da direita e a separacao
+                      visual entre os dois lados. */}
+                  <div className="flex flex-col gap-2 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r lg:border-line-soft lg:pb-4 lg:pr-4">
                     {filtered.length === 0 ? (
                       <div className="surface-card px-5 py-8 text-center">
                         <p className="text-footnote text-ink-muted">
@@ -1228,7 +1252,14 @@ export function JobDetail() {
                     )}
                   </div>
 
-                  <div className="lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
+                  {/* tabIndex torna o painel rolavel pelo teclado. A lista ao
+                      lado nao precisa: os proprios cards ja sao focaveis. */}
+                  <div
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Detalhe do candidato"
+                    className="lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-4 lg:pl-5"
+                  >
                     {selected ? (
                       <CandidateDetail
                         key={selected.id}
@@ -1263,7 +1294,10 @@ export function JobDetail() {
             )}
           </TabsContent>
 
-          <TabsContent value="vaga" className="mt-0">
+          <TabsContent
+            value="vaga"
+            className="mt-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-4 lg:pr-1"
+          >
             <DescriptionPanel
               job={job}
               onUpdate={(description) => setJob({ ...job, description })}
