@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ExternalLink,
@@ -70,6 +70,7 @@ import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description
 import { cn } from '@/lib/utils';
 import {
   SCORED_STAGES,
+  isScoredForCurrentStage,
   missingEvidenceLabel,
   stageStateLabel,
   type StageScore,
@@ -1180,8 +1181,17 @@ export function JobDetail() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,340px)_1fr]">
-                  <div className="flex flex-col gap-2">
+                {/* Cada coluna rola por conta propria a partir de lg.
+                    Antes as duas rolavam juntas com a pagina: pra selecionar
+                    alguem no fim da lista o recrutador descia ate embaixo, e ai
+                    tinha que subir de volta pro topo pra ler a analise. O card
+                    de detalhe ja era sticky, mas sticky nao resolve quando o
+                    proprio card e mais alto que a tela: ele gruda no topo e o
+                    resto fica inalcancavel. Com altura de viewport e rolagem
+                    interna, os dois lados ficam sempre visiveis.
+                    No mobile continua empilhado e rolando normal. */}
+                <div className="grid grid-cols-1 gap-5 lg:h-[calc(100vh-3rem)] lg:grid-cols-[minmax(0,340px)_1fr]">
+                  <div className="flex flex-col gap-2 lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
                     {filtered.length === 0 ? (
                       <div className="surface-card px-5 py-8 text-center">
                         <p className="text-footnote text-ink-muted">
@@ -1189,18 +1199,36 @@ export function JobDetail() {
                         </p>
                       </div>
                     ) : (
-                      filtered.map((app) => (
-                        <CandidateListItem
-                          key={app.id}
-                          app={app}
-                          selected={selectedId === app.id}
-                          onSelect={() => setSelectedId(app.id)}
-                        />
-                      ))
+                      filtered.map((app, i) => {
+                        // Separador entre quem ja tem nota da etapa e quem
+                        // ainda nao entregou o material dela. Deixa a regra de
+                        // ordenacao obvia sem precisar de legenda, e explica por
+                        // que aquele candidato esta la embaixo.
+                        const scored = isScoredForCurrentStage(app.status, app.stage_track);
+                        const prev = i > 0 ? filtered[i - 1] : null;
+                        const startsWaiting =
+                          !scored &&
+                          prev !== null &&
+                          isScoredForCurrentStage(prev.status, prev.stage_track);
+                        return (
+                          <Fragment key={app.id}>
+                            {startsWaiting && (
+                              <p className="mt-3 px-1 pb-0.5 text-eyebrow font-bold uppercase text-ink-subtle">
+                                Ainda sem avaliação nesta etapa
+                              </p>
+                            )}
+                            <CandidateListItem
+                              app={app}
+                              selected={selectedId === app.id}
+                              onSelect={() => setSelectedId(app.id)}
+                            />
+                          </Fragment>
+                        );
+                      })
                     )}
                   </div>
 
-                  <div>
+                  <div className="lg:min-h-0 lg:overflow-y-auto lg:pr-1.5">
                     {selected ? (
                       <CandidateDetail
                         key={selected.id}
@@ -2457,7 +2485,7 @@ function CandidateDetail({
     // proprios (decisao, evidencias, scout da etapa, scout geral) — caixa dentro
     // de caixa, cada uma repetindo padding e borda. A separacao agora e uma
     // linha de 1px, que e o suficiente e nao rouba espaco horizontal.
-    <div className="surface-card sticky top-6 overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Faixa de identidade: fica sobre o canvas rebaixado pra ancorar o topo
           do card sem precisar de sombra. */}
       <div className="border-b border-line-soft bg-canvas px-5 py-5 sm:px-6">
