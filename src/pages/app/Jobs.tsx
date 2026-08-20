@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useCompany } from '@/hooks/use-company';
 import { useModal } from '@/contexts/modal-context';
 import { cn } from '@/lib/utils';
+import { jobStatusLabel, jobStatusTone } from '@/lib/job-status';
 
 type Job = {
   id: string;
@@ -15,18 +16,6 @@ type Job = {
   status: string;
   created_at: string;
   applications_count?: number;
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Ativa',
-  paused: 'Pausada',
-  closed: 'Encerrada',
-};
-
-const STATUS_TONE: Record<string, string> = {
-  active: 'bg-positive-tint text-positive',
-  paused: 'bg-warning-tint text-warning',
-  closed: 'bg-canvas text-ink-subtle',
 };
 
 export function Jobs() {
@@ -98,10 +87,10 @@ export function Jobs() {
                     <span
                       className={cn(
                         'shrink-0 rounded-full px-2.5 py-1 text-eyebrow font-bold uppercase',
-                        STATUS_TONE[job.status] ?? 'bg-canvas text-ink-muted',
+                        jobStatusTone(job.status),
                       )}
                     >
-                      {STATUS_LABEL[job.status] ?? job.status}
+                      {jobStatusLabel(job.status)}
                     </span>
                   </span>
                   <span className="mt-0.5 block text-footnote text-ink-subtle">
