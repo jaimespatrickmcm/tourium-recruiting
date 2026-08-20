@@ -952,6 +952,11 @@ export function JobDetail() {
     running: boolean;
   } | null>(null);
   const [tab, setTab] = useState('pipeline');
+  // Coluna de detalhe. Ela rola por dentro, entao trocar de candidato NAO
+  // reposiciona nada sozinho: o conteudo troca e a barra de rolagem fica onde
+  // estava. Quem lia o fim da analise de um candidato caia no meio da do
+  // proximo, sem o nome nem a nota, que estao no topo.
+  const detailScrollRef = useRef<HTMLDivElement>(null);
   const [stageFilter, setStageFilter] = useState<'all' | ApplicationStatus>('all');
 
   const { applications, loading: appsLoading, refetch, patchApplication } = useApplications(id);
@@ -978,6 +983,13 @@ export function JobDetail() {
   if (!job) {
     return <div className="p-8 text-ink-muted">Vaga não encontrada.</div>;
   }
+
+  // Volta ao topo a cada troca de candidato. Sem animacao de proposito: isso e
+  // troca de conteudo, nao navegacao, e rolagem suave aqui vira atraso entre o
+  // clique e a leitura.
+  useEffect(() => {
+    detailScrollRef.current?.scrollTo({ top: 0 });
+  }, [selectedId]);
 
   const counts = STAGE_ORDER.reduce(
     (acc, s) => {
@@ -1255,6 +1267,7 @@ export function JobDetail() {
                   {/* tabIndex torna o painel rolavel pelo teclado. A lista ao
                       lado nao precisa: os proprios cards ja sao focaveis. */}
                   <div
+                    ref={detailScrollRef}
                     tabIndex={0}
                     role="region"
                     aria-label="Detalhe do candidato"
