@@ -977,19 +977,24 @@ export function JobDetail() {
     void loadJob();
   }, [id]);
 
+  // Volta ao topo a cada troca de candidato. Sem animacao de proposito: isso e
+  // troca de conteudo, nao navegacao, e rolagem suave aqui vira atraso entre o
+  // clique e a leitura.
+  //
+  // TEM que ficar ACIMA dos returns antecipados abaixo. Hook depois de um return
+  // condicional roda em umas renderizacoes e nao em outras, e o React derruba a
+  // tela inteira com o erro #310 ("rendered more hooks than during the previous
+  // render"). Foi exatamente o que quebrou a pagina da vaga em producao.
+  useEffect(() => {
+    detailScrollRef.current?.scrollTo({ top: 0 });
+  }, [selectedId]);
+
   if (jobLoading || appsLoading) {
     return <div className="p-8 text-ink-subtle text-sm">Carregando...</div>;
   }
   if (!job) {
     return <div className="p-8 text-ink-muted">Vaga não encontrada.</div>;
   }
-
-  // Volta ao topo a cada troca de candidato. Sem animacao de proposito: isso e
-  // troca de conteudo, nao navegacao, e rolagem suave aqui vira atraso entre o
-  // clique e a leitura.
-  useEffect(() => {
-    detailScrollRef.current?.scrollTo({ top: 0 });
-  }, [selectedId]);
 
   const counts = STAGE_ORDER.reduce(
     (acc, s) => {
