@@ -69,6 +69,21 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import { cn } from '@/lib/utils';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  JOB_STATUSES,
+  JOB_STATUS_EFFECT,
+  JOB_STATUS_LABEL,
+  jobStatusLabel,
+  jobStatusTone,
+  type JobStatus,
+} from '@/lib/job-status';
+import {
   SCORED_STAGES,
   isScoredForCurrentStage,
   missingEvidenceLabel,
@@ -479,6 +494,73 @@ const EVIDENCE_STAGE_LABELS: Record<string, string> = {
   cv: 'Baseado só no currículo',
   form: 'Com respostas do formulário',
 };
+
+// Controle de situacao da vaga. Os tres estados ja existiam no banco e a policy
+// publica ja escondia vaga nao-ativa do anonimo; faltava a tela pra mudar, entao
+// toda vaga nascia ativa e ficava ativa pra sempre.
+//
+// Cada opcao mostra a CONSEQUENCIA, nao o adjetivo. Quem encerra uma vaga
+// precisa saber o que acontece com a career page e com quem ja esta no processo.
+//
+// Nao existe so "inativar": sem o caminho de volta, uma vaga pausada por engano
+// ficaria travada sem jeito de reabrir pela tela.
+function JobStatusDialog({
+  open,
+  onOpenChange,
+  current,
+  saving,
+  onSelect,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  current: string;
+  saving: boolean;
+  onSelect: (next: JobStatus) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Situação da vaga</DialogTitle>
+          <DialogDescription>
+            Define se a vaga aparece na career page e se continua recebendo candidatura.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-2">
+          {JOB_STATUSES.map((status) => {
+            const active = status === current;
+            return (
+              <button
+                key={status}
+                type="button"
+                disabled={saving}
+                onClick={() => onSelect(status)}
+                aria-current={active ? 'true' : undefined}
+                className={cn(
+                  'cursor-pointer rounded-tile border px-4 py-3 text-left transition-colors duration-200 disabled:opacity-50',
+                  active ? 'border-ink bg-surface' : 'border-line-soft bg-canvas hover:border-line',
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-callout font-semibold text-ink">
+                    {JOB_STATUS_LABEL[status]}
+                  </span>
+                  {active && (
+                    <span className="text-eyebrow font-bold uppercase text-ink-subtle">atual</span>
+                  )}
+                </span>
+                <span className="mt-1 block text-caption leading-snug text-ink-muted">
+                  {JOB_STATUS_EFFECT[status]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // Trilha de notas por etapa. Cada etapa aparece com a nota que ela mesma gerou,
 // e a etapa atual vem destacada.
@@ -952,6 +1034,8 @@ export function JobDetail() {
     running: boolean;
   } | null>(null);
   const [tab, setTab] = useState('pipeline');
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
   // Coluna de detalhe. Ela rola por dentro, entao trocar de candidato NAO
   // reposiciona nada sozinho: o conteudo troca e a barra de rolagem fica onde
   // estava. Quem lia o fim da analise de um candidato caia no meio da do
@@ -994,6 +1078,31 @@ export function JobDetail() {
   }
   if (!job) {
     return <div className="p-8 text-ink-muted">Vaga não encontrada.</div>;
+  }
+
+  async function changeJobStatus(next: JobStatus) {
+    if (!job || next === job.status) {
+      setStatusOpen(false);
+      return;
+    }
+    setSavingStatus(true);
+    try {
+      const { error } = await supabase.from('jobs').update({ status: next }).eq('id', job.id);
+      if (error) throw error;
+      setJob({ ...job, status: next });
+      setStatusOpen(false);
+      toast.success(
+        next === 'active'
+          ? 'Vaga ativa de novo. Já aparece na career page.'
+          : next === 'paused'
+            ? 'Vaga pausada. Saiu da career page e não recebe candidatura nova.'
+            : 'Vaga encerrada. Saiu da career page.',
+      );
+    } catch {
+      toast.error('Não deu pra mudar a situação da vaga. Tente de novo.');
+    } finally {
+      setSavingStatus(false);
+    }
   }
 
   const counts = STAGE_ORDER.reduce(
@@ -1090,9 +1199,24 @@ export function JobDetail() {
             <h1 className="truncate font-satoshi text-title-3 font-bold text-ink sm:text-title-2">
               {job.title}
             </h1>
-            <p className="mt-0.5 text-caption text-ink-subtle">
-              {applications.length} candidato{applications.length === 1 ? '' : 's'} ·{' '}
-              {job.status === 'active' ? 'Ativa' : job.status === 'paused' ? 'Pausada' : 'Encerrada'}
+            <p className="mt-0.5 flex items-center gap-1.5 text-caption text-ink-subtle">
+              <span>
+                {applications.length} candidato{applications.length === 1 ? '' : 's'}
+              </span>
+              <span aria-hidden>·</span>
+              {/* A situacao e um botao, nao um rotulo: e o unico jeito de mudar
+                  o estado da vaga, e antes disso nao existia nenhum. */}
+              <button
+                type="button"
+                onClick={() => setStatusOpen(true)}
+                className={cn(
+                  'inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-eyebrow font-bold uppercase transition-opacity duration-200 hover:opacity-80',
+                  jobStatusTone(job.status),
+                )}
+              >
+                {jobStatusLabel(job.status)}
+                <ChevronDown className="h-3 w-3" aria-hidden />
+              </button>
             </p>
           </div>
           {company && job.status === 'active' && (
@@ -1152,6 +1276,14 @@ export function JobDetail() {
             </button>
           </div>
         )}
+
+        <JobStatusDialog
+          open={statusOpen}
+          onOpenChange={setStatusOpen}
+          current={job.status}
+          saving={savingStatus}
+          onSelect={(next) => void changeJobStatus(next)}
+        />
 
         <Tabs
           value={tab}

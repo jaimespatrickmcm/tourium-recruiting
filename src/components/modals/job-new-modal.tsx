@@ -219,7 +219,6 @@ export function JobNewModal({ open, onClose }: { open: boolean; onClose: () => v
       if (!data?.ok || !Array.isArray(data.questions)) {
         throw new Error(data?.error ?? 'IA não retornou perguntas');
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setQDrafts(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (data.questions as any[]).map((q) => {
