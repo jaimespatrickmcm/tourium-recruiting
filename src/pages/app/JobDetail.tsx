@@ -68,6 +68,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import { cn } from '@/lib/utils';
+import { InterviewGuide } from '@/components/interview-guide';
 import {
   Dialog,
   DialogContent,
@@ -3049,6 +3050,23 @@ function CandidateDetail({
             ) : analysis ? (
               <div>
                 <StageTrackRail track={app.stage_track} currentStatus={app.status} />
+
+                {/* Roteiro da entrevista. So aparece na etapa de entrevista, e
+                    vem ANTES da analise: durante a conversa o entrevistador
+                    precisa do roteiro na mao, nao da leitura do formulario que
+                    ele ja fez antes de marcar. */}
+                {app.status === 'entrevista' && (
+                  <section className="mb-7">
+                    <div className="mb-3 flex items-baseline justify-between gap-3">
+                      <h3 className="text-eyebrow font-bold uppercase text-ink-subtle">
+                        Roteiro da entrevista
+                      </h3>
+                      <span className="text-caption text-ink-subtle">salva sozinho</span>
+                    </div>
+                    <InterviewGuide applicationId={app.id} companyId={app.company_id} />
+                  </section>
+                )}
+
                 <StageDecision
                   analysis={analysis}
                   dims={dims}
