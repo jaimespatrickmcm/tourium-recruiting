@@ -41,3 +41,28 @@ export function jobStatusLabel(value: string): string {
 export function jobStatusTone(value: string): string {
   return isJobStatus(value) ? JOB_STATUS_TONE[value] : 'bg-canvas text-ink-muted';
 }
+
+// Ordem de exibicao da lista de vagas. Ativa primeiro porque e onde o trabalho
+// acontece: vaga encerrada e consulta, vaga ativa e operacao. Ordenar so por
+// data misturava as duas, e uma vaga encerrada em setembro aparecia acima de uma
+// ativa aberta em agosto.
+const JOB_STATUS_RANK: Record<JobStatus, number> = {
+  active: 0,
+  paused: 1,
+  closed: 2,
+};
+
+export function jobStatusRank(value: string): number {
+  // Status desconhecido vai pro fim em vez de se misturar com as ativas.
+  return isJobStatus(value) ? JOB_STATUS_RANK[value] : 99;
+}
+
+/** Ativa > pausada > encerrada; dentro de cada grupo, mais recente primeiro. */
+export function compareJobs(
+  a: { status: string; created_at: string },
+  b: { status: string; created_at: string },
+): number {
+  const rank = jobStatusRank(a.status) - jobStatusRank(b.status);
+  if (rank !== 0) return rank;
+  return b.created_at.localeCompare(a.created_at);
+}

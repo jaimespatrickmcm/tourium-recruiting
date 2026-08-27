@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useCompany } from '@/hooks/use-company';
 import { useModal } from '@/contexts/modal-context';
 import { cn } from '@/lib/utils';
-import { jobStatusLabel, jobStatusTone } from '@/lib/job-status';
+import { compareJobs, jobStatusLabel, jobStatusRank, jobStatusTone } from '@/lib/job-status';
 
 type Job = {
   id: string;
@@ -37,6 +37,10 @@ export function Jobs() {
           ...j,
           applications_count: j.applications?.[0]?.count ?? 0,
         })) as Job[];
+        // Ativa primeiro. Ordenar so por data fazia uma vaga encerrada em
+        // setembro aparecer acima de uma ativa aberta em agosto, e a lista
+        // existe pra trabalhar nas ativas.
+        withCounts.sort(compareJobs);
         setJobs(withCounts);
       }
       setLoading(false);
@@ -73,8 +77,22 @@ export function Jobs() {
         />
       ) : (
         <ul className="flex flex-col gap-2.5">
-          {jobs.map((job) => (
+          {jobs.map((job, i) => {
+            // Separador na virada de ativa pra nao-ativa. Sem ele a lista muda
+            // de significado no meio sem avisar, e o unico aviso seria a cor da
+            // etiqueta, que e pequena demais pra carregar isso sozinha.
+            const prev = i > 0 ? jobs[i - 1] : null;
+            const startsInactive =
+              jobStatusRank(job.status) > 0 &&
+              prev !== null &&
+              jobStatusRank(prev.status) === 0;
+            return (
             <li key={job.id}>
+              {startsInactive && (
+                <p className="mb-2 mt-5 px-1 text-eyebrow font-bold uppercase text-ink-subtle">
+                  Fora do ar
+                </p>
+              )}
               <div className="surface-card-interactive group relative flex items-center gap-4 px-4 py-4 sm:px-5">
                 <Link
                   to={`/app/jobs/${job.id}`}
@@ -118,7 +136,8 @@ export function Jobs() {
                 />
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </PageShell>
