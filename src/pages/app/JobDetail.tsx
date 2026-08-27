@@ -310,6 +310,10 @@ function AnswerRow({
 // Etapas que têm um link pra mandar pro candidato, e o texto do botão. Etapa
 // fora daqui (proposta, contratado, reprovado) não tem link, então o botão nem
 // aparece em vez de aparecer e copiar vazio.
+// Etapas em que a resposta do formulario ainda e a evidencia que se espera.
+// Depois delas, ter respondido nao diz nada sobre a etapa atual.
+const FORM_IS_THE_EVIDENCE = new Set<ApplicationStatus>(['triagem', 'fit_cultural']);
+
 const STAGE_LINK_LABEL: Partial<Record<ApplicationStatus, string>> = {
   triagem: 'Copiar link do formulário',
   fit_cultural: 'Copiar link do formulário',
@@ -1527,13 +1531,6 @@ function CandidateListItem({
   const hasError = aStatus === 'error';
   const done = aStatus === 'completed' && stageScore !== null;
   const tone = done ? toneForScore(stageScore) : 'neutral';
-  // Etapa atual sem nota: mostra a última que teve, esmaecida e com o rótulo
-  // da etapa de onde veio. Some melhor que um espaço vazio e não mente sobre
-  // qual etapa foi avaliada.
-  const lastScored = !done
-    ? [...track.values()].sort((a, b) => (b.ranAt ?? '').localeCompare(a.ranAt ?? ''))[0] ?? null
-    : null;
-
   const verdictLabel = verdict ? (VERDICT_LABELS[verdict] ?? verdict) : null;
   const verdictTone: Tone = verdict ? (VERDICT_TONE[verdict] ?? 'neutral') : 'neutral';
 
@@ -1580,7 +1577,11 @@ function CandidateListItem({
                 nunca aparecia na tela, então não dava pra saber pelo board quem
                 tinha respondido. É o que separa "avançou de etapa" de "mandou
                 material novo pra ser avaliado". */}
-            {app.form_completed_at && (
+            {/* "Respondeu" e o sinal de que a evidencia DESTA etapa chegou, e
+                por isso so vale enquanto a etapa esperada e o formulario. Em
+                entrevista ele continuava aceso e passava a ser lido como
+                "respondeu a entrevista", que ninguem respondeu. */}
+            {app.form_completed_at && FORM_IS_THE_EVIDENCE.has(app.status) && (
               <>
                 <span aria-hidden>·</span>
                 <span className="inline-flex items-center gap-1 text-positive">
@@ -1589,7 +1590,10 @@ function CandidateListItem({
                 </span>
               </>
             )}
-            {!app.form_completed_at && waitingFor && !isPending && !hasError && (
+            {!(app.form_completed_at && FORM_IS_THE_EVIDENCE.has(app.status)) &&
+              waitingFor &&
+              !isPending &&
+              !hasError && (
               <>
                 <span aria-hidden>·</span>
                 <span className="text-ink-subtle">{waitingFor}</span>
@@ -1615,16 +1619,15 @@ function CandidateListItem({
             )}
           </div>
         ) : (
-          lastScored &&
-          lastScored.score !== null && (
-            <div className="shrink-0 text-right">
-              <p className="font-satoshi text-callout font-bold leading-none tabular-nums text-ink-subtle">
-                {lastScored.score}
-              </p>
-              <p className="mt-1 text-eyebrow font-semibold uppercase text-ink-subtle">
-                {stageLabels[lastScored.stage]}
-              </p>
-            </div>
+          /* Etapa atual sem nota nao mostra numero nenhum. Mostrava a nota da
+             etapa anterior esmaecida, e mesmo com o rotulo embaixo ela era lida
+             como a nota de agora: numero grande a direita do nome e a coisa mais
+             visivel do card, e um rotulo em corpo minusculo nao desfaz isso.
+             O historico completo continua na trilha do painel de detalhe, que
+             tem espaco pra rotular cada etapa direito. */
+          !isPending &&
+          !hasError && (
+            <span className="shrink-0 text-caption text-ink-subtle">sem avaliação</span>
           )
         )}
       </div>
