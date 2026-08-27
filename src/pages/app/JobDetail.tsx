@@ -87,6 +87,7 @@ import {
   SCORED_STAGES,
   isScoredForCurrentStage,
   missingEvidenceLabel,
+  stageForEvidence,
   stageStateLabel,
   type StageScore,
 } from '@/lib/stage-scores';
@@ -637,11 +638,20 @@ function StageDecision({
   analysis,
   dims,
   cohortStageScores,
+  currentStatus,
 }: {
   analysis: ApplicationAnalysis;
   dims: { area: string; score: number }[];
   cohortStageScores: number[];
+  currentStatus: ApplicationStatus;
 }) {
+  // De qual etapa esta nota e, de verdade. ai_analyses guarda a analise VIGENTE,
+  // que e sempre da ultima evidencia recebida (o formulario). Quando o candidato
+  // avanca pra entrevista, a analise continua sendo a do formulario, mas o
+  // rotulo dizia "fit da etapa" e o numero passava a ser lido como avaliacao da
+  // entrevista, que ninguem fez.
+  const scoreStage = stageForEvidence(analysis.evidence_stage);
+  const isCurrentStage = scoreStage !== null && scoreStage === currentStatus;
   const stageScore = analysis.stage_score ?? analysis.score ?? 0;
   const verdict = analysis.stage_verdict ?? null;
   const stage = analysis.evidence_stage ?? null;
@@ -672,12 +682,19 @@ function StageDecision({
           <p
             className={cn(
               'font-satoshi text-[56px] font-bold leading-none tracking-[-0.05em] tabular-nums',
-              TONE_TEXT[tone],
+              // Cor so quando a nota e da etapa ATUAL. Verde e ambar aqui sao
+              // sinal de "avanca ou nao"; pintar assim a nota de uma etapa que
+              // ja passou faz o recrutador ler decisao onde nao ha nenhuma.
+              isCurrentStage ? TONE_TEXT[tone] : 'text-ink-muted',
             )}
           >
             {stageScore}
           </p>
-          <p className="mt-1.5 text-eyebrow font-bold uppercase text-ink-subtle">Fit da etapa</p>
+          <p className="mt-1.5 text-eyebrow font-bold uppercase text-ink-subtle">
+            {isCurrentStage
+              ? 'Fit da etapa'
+              : `Fit · ${scoreStage ? stageLabels[scoreStage] : 'etapa anterior'}`}
+          </p>
         </div>
 
         <div className="min-w-0 flex-1 pt-1">
@@ -696,6 +713,14 @@ function StageDecision({
             {stage && (
               <span className="text-caption text-ink-subtle">
                 {EVIDENCE_STAGE_LABELS[stage] ?? stage}
+              </span>
+            )}
+            {/* Sem isso o numero grande e lido como avaliacao da etapa em que o
+                candidato esta agora. Ele nao e: e a ultima avaliacao que existe,
+                feita com a evidencia da etapa anterior. */}
+            {!isCurrentStage && (
+              <span className="text-caption text-warning">
+                {stageLabels[currentStatus]} ainda sem avaliação
               </span>
             )}
           </div>
@@ -3028,6 +3053,7 @@ function CandidateDetail({
                   analysis={analysis}
                   dims={dims}
                   cohortStageScores={cohortStageScores}
+                  currentStatus={app.status}
                 />
                 <EvidencePoints strengths={strengths} concerns={concerns} />
                 {stageDims.length > 0 && (
