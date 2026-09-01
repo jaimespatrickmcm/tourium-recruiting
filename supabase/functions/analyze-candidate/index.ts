@@ -491,6 +491,8 @@ function buildPrompt(args: {
   companyName: string;
   companyDescription: string | null;
   companyCulture: string | null;
+  companyMustHave: string | null;
+  companyAntiFit: string | null;
   jobTitle: string;
   jobDescription: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -510,6 +512,10 @@ function buildPrompt(args: {
 EMPRESA: ${args.companyName}
 O que fazem: ${args.companyDescription ?? '(não informado)'}
 Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
+O que não pode faltar em quem entra: ${args.companyMustHave ?? '(não informado)'}
+ANTI-FIT, quem não funciona aqui: ${args.companyAntiFit ?? '(não informado)'}
+
+O anti-fit acima é o que a empresa declara que NÃO funciona no dia a dia dela. Trate como parte da cultura, não como opinião solta: é a metade negativa do fit, e sem ela "fit cultural" vira só simpatia. Quando encontrar sinal de anti-fit, cite a EVIDÊNCIA no que o candidato escreveu, nunca a sua interpretação sobre quem ele é.
 
 VAGA: ${args.jobTitle}
 Descrição e exigências: ${args.jobDescription ?? '(não informado)'}${formatRequirements(args.requirements)}
@@ -894,6 +900,11 @@ Deno.serve(async (req) => {
   const company = (app as any).company;
   const dnaDoc = company?.dna_document ?? {};
   const cultureText = dnaDoc.culture ?? dnaDoc.culture_text ?? null;
+  // Metade negativa do fit. Existia no banco e nunca chegava no prompt: a
+  // rubrica mandava julgar contra o "anti-fit declarado" de um texto que o
+  // modelo nunca via.
+  const mustHaveText = dnaDoc.must_have ?? null;
+  const antiFitText = dnaDoc.anti_fit ?? null;
   const dnaVersion = typeof company?.dna_version === 'number' ? company.dna_version : null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -907,6 +918,8 @@ Deno.serve(async (req) => {
     companyName: company?.name ?? '',
     companyDescription: company?.description ?? null,
     companyCulture: cultureText,
+    companyMustHave: mustHaveText,
+    companyAntiFit: antiFitText,
     jobTitle: job?.title ?? '',
     jobDescription: job?.description ?? null,
     requirements: job?.requirements ?? null,

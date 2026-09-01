@@ -6,13 +6,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { BrandCtaButton } from '@/components/brand-cta';
 import { useCompany } from '@/hooks/use-company';
 
-const TOTAL_STEPS = 2;
+// Quatro passos porque fit tem duas metades e o produto so perguntava uma.
+// Cultura sozinha descreve como a empresa e; ela nao diz o que nao pode faltar
+// em quem entra, nem quem nao funciona ali. Sem essas duas, "fit cultural" vira
+// simpatia: a analise so sabe reconhecer semelhanca, nunca incompatibilidade.
+const TOTAL_STEPS = 4;
 
 export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { company, update } = useCompany();
   const [step, setStep] = useState(1);
   const [culture, setCulture] = useState('');
+  const [mustHave, setMustHave] = useState('');
+  const [antiFit, setAntiFit] = useState('');
   const [initial, setInitial] = useState('');
+  const [initialMust, setInitialMust] = useState('');
+  const [initialAnti, setInitialAnti] = useState('');
   const [saving, setSaving] = useState(false);
   const firstInputRef = useRef<HTMLTextAreaElement>(null);
   const initializedRef = useRef(false);
@@ -25,12 +33,18 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
     if (!company || initializedRef.current) return;
     initializedRef.current = true;
     const next = (company.dna_document?.culture as string | undefined) ?? '';
+    const must = (company.dna_document?.must_have as string | undefined) ?? '';
+    const anti = (company.dna_document?.anti_fit as string | undefined) ?? '';
     setCulture(next);
+    setMustHave(must);
+    setAntiFit(anti);
     setInitial(next);
+    setInitialMust(must);
+    setInitialAnti(anti);
     setStep(1);
   }, [open, company]);
 
-  const dirty = culture !== initial;
+  const dirty = culture !== initial || mustHave !== initialMust || antiFit !== initialAnti;
 
   function handleClose() {
     if (dirty && !saving) {
@@ -42,7 +56,7 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
 
   async function save(finalize = false) {
     setSaving(true);
-    const dna = { ...(company?.dna_document ?? {}), culture };
+    const dna = { ...(company?.dna_document ?? {}), culture, must_have: mustHave, anti_fit: antiFit };
     const patch: Record<string, unknown> = { dna_document: dna };
     if (finalize) {
       patch.dna_completed_at = culture.trim().length >= 80 ? new Date().toISOString() : null;
@@ -55,6 +69,8 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
       return;
     }
     setInitial(culture);
+    setInitialMust(mustHave);
+    setInitialAnti(antiFit);
     if (finalize) {
       toast.success('DNA configurado.');
       onClose();
@@ -150,16 +166,69 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
           {step === 2 && (
             <div>
               <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
+                O que não pode faltar em quem entra?
+              </h2>
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
+                Não é lista de requisito técnico, é postura. O que toda pessoa que deu certo aqui
+                tinha, independente do cargo.
+              </p>
+              <Textarea
+                placeholder="Ex: 'Resolve em vez de escalar. Vai atrás sem esperar prioridade descer. Aceita ser questionado e questiona de volta. Termina o que começa, mesmo quando fica chato.'"
+                value={mustHave}
+                onChange={(e) => setMustHave(e.target.value)}
+                rows={9}
+                className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
+              />
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
+                Quem não funciona aqui?
+              </h2>
+              <p className="text-callout text-ink-muted leading-relaxed mb-6">
+                Este é o campo que mais muda a análise, e o mais difícil de escrever. Descreve
+                comportamento no trabalho, não tipo de pessoa: o que alguém faz, ou deixa de fazer,
+                que não dá certo no seu dia a dia. Vale lembrar de quem entrou e não engrenou.
+              </p>
+              <Textarea
+                placeholder="Ex: 'Quem repassa problema em vez de resolver. Quem precisa de aprovação pra cada passo. Quem entrega discurso no lugar de resultado. Quem trata discordância como ofensa.'"
+                value={antiFit}
+                onChange={(e) => setAntiFit(e.target.value)}
+                rows={9}
+                className="rounded-tile border-line-soft text-callout leading-relaxed resize-none"
+              />
+              <p className="text-caption text-ink-subtle mt-2">
+                Sem isso a análise só sabe reconhecer semelhança, nunca incompatibilidade.
+              </p>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div>
+              <h2 className="font-satoshi font-bold text-[22px] md:text-[26px] tracking-[-0.4px] leading-tight text-ink mb-2">
                 Revisar DNA
               </h2>
               <p className="text-callout text-ink-muted leading-relaxed mb-6">
                 Esse texto vai pra IA junto com cada candidato. Pode editar depois reabrindo o
                 modal.
               </p>
-              <div className="rounded-card border border-line-soft bg-canvas p-5">
-                <p className="text-callout text-ink leading-relaxed whitespace-pre-wrap">
-                  {culture}
-                </p>
+              <div className="flex flex-col gap-3">
+                {[
+                  { label: 'Como vocês trabalham', value: culture },
+                  { label: 'O que não pode faltar', value: mustHave },
+                  { label: 'Quem não funciona aqui', value: antiFit },
+                ].map((bloco) => (
+                  <div key={bloco.label} className="rounded-card border border-line-soft bg-canvas p-5">
+                    <p className="mb-1.5 text-eyebrow font-bold uppercase text-ink-subtle">
+                      {bloco.label}
+                    </p>
+                    <p className="text-callout text-ink leading-relaxed whitespace-pre-wrap">
+                      {bloco.value.trim() || 'Em branco. A análise fica mais fraca sem isso.'}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -176,8 +245,12 @@ export function DnaModal({ open, onClose }: { open: boolean; onClose: () => void
             Voltar
           </button>
 
-          {step === 1 ? (
-            <BrandCtaButton size="sm" onClick={() => save(false)} disabled={!validCulture || saving}>
+          {step < TOTAL_STEPS ? (
+            <BrandCtaButton
+              size="sm"
+              onClick={() => save(false)}
+              disabled={(step === 1 && !validCulture) || saving}
+            >
               {saving ? 'Salvando...' : 'Continuar'}
             </BrandCtaButton>
           ) : (
