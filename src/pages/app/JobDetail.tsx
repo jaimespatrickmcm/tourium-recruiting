@@ -323,7 +323,7 @@ const STAGE_LINK_LABEL: Partial<Record<ApplicationStatus, string>> = {
 // Versão atual do pipeline de análise. Tem que bater com
 // ANALYSIS_PIPELINE_VERSION no edge function analyze-candidate: é a comparação
 // que diz quais análises ficaram pra trás depois de uma mudança de régua.
-const CURRENT_PIPELINE_VERSION = 2;
+const CURRENT_PIPELINE_VERSION = 3;
 
 // Quantas re-análises rodam ao mesmo tempo. Cada uma leva 60-90s, então
 // sequencial faria 45 candidatos levarem quase uma hora. Três em paralelo cabe
@@ -1164,7 +1164,11 @@ export function JobDetail() {
   // por pergunta, potencial calculado, campo de cadastro fora da média), a nota
   // velha e a nova não são comparáveis, então deixar as duas convivendo na
   // mesma lista faz o recrutador ordenar candidato por régua diferente.
-  const outdated = applications.filter(
+  // Respeita o filtro de etapa. Reprocessar custa dinheiro por candidato, e
+  // quase sempre o que interessa e uma etapa so: depois de mexer na regua, o
+  // recrutador quer conferir quem ja esta em entrevista antes de gastar com os
+  // 60 da triagem. Filtrar a lista e clicar aqui e o caminho natural.
+  const outdated = filtered.filter(
     (a) =>
       a.ai_analysis?.status === 'completed' &&
       (a.ai_analysis?.pipeline_version ?? 1) < CURRENT_PIPELINE_VERSION,
@@ -1284,6 +1288,7 @@ export function JobDetail() {
             <div className="min-w-0">
               <p className="text-callout font-semibold text-ink">
                 {outdated.length} análise{outdated.length === 1 ? '' : 's'} com a régua antiga
+                {stageFilter !== 'all' && ` em ${stageLabels[stageFilter].toLowerCase()}`}
               </p>
               <p className="mt-1 text-caption text-ink-muted">
                 {batch?.running
