@@ -284,11 +284,16 @@ const MODEL = 'gpt-5';
 // Versão do pipeline. SOBE sempre que uma mudança no prompt ou no cálculo torne
 // as análises anteriores incomparáveis com as novas, e a tela passa a mostrar
 // quantas ficaram pra trás. Histórico das que exigiram reprocessamento:
+//   3 = anti-fit da empresa preenchido no DNA (antes vazio, entao a analise de
+//       cultura media contra uma cultura que nao dizia o que a empresa evita) e
+//       rubrica da pergunta de identificacao reescrita: le o CONJUNTO como
+//       padrao de valores e exige corroboracao nas respostas abertas pra
+//       sustentar nota baixa.
 //   2 = nota por pergunta vira a base do fit da etapa, veredito calculado por
 //       faixa, potencial como projeção, raciocínio como área, sinal de
 //       liderança, revisão cruzada entre respostas, campo de cadastro fora da
 //       nota, e resposta falada julgada por conteúdo e não por forma.
-const ANALYSIS_PIPELINE_VERSION = 2;
+const ANALYSIS_PIPELINE_VERSION = 3;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
