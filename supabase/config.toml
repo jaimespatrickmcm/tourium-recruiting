@@ -96,6 +96,11 @@ verify_jwt = true
 [functions.generate-job-requirements]
 verify_jwt = true
 
+# generate-development-plan: owner-only. Valida JWT + role internamente e
+# escreve com o cliente do chamador (RLS aplica).
+[functions.generate-development-plan]
+verify_jwt = true
+
 # application-prefill: público. Valida token do candidato (applicant_tokens) pra
 # devolver os dados que já temos e pré-preencher o form individual.
 [functions.application-prefill]
