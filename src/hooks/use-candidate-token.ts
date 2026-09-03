@@ -39,37 +39,9 @@ export type CandidateApplication = {
   }>;
 };
 
-export type CandidateScore = { area: string; score: number; recorded_at: string };
-
-export type CandidateGoal = {
-  id: string;
-  title: string;
-  description: string | null;
-  area: string | null;
-  status: 'em_andamento' | 'concluida' | 'pausada';
-  due_date: string | null;
-  completed_at: string | null;
-  created_at: string;
-};
-
-export type CandidateJornada = {
-  collaborator: {
-    id: string;
-    company_id: string;
-    full_name: string;
-    role_title: string | null;
-    hired_at: string;
-    status: 'ativo' | 'desligado';
-    company_name: string | null;
-  };
-  scores: CandidateScore[];
-  goals: CandidateGoal[];
-};
-
 export type CandidatePortalData = {
   profile: CandidateProfile;
   applications: CandidateApplication[];
-  jornada: CandidateJornada | null;
 };
 
 export type ProfileUpdate = {
@@ -139,7 +111,6 @@ export function useCandidateToken() {
       setData({
         profile: res.profile as CandidateProfile,
         applications: (res.applications ?? []) as CandidateApplication[],
-        jornada: (res.jornada ?? null) as CandidateJornada | null,
       });
     } catch {
       setError('Não conseguimos carregar sua área agora.');

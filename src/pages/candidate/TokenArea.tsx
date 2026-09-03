@@ -1,5 +1,5 @@
 // Área do candidato por token (sem OAuth). Shell com abas:
-// Candidaturas / Jornada / Perfil. Os dados vêm da edge function
+// Candidaturas / Perfil. Os dados vêm da edge function
 // candidate-portal (service role), não da RLS. Mobile-first.
 
 import { useState } from 'react';
@@ -7,18 +7,15 @@ import { Link } from 'react-router-dom';
 import { Check, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { ScoutCard, type ScoutCardHistoryPoint } from '@/components/scout-card';
-import { SCOUT_AREAS } from '@/lib/scout-areas';
 import {
   useCandidateToken,
   type CandidateApplication,
-  type CandidateJornada,
   type CandidateProfile,
 } from '@/hooks/use-candidate-token';
 import { parseCvFeedback, type CvFeedback } from '@/lib/evidence-points';
 import { AccessForm } from '@/pages/candidate/Access';
 
-type TabKey = 'candidaturas' | 'jornada' | 'perfil';
+type TabKey = 'candidaturas' | 'perfil';
 
 const STAGES = [
   { key: 'triagem', label: 'Triagem' },
@@ -27,12 +24,6 @@ const STAGES = [
   { key: 'proposta', label: 'Proposta' },
   { key: 'contratado', label: 'Contratado' },
 ] as const;
-
-const GOAL_STATUS: Record<string, { label: string; chip: string }> = {
-  em_andamento: { label: 'Em andamento', chip: 'bg-sky-50 border-sky-100 text-sky-800' },
-  concluida: { label: 'Concluída', chip: 'bg-emerald-50 border-emerald-100 text-emerald-800' },
-  pausada: { label: 'Pausada', chip: 'bg-surface-sunken border-line-soft text-gray-600' },
-};
 
 function shortDate(iso: string): string {
   const d = new Date(iso);
@@ -213,172 +204,6 @@ function CandidaturasTab({ applications }: { applications: CandidateApplication[
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function JornadaTab({ jornada }: { jornada: CandidateJornada | null }) {
-  if (!jornada) {
-    return (
-      <div className="space-y-5">
-        <div>
-          <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minha jornada</h1>
-          <p className="text-sm text-ink-muted">Sua evolução profissional dentro das empresas.</p>
-        </div>
-        <div className="bg-white rounded-card border border-line-soft p-8 text-center">
-          <p className="text-sm text-ink-muted">
-            Sua jornada começa no dia em que uma empresa que usa a Noren te contratar. A partir daí,
-            suas avaliações e seu plano de desenvolvimento ficam disponíveis aqui.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const { collaborator, scores, goals } = jornada;
-  const companyName = collaborator.company_name;
-
-  const latestByArea = new Map<string, number>();
-  for (const s of scores) latestByArea.set(s.area, s.score);
-  const dimensions = SCOUT_AREAS.filter((a) => latestByArea.has(a.key)).map((a) => ({
-    area: a.key,
-    score: latestByArea.get(a.key)!,
-  }));
-  const overall =
-    dimensions.length > 0
-      ? Math.round(dimensions.reduce((sum, d) => sum + d.score, 0) / dimensions.length)
-      : null;
-
-  const batches = new Map<string, number[]>();
-  for (const s of scores) {
-    const key = s.recorded_at.slice(0, 10);
-    const batch = batches.get(key);
-    if (batch) batch.push(s.score);
-    else batches.set(key, [s.score]);
-  }
-  const history: ScoutCardHistoryPoint[] = [...batches.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, values]) => ({
-      label: `${date.slice(8, 10)}/${date.slice(5, 7)}`,
-      overall: Math.round(values.reduce((sum, v) => sum + v, 0) / values.length),
-    }));
-
-  const timeline = [
-    {
-      date: collaborator.hired_at,
-      text: collaborator.role_title
-        ? `Contratação como ${collaborator.role_title}`
-        : 'Contratação',
-      tone: 'sky' as const,
-    },
-    ...[...batches.entries()].map(([date, values]) => ({
-      date,
-      text: `Avaliação registrada (geral ${Math.round(
-        values.reduce((sum, v) => sum + v, 0) / values.length,
-      )})`,
-      tone: 'gray' as const,
-    })),
-    ...goals
-      .filter((g) => g.completed_at)
-      .map((g) => ({
-        date: g.completed_at as string,
-        text: `Meta concluída: ${g.title}`,
-        tone: 'emerald' as const,
-      })),
-  ].sort((a, b) => b.date.localeCompare(a.date));
-
-  const subtitle = [collaborator.role_title, companyName].filter(Boolean).join(' · ') || null;
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-satoshi text-2xl font-bold text-ink mb-1">Minha jornada</h1>
-        <p className="text-sm text-ink-muted">
-          {companyName
-            ? `Sua evolução na ${companyName}, na visão de quem acompanha seu trabalho.`
-            : 'Sua evolução profissional, na visão de quem acompanha seu trabalho.'}
-        </p>
-      </div>
-
-      {dimensions.length > 0 && overall !== null ? (
-        <ScoutCard
-          name={collaborator.full_name}
-          subtitle={subtitle}
-          overall={overall}
-          dimensions={dimensions}
-          history={history}
-          badge={collaborator.status === 'ativo' ? 'Ativo' : null}
-          className="max-w-md mx-auto sm:mx-0"
-        />
-      ) : (
-        <div className="bg-white rounded-card border border-line-soft p-6">
-          <p className="text-sm text-ink-muted">
-            Ainda não há avaliações registradas. Assim que a primeira for feita, seu scout card
-            aparece aqui com seus scores por área.
-          </p>
-        </div>
-      )}
-
-      <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
-        <h2 className="font-satoshi font-bold text-[17px] text-ink mb-4">
-          Plano de desenvolvimento
-        </h2>
-        {goals.length === 0 ? (
-          <p className="text-sm text-ink-muted">Nenhuma meta cadastrada por enquanto.</p>
-        ) : (
-          <ul className="space-y-3">
-            {goals.map((goal) => (
-              <li key={goal.id} className="rounded-tile border border-line-soft bg-canvas p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-ink">{goal.title}</p>
-                  <span
-                    className={cn(
-                      'shrink-0 rounded-full border px-2.5 py-0.5 text-caption font-semibold',
-                      (GOAL_STATUS[goal.status] ?? GOAL_STATUS.em_andamento).chip,
-                    )}
-                  >
-                    {(GOAL_STATUS[goal.status] ?? GOAL_STATUS.em_andamento).label}
-                  </span>
-                </div>
-                {goal.description && (
-                  <p className="text-footnote text-ink-muted mt-1 leading-relaxed">
-                    {goal.description}
-                  </p>
-                )}
-                {(goal.due_date || goal.completed_at) && (
-                  <p className="text-caption text-ink-subtle mt-1.5">
-                    {goal.completed_at
-                      ? `Concluída em ${fullDate(goal.completed_at)}`
-                      : `Prazo: ${fullDate(goal.due_date as string)}`}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="bg-white rounded-card border border-line-soft p-5 sm:p-6">
-        <h2 className="font-satoshi font-bold text-[17px] text-ink mb-4">Linha do tempo</h2>
-        <ol className="space-y-3">
-          {timeline.map((item, i) => (
-            <li key={`${item.date}-${i}`} className="flex items-baseline gap-3">
-              <span
-                className={cn(
-                  'h-2 w-2 rounded-full shrink-0 translate-y-[-1px]',
-                  item.tone === 'sky' && 'bg-sky-500',
-                  item.tone === 'emerald' && 'bg-emerald-500',
-                  item.tone === 'gray' && 'bg-gray-300',
-                )}
-              />
-              <span className="text-sm text-ink">{item.text}</span>
-              <span className="ml-auto shrink-0 text-caption text-ink-subtle">
-                {fullDate(item.date)}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
     </div>
   );
 }
@@ -565,12 +390,11 @@ function PerfilTab({
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'candidaturas', label: 'Candidaturas' },
-  { key: 'jornada', label: 'Jornada' },
   { key: 'perfil', label: 'Perfil' },
 ];
 
 export function CandidateTokenArea() {
-  const { token, setToken, clearToken, data, loading, error, refetch, updateProfile } =
+  const { token, clearToken, data, loading, error, refetch, updateProfile } =
     useCandidateToken();
   const [tab, setTab] = useState<TabKey>('candidaturas');
 
@@ -587,9 +411,9 @@ export function CandidateTokenArea() {
           <div className="bg-white rounded-card border border-line-soft shadow-md p-6 sm:p-8">
             <h1 className="text-2xl font-bold mb-2 text-ink">Sua área de candidato</h1>
             <p className="text-sm text-ink-muted mb-6">
-              Informe seu e-mail pra ver suas candidaturas, sua jornada e seu perfil.
+              Informe seu e-mail pra ver suas candidaturas e seu perfil.
             </p>
-            <AccessForm onAccess={setToken} />
+            <AccessForm />
           </div>
         </div>
       </main>
@@ -650,7 +474,6 @@ export function CandidateTokenArea() {
         ) : data ? (
           <>
             {tab === 'candidaturas' && <CandidaturasTab applications={data.applications} />}
-            {tab === 'jornada' && <JornadaTab jornada={data.jornada} />}
             {tab === 'perfil' && <PerfilTab profile={data.profile} onSave={updateProfile} />}
           </>
         ) : (
