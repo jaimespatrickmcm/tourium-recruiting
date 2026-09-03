@@ -71,15 +71,19 @@ Deno.serve(async (req) => {
   const tokenHash = await sha256Hex(token);
   const { data: tokenRow, error: tokenError } = await admin
     .from('applicant_tokens')
-    .select('id, email, expires_at, revoked_at')
+    .select('id, email, expires_at, revoked_at, consumed_at')
     .eq('token_hash', tokenHash)
     .maybeSingle();
 
   const expiresAt = tokenRow?.expires_at ? new Date(tokenRow.expires_at).getTime() : Number.NaN;
+  // consumed_at hoje nunca é preenchido (o token é multiuso dentro do TTL de
+  // 30min, senão o refresh da página derrubaria a sessão do candidato), mas a
+  // checagem honra o contrato do schema: se alguém marcar, o token morre.
   if (
     tokenError ||
     !tokenRow ||
     tokenRow.revoked_at ||
+    tokenRow.consumed_at ||
     !Number.isFinite(expiresAt) ||
     expiresAt <= Date.now()
   ) {

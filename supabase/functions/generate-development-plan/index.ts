@@ -398,7 +398,8 @@ Deno.serve(async (req) => {
 
   const suggestion = parseSuggestion(aiText);
   if (!suggestion) {
-    console.error('generate-development-plan invalid AI JSON', aiText.slice(0, 300));
+    // Só metadados no log: o texto é avaliação sobre pessoa identificável.
+    console.error('generate-development-plan invalid AI JSON', `length=${aiText.length}`);
     return jsonResponse({ ok: false, error: 'O agente retornou um formato inesperado. Tente de novo.' }, 502);
   }
 
@@ -420,11 +421,13 @@ Deno.serve(async (req) => {
       .single();
     if (createError || !created) {
       // 23505 = outra sessão criou com o mesmo nome no meio do caminho: reusa.
+      // skills.name é citext, então .eq já compara case-insensitive (e não
+      // interpreta % e _ como wildcard, ao contrário do ilike).
       const { data: existing } = await db
         .from('skills')
         .select('id')
         .eq('company_id', actor.company_id)
-        .ilike('name', skill.name)
+        .eq('name', skill.name)
         .maybeSingle();
       if (!existing) {
         console.error('generate-development-plan skill insert failed', createError?.message);
