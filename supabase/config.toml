@@ -112,6 +112,11 @@ verify_jwt = false
 [functions.transcribe-audio]
 verify_jwt = false
 
+# map-candidate-skills: recrutador logado. Valida JWT + ownership internamente e
+# usa service_role pras leituras e escritas.
+[functions.map-candidate-skills]
+verify_jwt = true
+
 # notify-stage-change: recrutador logado. Manda e-mail da virada de etapa e
 # devolve link do form + link de WhatsApp. Valida JWT + ownership internamente.
 [functions.notify-stage-change]

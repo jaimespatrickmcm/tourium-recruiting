@@ -757,6 +757,93 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['applicant_profiles']['Row']>;
         Relationships: [];
       };
+      candidate_skills: {
+        Row: {
+          id: string;
+          application_id: string;
+          company_id: string;
+          skill_id: string | null;
+          name: string;
+          kind: string;
+          level: number | null;
+          source: string;
+          evidence: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['candidate_skills']['Row']> & {
+          application_id: string;
+          company_id: string;
+          name: string;
+          kind: string;
+          source: string;
+        };
+        Update: Partial<Database['public']['Tables']['candidate_skills']['Row']>;
+        Relationships: [];
+      };
+      interview_questions: {
+        Row: {
+          id: string;
+          company_id: string;
+          position: number;
+          kind: string;
+          question: string;
+          followups: Json | null;
+          area: string | null;
+          guidance: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['interview_questions']['Row']> & {
+          company_id: string;
+          question: string;
+        };
+        Update: Partial<Database['public']['Tables']['interview_questions']['Row']>;
+        Relationships: [];
+      };
+      interview_notes: {
+        Row: {
+          id: string;
+          application_id: string;
+          company_id: string;
+          question_id: string | null;
+          question_snapshot: string;
+          area: string | null;
+          note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['interview_notes']['Row']> & {
+          application_id: string;
+          company_id: string;
+          question_snapshot: string;
+        };
+        Update: Partial<Database['public']['Tables']['interview_notes']['Row']>;
+        Relationships: [];
+      };
+      application_stage_scores: {
+        Row: {
+          id: string;
+          application_id: string;
+          company_id: string;
+          evidence_stage: string;
+          stage_score: number | null;
+          stage_verdict: string | null;
+          score: number | null;
+          dimensions: Json | null;
+          stage_dimensions: Json | null;
+          question_scores: Json | null;
+          model_used: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['application_stage_scores']['Row']> & {
+          application_id: string;
+          company_id: string;
+          evidence_stage: string;
+        };
+        Update: Partial<Database['public']['Tables']['application_stage_scores']['Row']>;
+        Relationships: [];
+      };
     };
     Views: {
       company_public_profiles: {

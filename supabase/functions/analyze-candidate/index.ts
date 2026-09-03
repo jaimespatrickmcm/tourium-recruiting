@@ -281,6 +281,20 @@ function verdictFromScore(score: number): StageVerdict {
 
 const MODEL = 'gpt-5';
 
+// Versão do pipeline. SOBE sempre que uma mudança no prompt ou no cálculo torne
+// as análises anteriores incomparáveis com as novas, e a tela passa a mostrar
+// quantas ficaram pra trás. Histórico das que exigiram reprocessamento:
+//   3 = anti-fit da empresa preenchido no DNA (antes vazio, entao a analise de
+//       cultura media contra uma cultura que nao dizia o que a empresa evita) e
+//       rubrica da pergunta de identificacao reescrita: le o CONJUNTO como
+//       padrao de valores e exige corroboracao nas respostas abertas pra
+//       sustentar nota baixa.
+//   2 = nota por pergunta vira a base do fit da etapa, veredito calculado por
+//       faixa, potencial como projeção, raciocínio como área, sinal de
+//       liderança, revisão cruzada entre respostas, campo de cadastro fora da
+//       nota, e resposta falada julgada por conteúdo e não por forma.
+const ANALYSIS_PIPELINE_VERSION = 3;
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -477,6 +491,8 @@ function buildPrompt(args: {
   companyName: string;
   companyDescription: string | null;
   companyCulture: string | null;
+  companyMustHave: string | null;
+  companyAntiFit: string | null;
   jobTitle: string;
   jobDescription: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -496,6 +512,10 @@ function buildPrompt(args: {
 EMPRESA: ${args.companyName}
 O que fazem: ${args.companyDescription ?? '(não informado)'}
 Cultura (nas palavras deles): ${args.companyCulture ?? '(não informado)'}
+O que não pode faltar em quem entra: ${args.companyMustHave ?? '(não informado)'}
+ANTI-FIT, quem não funciona aqui: ${args.companyAntiFit ?? '(não informado)'}
+
+O anti-fit acima é o que a empresa declara que NÃO funciona no dia a dia dela. Trate como parte da cultura, não como opinião solta: é a metade negativa do fit, e sem ela "fit cultural" vira só simpatia. Quando encontrar sinal de anti-fit, cite a EVIDÊNCIA no que o candidato escreveu, nunca a sua interpretação sobre quem ele é.
 
 VAGA: ${args.jobTitle}
 Descrição e exigências: ${args.jobDescription ?? '(não informado)'}${formatRequirements(args.requirements)}
@@ -880,6 +900,11 @@ Deno.serve(async (req) => {
   const company = (app as any).company;
   const dnaDoc = company?.dna_document ?? {};
   const cultureText = dnaDoc.culture ?? dnaDoc.culture_text ?? null;
+  // Metade negativa do fit. Existia no banco e nunca chegava no prompt: a
+  // rubrica mandava julgar contra o "anti-fit declarado" de um texto que o
+  // modelo nunca via.
+  const mustHaveText = dnaDoc.must_have ?? null;
+  const antiFitText = dnaDoc.anti_fit ?? null;
   const dnaVersion = typeof company?.dna_version === 'number' ? company.dna_version : null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -893,6 +918,8 @@ Deno.serve(async (req) => {
     companyName: company?.name ?? '',
     companyDescription: company?.description ?? null,
     companyCulture: cultureText,
+    companyMustHave: mustHaveText,
+    companyAntiFit: antiFitText,
     jobTitle: job?.title ?? '',
     jobDescription: job?.description ?? null,
     requirements: job?.requirements ?? null,
@@ -996,6 +1023,7 @@ Deno.serve(async (req) => {
         leadership_signal: result.leadership_signal,
         dna_version_used: dnaVersion,
         model_used: MODEL,
+        pipeline_version: ANALYSIS_PIPELINE_VERSION,
         cost_cents: costCents,
         status: 'completed',
         error_message: null,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ExternalLink,
@@ -68,6 +68,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import { cn } from '@/lib/utils';
+import { InterviewGuide } from '@/components/interview-guide';
+import { CandidateSkills } from '@/components/candidate-skills';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  JOB_STATUSES,
+  JOB_STATUS_EFFECT,
+  JOB_STATUS_LABEL,
+  jobStatusLabel,
+  jobStatusTone,
+  type JobStatus,
+} from '@/lib/job-status';
+import {
+  SCORED_STAGES,
+  isScoredForCurrentStage,
+  missingEvidenceLabel,
+  stageForEvidence,
+  stageStateLabel,
+  type StageScore,
+} from '@/lib/stage-scores';
 import type {
   ApplicationStatus,
   ApplicationEventType,
@@ -283,11 +308,48 @@ function AnswerRow({
   );
 }
 
+// Etapas que têm um link pra mandar pro candidato, e o texto do botão. Etapa
+// fora daqui (proposta, contratado, reprovado) não tem link, então o botão nem
+// aparece em vez de aparecer e copiar vazio.
+// Etapas em que a resposta do formulario ainda e a evidencia que se espera.
+// Depois delas, ter respondido nao diz nada sobre a etapa atual.
+const FORM_IS_THE_EVIDENCE = new Set<ApplicationStatus>(['triagem', 'fit_cultural']);
+
+// Etapas em que a aba de entrevista faz sentido: a atual e as posteriores. Quem
+// ja passou dela precisa reler o que foi anotado.
+const SHOWS_INTERVIEW_TAB = new Set<ApplicationStatus>([
+  'entrevista',
+  'proposta',
+  'contratado',
+  'reprovado',
+]);
+
+const STAGE_LINK_LABEL: Partial<Record<ApplicationStatus, string>> = {
+  triagem: 'Copiar link do formulário',
+  fit_cultural: 'Copiar link do formulário',
+  entrevista: 'Copiar link da agenda',
+};
+
+// Versão atual do pipeline de análise. Tem que bater com
+// ANALYSIS_PIPELINE_VERSION no edge function analyze-candidate: é a comparação
+// que diz quais análises ficaram pra trás depois de uma mudança de régua.
+const CURRENT_PIPELINE_VERSION = 3;
+
+// Quantas re-análises rodam ao mesmo tempo. Cada uma leva 60-90s, então
+// sequencial faria 45 candidatos levarem quase uma hora. Três em paralelo cabe
+// no limite da edge function sem derrubar a fila.
+const REANALYZE_CONCURRENCY = 3;
+
+// Custo médio observado por análise em ai_analyses.cost_cents. Serve pra avisar
+// antes de gastar, não pra cobrar: é estimativa, e está dito como tal na tela.
+const CENTS_PER_ANALYSIS = 8;
+
 // Retorno da edge function notify-stage-change: o que rolou de comunicação com o
 // candidato depois da virada de etapa.
 type StageComms = {
   toStatus: string;
   formUrl: string | null;
+  schedulingUrl: string | null;
   whatsappUrl: string | null;
   emailSent: boolean;
 };
@@ -449,6 +511,141 @@ const EVIDENCE_STAGE_LABELS: Record<string, string> = {
   form: 'Com respostas do formulário',
 };
 
+// Controle de situacao da vaga. Os tres estados ja existiam no banco e a policy
+// publica ja escondia vaga nao-ativa do anonimo; faltava a tela pra mudar, entao
+// toda vaga nascia ativa e ficava ativa pra sempre.
+//
+// Cada opcao mostra a CONSEQUENCIA, nao o adjetivo. Quem encerra uma vaga
+// precisa saber o que acontece com a career page e com quem ja esta no processo.
+//
+// Nao existe so "inativar": sem o caminho de volta, uma vaga pausada por engano
+// ficaria travada sem jeito de reabrir pela tela.
+function JobStatusDialog({
+  open,
+  onOpenChange,
+  current,
+  saving,
+  onSelect,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  current: string;
+  saving: boolean;
+  onSelect: (next: JobStatus) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Situação da vaga</DialogTitle>
+          <DialogDescription>
+            Define se a vaga aparece na career page e se continua recebendo candidatura.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-2">
+          {JOB_STATUSES.map((status) => {
+            const active = status === current;
+            return (
+              <button
+                key={status}
+                type="button"
+                disabled={saving}
+                onClick={() => onSelect(status)}
+                aria-current={active ? 'true' : undefined}
+                className={cn(
+                  'cursor-pointer rounded-tile border px-4 py-3 text-left transition-colors duration-200 disabled:opacity-50',
+                  active ? 'border-ink bg-surface' : 'border-line-soft bg-canvas hover:border-line',
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-callout font-semibold text-ink">
+                    {JOB_STATUS_LABEL[status]}
+                  </span>
+                  {active && (
+                    <span className="text-eyebrow font-bold uppercase text-ink-subtle">atual</span>
+                  )}
+                </span>
+                <span className="mt-1 block text-caption leading-snug text-ink-muted">
+                  {JOB_STATUS_EFFECT[status]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Trilha de notas por etapa. Cada etapa aparece com a nota que ela mesma gerou,
+// e a etapa atual vem destacada.
+//
+// Existe porque a nota vigente sozinha nao conta a historia: quando o candidato
+// avanca, ai_analyses e sobrescrita e a nota da triagem sumia. O log
+// application_stage_scores preserva, e aqui ele vira leitura.
+//
+// Etapa sem nota nao recebe numero nenhum. E o caso da entrevista, que ainda nao
+// tem fonte de dado no produto: reaproveitar a nota do formulario ali mediria
+// outra coisa e daria ao recrutador a impressao de que a entrevista foi avaliada.
+function StageTrackRail({
+  track,
+  currentStatus,
+}: {
+  track: Map<ApplicationStatus, StageScore>;
+  currentStatus: ApplicationStatus;
+}) {
+  // So faz sentido a partir de duas etapas com nota, ou quando a atual e uma das
+  // pontuaveis. Candidato recem-chegado nao precisa de trilha de um item so.
+  const relevant = SCORED_STAGES.filter(
+    (stage) => track.has(stage) || stage === currentStatus,
+  );
+  if (relevant.length < 2) return null;
+
+  return (
+    <div className="mb-6 flex flex-wrap items-stretch gap-2">
+      {relevant.map((stage) => {
+        const entry = track.get(stage) ?? null;
+        const isCurrent = stage === currentStatus;
+        const score = entry?.score ?? null;
+        return (
+          <div
+            key={stage}
+            aria-current={isCurrent ? 'step' : undefined}
+            className={cn(
+              'min-w-[104px] flex-1 rounded-tile border px-3 py-2.5',
+              isCurrent ? 'border-ink bg-surface' : 'border-line-soft bg-canvas',
+            )}
+          >
+            <p
+              className={cn(
+                'text-eyebrow font-bold uppercase',
+                isCurrent ? 'text-ink' : 'text-ink-subtle',
+              )}
+            >
+              {stageLabels[stage]}
+            </p>
+            {score !== null ? (
+              <p
+                className={cn(
+                  'mt-1 font-satoshi text-title-3 font-bold leading-none tabular-nums',
+                  isCurrent ? TONE_TEXT[toneForScore(score)] : 'text-ink-muted',
+                )}
+              >
+                {score}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-caption leading-snug text-ink-subtle">
+                {stageStateLabel(stage, currentStatus, track) ?? 'sem avaliação'}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Decisão da etapa: o fit calibrado ao estágio (só CV vs com formulário), com
 // veredito de avançar, avaliar melhor ou cortar, e comparação no mesmo estágio.
 // Diferente do scout geral (5 áreas), que fica logo abaixo.
@@ -456,11 +653,20 @@ function StageDecision({
   analysis,
   dims,
   cohortStageScores,
+  currentStatus,
 }: {
   analysis: ApplicationAnalysis;
   dims: { area: string; score: number }[];
   cohortStageScores: number[];
+  currentStatus: ApplicationStatus;
 }) {
+  // De qual etapa esta nota e, de verdade. ai_analyses guarda a analise VIGENTE,
+  // que e sempre da ultima evidencia recebida (o formulario). Quando o candidato
+  // avanca pra entrevista, a analise continua sendo a do formulario, mas o
+  // rotulo dizia "fit da etapa" e o numero passava a ser lido como avaliacao da
+  // entrevista, que ninguem fez.
+  const scoreStage = stageForEvidence(analysis.evidence_stage);
+  const isCurrentStage = scoreStage !== null && scoreStage === currentStatus;
   const stageScore = analysis.stage_score ?? analysis.score ?? 0;
   const verdict = analysis.stage_verdict ?? null;
   const stage = analysis.evidence_stage ?? null;
@@ -491,12 +697,19 @@ function StageDecision({
           <p
             className={cn(
               'font-satoshi text-[56px] font-bold leading-none tracking-[-0.05em] tabular-nums',
-              TONE_TEXT[tone],
+              // Cor so quando a nota e da etapa ATUAL. Verde e ambar aqui sao
+              // sinal de "avanca ou nao"; pintar assim a nota de uma etapa que
+              // ja passou faz o recrutador ler decisao onde nao ha nenhuma.
+              isCurrentStage ? TONE_TEXT[tone] : 'text-ink-muted',
             )}
           >
             {stageScore}
           </p>
-          <p className="mt-1.5 text-eyebrow font-bold uppercase text-ink-subtle">Fit da etapa</p>
+          <p className="mt-1.5 text-eyebrow font-bold uppercase text-ink-subtle">
+            {isCurrentStage
+              ? 'Fit da etapa'
+              : `Fit · ${scoreStage ? stageLabels[scoreStage] : 'etapa anterior'}`}
+          </p>
         </div>
 
         <div className="min-w-0 flex-1 pt-1">
@@ -515,6 +728,14 @@ function StageDecision({
             {stage && (
               <span className="text-caption text-ink-subtle">
                 {EVIDENCE_STAGE_LABELS[stage] ?? stage}
+              </span>
+            )}
+            {/* Sem isso o numero grande e lido como avaliacao da etapa em que o
+                candidato esta agora. Ele nao e: e a ultima avaliacao que existe,
+                feita com a evidencia da etapa anterior. */}
+            {!isCurrentStage && (
+              <span className="text-caption text-warning">
+                {stageLabels[currentStatus]} ainda sem avaliação
               </span>
             )}
           </div>
@@ -846,6 +1067,20 @@ export function JobDetail() {
   const [job, setJob] = useState<Job | null>(null);
   const [jobLoading, setJobLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [batch, setBatch] = useState<{
+    total: number;
+    done: number;
+    failed: number;
+    running: boolean;
+  } | null>(null);
+  const [tab, setTab] = useState('pipeline');
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  // Coluna de detalhe. Ela rola por dentro, entao trocar de candidato NAO
+  // reposiciona nada sozinho: o conteudo troca e a barra de rolagem fica onde
+  // estava. Quem lia o fim da analise de um candidato caia no meio da do
+  // proximo, sem o nome nem a nota, que estao no topo.
+  const detailScrollRef = useRef<HTMLDivElement>(null);
   const [stageFilter, setStageFilter] = useState<'all' | ApplicationStatus>('all');
 
   const { applications, loading: appsLoading, refetch, patchApplication } = useApplications(id);
@@ -866,11 +1101,48 @@ export function JobDetail() {
     void loadJob();
   }, [id]);
 
+  // Volta ao topo a cada troca de candidato. Sem animacao de proposito: isso e
+  // troca de conteudo, nao navegacao, e rolagem suave aqui vira atraso entre o
+  // clique e a leitura.
+  //
+  // TEM que ficar ACIMA dos returns antecipados abaixo. Hook depois de um return
+  // condicional roda em umas renderizacoes e nao em outras, e o React derruba a
+  // tela inteira com o erro #310 ("rendered more hooks than during the previous
+  // render"). Foi exatamente o que quebrou a pagina da vaga em producao.
+  useEffect(() => {
+    detailScrollRef.current?.scrollTo({ top: 0 });
+  }, [selectedId]);
+
   if (jobLoading || appsLoading) {
     return <div className="p-8 text-ink-subtle text-sm">Carregando...</div>;
   }
   if (!job) {
     return <div className="p-8 text-ink-muted">Vaga não encontrada.</div>;
+  }
+
+  async function changeJobStatus(next: JobStatus) {
+    if (!job || next === job.status) {
+      setStatusOpen(false);
+      return;
+    }
+    setSavingStatus(true);
+    try {
+      const { error } = await supabase.from('jobs').update({ status: next }).eq('id', job.id);
+      if (error) throw error;
+      setJob({ ...job, status: next });
+      setStatusOpen(false);
+      toast.success(
+        next === 'active'
+          ? 'Vaga ativa de novo. Já aparece na career page.'
+          : next === 'paused'
+            ? 'Vaga pausada. Saiu da career page e não recebe candidatura nova.'
+            : 'Vaga encerrada. Saiu da career page.',
+      );
+    } catch {
+      toast.error('Não deu pra mudar a situação da vaga. Tente de novo.');
+    } finally {
+      setSavingStatus(false);
+    }
   }
 
   const counts = STAGE_ORDER.reduce(
@@ -898,28 +1170,97 @@ export function JobDetail() {
     )
     .map((a) => a.ai_analysis!.stage_score as number);
 
+  // Análises feitas com régua antiga. Depois das mudanças de calibragem (nota
+  // por pergunta, potencial calculado, campo de cadastro fora da média), a nota
+  // velha e a nova não são comparáveis, então deixar as duas convivendo na
+  // mesma lista faz o recrutador ordenar candidato por régua diferente.
+  // Respeita o filtro de etapa. Reprocessar custa dinheiro por candidato, e
+  // quase sempre o que interessa e uma etapa so: depois de mexer na regua, o
+  // recrutador quer conferir quem ja esta em entrevista antes de gastar com os
+  // 60 da triagem. Filtrar a lista e clicar aqui e o caminho natural.
+  const outdated = filtered.filter(
+    (a) =>
+      a.ai_analysis?.status === 'completed' &&
+      (a.ai_analysis?.pipeline_version ?? 1) < CURRENT_PIPELINE_VERSION,
+  );
+
+  // Reprocessa em fila, com poucos ao mesmo tempo. Não dispara sozinho e não
+  // recomeça do zero: quem já está na versão nova fica de fora, então rodar de
+  // novo depois de uma falha só refaz o que faltou.
+  async function reanalyzeOutdated() {
+    const queue = [...outdated];
+    if (queue.length === 0) return;
+    setBatch({ total: queue.length, done: 0, failed: 0, running: true });
+
+    let done = 0;
+    let failed = 0;
+    async function worker() {
+      for (;;) {
+        const next = queue.shift();
+        if (!next) return;
+        const { error } = await invokeEdge('analyze-candidate', { applicationId: next.id });
+        if (error) failed += 1;
+        done += 1;
+        setBatch({ total: outdated.length, done, failed, running: true });
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(REANALYZE_CONCURRENCY, queue.length) }, () => worker()),
+    );
+
+    setBatch({ total: outdated.length, done, failed, running: false });
+    await refetch();
+    if (failed > 0) {
+      toast.warning(
+        `${done - failed} reprocessados, ${failed} falharam. Rode de novo pra tentar só os que faltaram.`,
+      );
+    } else {
+      toast.success(`${done} candidatos reprocessados com a régua nova.`);
+    }
+  }
+
   return (
-    <div className="relative min-h-screen bg-canvas">
+    // App shell no desktop: a PAGINA nao rola, so as colunas rolam por dentro.
+    // Isso e o que faz o mouse nunca precisar sair da coluna pra alcancar o
+    // scroll da pagina. No mobile continua pagina normal, empilhada.
+    <div className="relative min-h-screen bg-canvas lg:flex lg:h-screen lg:min-h-0 lg:flex-col lg:overflow-hidden">
       <div className="canvas-tint pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
 
-      <div className="relative mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
-        <button
-          onClick={() => navigate('/app/jobs')}
-          className="mb-6 inline-flex items-center gap-2 text-footnote font-medium text-ink-muted transition-colors hover:text-ink"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Vagas
-        </button>
-
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col px-5 py-8 sm:px-8 sm:py-12 lg:min-h-0 lg:flex-1 lg:py-6">
+        {/* Cabecalho em UMA linha. Antes eram ~180px empilhados (botao voltar,
+            eyebrow "Vaga", titulo em display, contagem) e cada pixel ali sai da
+            altura do board, que e onde o trabalho acontece. O titulo continua
+            legivel; o que saiu foi respiro decorativo. */}
+        <div className="mb-5 flex shrink-0 items-center gap-3 lg:mb-4">
+          <button
+            onClick={() => navigate('/app/jobs')}
+            aria-label="Voltar para a lista de vagas"
+            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-muted transition-colors duration-200 hover:bg-canvas hover:text-ink"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </button>
           <div className="min-w-0 flex-1">
-            <p className="mb-3 text-eyebrow font-bold uppercase text-ink-subtle">Vaga</p>
-            <h1 className="font-satoshi text-title-1 font-bold text-ink sm:text-display">
+            <h1 className="truncate font-satoshi text-title-3 font-bold text-ink sm:text-title-2">
               {job.title}
             </h1>
-            <p className="mt-3 text-footnote text-ink-subtle">
-              {applications.length} candidato{applications.length === 1 ? '' : 's'} ·{' '}
-              {job.status === 'active' ? 'Ativa' : job.status === 'paused' ? 'Pausada' : 'Encerrada'}
+            <p className="mt-0.5 flex items-center gap-1.5 text-caption text-ink-subtle">
+              <span>
+                {applications.length} candidato{applications.length === 1 ? '' : 's'}
+              </span>
+              <span aria-hidden>·</span>
+              {/* A situacao e um botao, nao um rotulo: e o unico jeito de mudar
+                  o estado da vaga, e antes disso nao existia nenhum. */}
+              <button
+                type="button"
+                onClick={() => setStatusOpen(true)}
+                className={cn(
+                  'inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-eyebrow font-bold uppercase transition-opacity duration-200 hover:opacity-80',
+                  jobStatusTone(job.status),
+                )}
+              >
+                {jobStatusLabel(job.status)}
+                <ChevronDown className="h-3 w-3" aria-hidden />
+              </button>
             </p>
           </div>
           {company && job.status === 'active' && (
@@ -927,10 +1268,10 @@ export function JobDetail() {
               href={`/careers/${company.slug}/${job.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-full border border-line bg-surface px-4 text-footnote font-semibold text-ink transition-colors hover:bg-canvas"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors duration-200 hover:bg-canvas"
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              Career page
+              <span className="hidden sm:inline">Career page</span>
             </a>
           )}
         </div>
@@ -948,8 +1289,57 @@ export function JobDetail() {
           guarda a configuracao. Mesmo principio da navegacao principal:
           operacao na frente, setup a um clique.
         */}
-        <Tabs defaultValue="pipeline">
-          <TabsList className="mb-7 inline-flex h-auto gap-1 rounded-full bg-surface-sunken p-1">
+        {/* Barra de reprocessamento. Só aparece quando existe análise feita com
+            régua antiga, e some sozinha quando não sobra nenhuma. Não dispara
+            automático de propósito: reprocessar custa e sobrescreve a leitura
+            atual, então quem decide é quem está olhando a tela. */}
+        {outdated.length > 0 && (
+          <div className="mb-4 flex shrink-0 flex-col gap-2 rounded-card border border-line-soft bg-surface px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <p className="text-callout font-semibold text-ink">
+                {outdated.length} análise{outdated.length === 1 ? '' : 's'} com a régua antiga
+                {stageFilter !== 'all' && ` em ${stageLabels[stageFilter].toLowerCase()}`}
+              </p>
+              <p className="mt-1 text-caption text-ink-muted">
+                {batch?.running
+                  ? `Reprocessando ${batch.done} de ${batch.total}. Pode deixar a aba aberta.`
+                  : `Foram feitas antes da nota por pergunta e do potencial calculado, então não dá pra comparar com as novas. Custo estimado de US$ ${((outdated.length * CENTS_PER_ANALYSIS) / 100).toFixed(2)}.`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void reanalyzeOutdated()}
+              disabled={batch?.running}
+              className="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-full bg-ink px-4 text-footnote font-semibold text-surface transition-opacity hover:opacity-90 disabled:opacity-50 sm:self-auto"
+            >
+              {batch?.running ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {batch?.running ? `${batch.done}/${batch.total}` : 'Reprocessar todos'}
+            </button>
+          </div>
+        )}
+
+        <JobStatusDialog
+          open={statusOpen}
+          onOpenChange={setStatusOpen}
+          current={job.status}
+          saving={savingStatus}
+          onSelect={(next) => void changeJobStatus(next)}
+        />
+
+        <Tabs
+          value={tab}
+          onValueChange={setTab}
+          className="flex flex-col lg:min-h-0 lg:flex-1"
+        >
+          {/* Abas e filtro de etapa na MESMA linha. Empilhados custavam ~100px
+              de altura que o board precisa mais. As pilhas quebram sozinhas em
+              tela estreita. */}
+          <div className="mb-5 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 lg:mb-4">
+          <TabsList className="inline-flex h-auto gap-1 rounded-full bg-surface-sunken p-1">
             <TabsTrigger
               value="pipeline"
               className="gap-2 rounded-full px-4 py-2 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
@@ -964,8 +1354,28 @@ export function JobDetail() {
               Sobre a vaga
             </TabsTrigger>
           </TabsList>
+            {tab === 'pipeline' && applications.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <StagePill
+                  label="Todas"
+                  count={applications.length}
+                  active={stageFilter === 'all'}
+                  onClick={() => setStageFilter('all')}
+                />
+                {STAGE_ORDER.map((s) => (
+                  <StagePill
+                    key={s}
+                    label={stageLabels[s]}
+                    count={counts[s]}
+                    active={stageFilter === s}
+                    onClick={() => setStageFilter(s)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
-          <TabsContent value="pipeline" className="mt-0">
+          <TabsContent value="pipeline" className="mt-0 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
             {applications.length === 0 ? (
               <EmptyState
                 icon={<Users className="h-7 w-7" strokeWidth={1.75} />}
@@ -981,26 +1391,25 @@ export function JobDetail() {
               />
             ) : (
               <>
-                <div className="mb-5 flex flex-wrap gap-2">
-                  <StagePill
-                    label="Todas"
-                    count={applications.length}
-                    active={stageFilter === 'all'}
-                    onClick={() => setStageFilter('all')}
-                  />
-                  {STAGE_ORDER.map((s) => (
-                    <StagePill
-                      key={s}
-                      label={stageLabels[s]}
-                      count={counts[s]}
-                      active={stageFilter === s}
-                      onClick={() => setStageFilter(s)}
-                    />
-                  ))}
-                </div>
+                {/* O board ocupa a altura que sobra do app shell, via
+                    flex-1 + min-h-0 encadeados desde a raiz. min-h-0 e o que faz
+                    funcionar: sem ele um filho flex se recusa a encolher abaixo
+                    do proprio conteudo e o overflow nunca chega a existir.
 
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,340px)_1fr]">
-                  <div className="flex flex-col gap-2">
+                    A tentativa anterior era h-[calc(100vh-3rem)] aqui, e ficou
+                    pior que o problema: a grade comeca ~450px abaixo do topo,
+                    entao uma caixa de 100vh terminava bem fora da tela. Sobravam
+                    tres cards visiveis, e como as colunas capturavam a rolagem,
+                    o usuario tinha que levar o mouse pra fora delas pra rolar a
+                    pagina e alcancar o resto. Agora a pagina nao rola no
+                    desktop: nao existe rolagem de pagina pra alcancar.
+
+                    No mobile continua empilhado e rolando normal. */}
+                <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,340px)_1fr] lg:gap-0">
+                  {/* overscroll-contain: chegar no fim da lista nao "vaza" o
+                      scroll pra pagina atras. A borda da direita e a separacao
+                      visual entre os dois lados. */}
+                  <div className="flex flex-col gap-2 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r lg:border-line-soft lg:pb-4 lg:pr-4">
                     {filtered.length === 0 ? (
                       <div className="surface-card px-5 py-8 text-center">
                         <p className="text-footnote text-ink-muted">
@@ -1008,18 +1417,44 @@ export function JobDetail() {
                         </p>
                       </div>
                     ) : (
-                      filtered.map((app) => (
-                        <CandidateListItem
-                          key={app.id}
-                          app={app}
-                          selected={selectedId === app.id}
-                          onSelect={() => setSelectedId(app.id)}
-                        />
-                      ))
+                      filtered.map((app, i) => {
+                        // Separador entre quem ja tem nota da etapa e quem
+                        // ainda nao entregou o material dela. Deixa a regra de
+                        // ordenacao obvia sem precisar de legenda, e explica por
+                        // que aquele candidato esta la embaixo.
+                        const scored = isScoredForCurrentStage(app.status, app.stage_track);
+                        const prev = i > 0 ? filtered[i - 1] : null;
+                        const startsWaiting =
+                          !scored &&
+                          prev !== null &&
+                          isScoredForCurrentStage(prev.status, prev.stage_track);
+                        return (
+                          <Fragment key={app.id}>
+                            {startsWaiting && (
+                              <p className="mt-3 px-1 pb-0.5 text-eyebrow font-bold uppercase text-ink-subtle">
+                                Ainda sem avaliação nesta etapa
+                              </p>
+                            )}
+                            <CandidateListItem
+                              app={app}
+                              selected={selectedId === app.id}
+                              onSelect={() => setSelectedId(app.id)}
+                            />
+                          </Fragment>
+                        );
+                      })
                     )}
                   </div>
 
-                  <div>
+                  {/* tabIndex torna o painel rolavel pelo teclado. A lista ao
+                      lado nao precisa: os proprios cards ja sao focaveis. */}
+                  <div
+                    ref={detailScrollRef}
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Detalhe do candidato"
+                    className="lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-4 lg:pl-5"
+                  >
                     {selected ? (
                       <CandidateDetail
                         key={selected.id}
@@ -1054,7 +1489,10 @@ export function JobDetail() {
             )}
           </TabsContent>
 
-          <TabsContent value="vaga" className="mt-0">
+          <TabsContent
+            value="vaga"
+            className="mt-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-4 lg:pr-1"
+          >
             <DescriptionPanel
               job={job}
               onUpdate={(description) => setJob({ ...job, description })}
@@ -1094,14 +1532,20 @@ function CandidateListItem({
   onSelect: () => void;
 }) {
   const analysis = app.ai_analysis;
-  const stageScore = analysis?.stage_score ?? analysis?.score ?? null;
-  const verdict = analysis?.stage_verdict ?? null;
+  // A nota mostrada é a da ETAPA ATUAL, não a análise vigente solta. Antes,
+  // quem fosse movido pra fit cultural sem ter respondido o formulário aparecia
+  // com nota de fit cultural que na verdade tinha saído do currículo, e não
+  // dava pra distinguir no board quem respondeu de quem só mudou de coluna.
+  const track = app.stage_track;
+  const currentStage = track.get(app.status) ?? null;
+  const stageScore = currentStage?.score ?? null;
+  const verdict = currentStage?.verdict ?? null;
+  const waitingFor = missingEvidenceLabel(app.status, track);
   const aStatus = analysis?.status;
   const isPending = analysisIsPending(app);
   const hasError = aStatus === 'error';
   const done = aStatus === 'completed' && stageScore !== null;
   const tone = done ? toneForScore(stageScore) : 'neutral';
-
   const verdictLabel = verdict ? (VERDICT_LABELS[verdict] ?? verdict) : null;
   const verdictTone: Tone = verdict ? (VERDICT_TONE[verdict] ?? 'neutral') : 'neutral';
 
@@ -1144,10 +1588,36 @@ function CandidateListItem({
                 <span className="text-critical">erro na análise</span>
               </>
             )}
+            {/* Respondeu o formulário. O dado já existia em form_completed_at e
+                nunca aparecia na tela, então não dava pra saber pelo board quem
+                tinha respondido. É o que separa "avançou de etapa" de "mandou
+                material novo pra ser avaliado". */}
+            {/* "Respondeu" e o sinal de que a evidencia DESTA etapa chegou, e
+                por isso so vale enquanto a etapa esperada e o formulario. Em
+                entrevista ele continuava aceso e passava a ser lido como
+                "respondeu a entrevista", que ninguem respondeu. */}
+            {app.form_completed_at && FORM_IS_THE_EVIDENCE.has(app.status) && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1 text-positive">
+                  <CheckCircle2 className="h-3 w-3" aria-hidden />
+                  respondeu
+                </span>
+              </>
+            )}
+            {!(app.form_completed_at && FORM_IS_THE_EVIDENCE.has(app.status)) &&
+              waitingFor &&
+              !isPending &&
+              !hasError && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="text-ink-subtle">{waitingFor}</span>
+              </>
+            )}
           </p>
         </div>
 
-        {done && (
+        {done ? (
           <div className="shrink-0 text-right">
             <p
               className={cn(
@@ -1163,6 +1633,17 @@ function CandidateListItem({
               </p>
             )}
           </div>
+        ) : (
+          /* Etapa atual sem nota nao mostra numero nenhum. Mostrava a nota da
+             etapa anterior esmaecida, e mesmo com o rotulo embaixo ela era lida
+             como a nota de agora: numero grande a direita do nome e a coisa mais
+             visivel do card, e um rotulo em corpo minusculo nao desfaz isso.
+             O historico completo continua na trilha do painel de detalhe, que
+             tem espaco pra rotular cada etapa direito. */
+          !isPending &&
+          !hasError && (
+            <span className="shrink-0 text-caption text-ink-subtle">sem avaliação</span>
+          )
         )}
       </div>
     </button>
@@ -1753,6 +2234,9 @@ function CandidateDetail({
   const [deleting, setDeleting] = useState(false);
   const [comms, setComms] = useState<StageComms | null>(null);
   const [copiedForm, setCopiedForm] = useState(false);
+  const [copiedStageLink, setCopiedStageLink] = useState(false);
+  const [loadingStageLink, setLoadingStageLink] = useState(false);
+  const [loadingWhatsapp, setLoadingWhatsapp] = useState(false);
 
   // Dispara a comunicação com o candidato (e-mail + link de WhatsApp) depois de
   // uma virada de etapa. Best-effort: nunca quebra a mudança de etapa. Se falhar,
@@ -1769,6 +2253,72 @@ function CandidateDetail({
     } catch (err) {
       console.error('[JobDetail] notify-stage-change error:', err);
       toast('Etapa atualizada. A notificação ao candidato não saiu agora.');
+    }
+  }
+
+  // Pega o link da etapa atual SEM disparar e-mail. Gerar o link de novo por
+  // "notificar de novo" mandaria outro e-mail pro candidato, que é justamente o
+  // que já não chegou nele.
+  // Abre o WhatsApp com o link da etapa. O botao existia so dentro do painel
+  // que aparecia por instantes depois de virar a etapa: bastava recarregar a
+  // pagina pra ele sumir, e era exatamente quando o recrutador precisava dele.
+  //
+  // A janela e aberta ANTES do await, ainda dentro do clique. Bloqueador de
+  // popup so confia em window.open disparado por gesto do usuario; abrir depois
+  // da resposta da funcao seria bloqueado silenciosamente.
+  async function openStageWhatsapp() {
+    const win = window.open('', '_blank');
+    setLoadingWhatsapp(true);
+    try {
+      const { data, error } = await invokeEdge<StageComms>('notify-stage-change', {
+        applicationId: app.id,
+        toStatus: app.status,
+        origin: window.location.origin,
+        linkOnly: true,
+      });
+      if (error || !data) throw error ?? new Error('sem retorno');
+      if (!data.whatsappUrl) {
+        win?.close();
+        toast.error('Esse candidato não tem telefone cadastrado.');
+        return;
+      }
+      if (win) {
+        win.location.href = data.whatsappUrl;
+      } else {
+        // Popup bloqueado: em vez de falhar calado, entrega o link pra mao.
+        await navigator.clipboard.writeText(data.whatsappUrl);
+        toast.success('Link do WhatsApp copiado. Cole no navegador.');
+      }
+    } catch {
+      win?.close();
+      toast.error('Não deu pra montar a mensagem agora. Tente de novo.');
+    } finally {
+      setLoadingWhatsapp(false);
+    }
+  }
+
+  async function copyStageLink() {
+    setLoadingStageLink(true);
+    try {
+      const { data, error } = await invokeEdge<StageComms>('notify-stage-change', {
+        applicationId: app.id,
+        toStatus: app.status,
+        origin: window.location.origin,
+        linkOnly: true,
+      });
+      if (error || !data) throw error ?? new Error('sem retorno');
+      const url = data.formUrl ?? data.schedulingUrl ?? null;
+      if (!url) {
+        toast.error('Ainda não há link pra esta etapa.');
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopiedStageLink(true);
+      window.setTimeout(() => setCopiedStageLink(false), 2000);
+    } catch {
+      toast.error('Não deu pra gerar o link agora. Tente de novo.');
+    } finally {
+      setLoadingStageLink(false);
     }
   }
 
@@ -2163,7 +2713,7 @@ function CandidateDetail({
     // proprios (decisao, evidencias, scout da etapa, scout geral) — caixa dentro
     // de caixa, cada uma repetindo padding e borda. A separacao agora e uma
     // linha de 1px, que e o suficiente e nao rouba espaco horizontal.
-    <div className="surface-card sticky top-6 overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Faixa de identidade: fica sobre o canvas rebaixado pra ancorar o topo
           do card sem precisar de sombra. */}
       <div className="border-b border-line-soft bg-canvas px-5 py-5 sm:px-6">
@@ -2331,6 +2881,48 @@ function CandidateDetail({
           </div>
         )}
 
+        {/* Link da etapa, disponível SEMPRE, não só logo depois da virada.
+            O caso real é o candidato que não achou o e-mail (spam, endereço
+            velho, caixa cheia): o recrutador precisa pegar o link e mandar no
+            WhatsApp. Antes o link só existia no painel que aparecia por alguns
+            instantes após mudar de etapa, então quem voltasse no card depois
+            não tinha de onde tirar. */}
+        {STAGE_LINK_LABEL[app.status] && (
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void copyStageLink()}
+              disabled={loadingStageLink}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+            >
+              {loadingStageLink ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : copiedStageLink ? (
+                <Check className="h-3.5 w-3.5 text-positive" aria-hidden />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {copiedStageLink ? 'Link copiado' : STAGE_LINK_LABEL[app.status]}
+            </button>
+            <button
+              type="button"
+              onClick={() => void openStageWhatsapp()}
+              disabled={loadingWhatsapp}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-footnote font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+            >
+              {loadingWhatsapp ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+              )}
+              WhatsApp
+            </button>
+            <span className="text-caption text-ink-subtle">
+              Pra mandar na mão se o candidato não achou o e-mail.
+            </span>
+          </div>
+        )}
+
         {comms && comms.toStatus === app.status && (
           <div className="mb-6 rounded-card bg-canvas p-4">
             <p className="mb-2 text-eyebrow font-bold uppercase text-ink-subtle">
@@ -2413,6 +3005,12 @@ function CandidateDetail({
               Análise
             </TabsTrigger>
             <TabsTrigger
+              value="scout"
+              className="rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Scout
+            </TabsTrigger>
+            <TabsTrigger
               value="respostas"
               className="gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
             >
@@ -2420,6 +3018,22 @@ function CandidateDetail({
               {answersCount > 0 && (
                 <span className="tabular-nums text-ink-subtle">{answersCount}</span>
               )}
+            </TabsTrigger>
+            {/* Entrevista so existe a partir da etapa: antes disso a aba
+                estaria vazia e so somaria ruido ao cabecalho. */}
+            {SHOWS_INTERVIEW_TAB.has(app.status) && (
+              <TabsTrigger
+                value="entrevista"
+                className="rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+              >
+                Entrevista
+              </TabsTrigger>
+            )}
+            <TabsTrigger
+              value="skills"
+              className="gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Skills
             </TabsTrigger>
             <TabsTrigger
               value="historico"
@@ -2475,16 +3089,34 @@ function CandidateDetail({
               </div>
             ) : analysis ? (
               <div>
+                <StageTrackRail track={app.stage_track} currentStatus={app.status} />
+
                 <StageDecision
                   analysis={analysis}
                   dims={dims}
                   cohortStageScores={cohortStageScores}
+                  currentStatus={app.status}
                 />
                 <EvidencePoints strengths={strengths} concerns={concerns} />
                 {stageDims.length > 0 && (
                   <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
                 )}
+              </div>
+            ) : (
+              <p className="py-6 text-center text-callout text-ink-muted">
+                Sem análise ainda.
+              </p>
+            )}
+          </TabsContent>
 
+          <TabsContent value="scout" className="mt-0">
+            {analysis ? (
+              <div>
+                {/* Leitura de longo prazo, separada da decisao da etapa. Sao
+                    perguntas diferentes: "ela avanca desta fase?" se responde
+                    com a evidencia desta etapa, e "quem e essa pessoa daqui a
+                    dois anos?" se responde com o scout, o potencial e o perfil.
+                    Empilhadas na mesma aba, a segunda enterrava a primeira. */}
                 {dims.length > 0 && (
                   <div className="mb-6 border-t border-line-soft pt-6">
                     <p className="mb-4 text-eyebrow font-bold uppercase text-ink-subtle">
@@ -2565,10 +3197,13 @@ function CandidateDetail({
                   </div>
                 )}
               </div>
-            ) : null}
+            ) : (
+              <p className="py-6 text-center text-callout text-ink-muted">
+                O scout aparece depois que a análise roda.
+              </p>
+            )}
           </TabsContent>
 
-          {/* O que o candidato respondeu no formulário, na ordem de leitura */}
           <TabsContent value="respostas" className="mt-0">
             {answersLoading ? (
               <p className="text-footnote text-ink-subtle">Carregando respostas...</p>
@@ -2663,6 +3298,21 @@ function CandidateDetail({
           </TabsContent>
 
           {/* Linha do tempo */}
+          {SHOWS_INTERVIEW_TAB.has(app.status) && (
+            <TabsContent value="entrevista" className="mt-0">
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <p className="text-caption leading-snug text-ink-muted">
+                  Preencha durante a conversa. Salva sozinho, não tem botão de enviar.
+                </p>
+              </div>
+              <InterviewGuide applicationId={app.id} companyId={app.company_id} />
+            </TabsContent>
+          )}
+
+          <TabsContent value="skills" className="mt-0">
+            <CandidateSkills applicationId={app.id} companyId={app.company_id} />
+          </TabsContent>
+
           <TabsContent value="historico" className="mt-0">
             <ol>
               {timeline.map((entry, i) => {

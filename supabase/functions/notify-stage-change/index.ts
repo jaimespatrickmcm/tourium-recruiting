@@ -101,14 +101,25 @@ function composeEmail(args: {
   }
 
   if (toStatus === 'entrevista') {
-    // TODO: o link de agenda entra via secret SCHEDULING_URL. Enquanto não
-    // estiver setado, não mandamos botão e avisamos que o time envia o link.
+    // O link da agenda vem do secret SCHEDULING_URL. O caminho sem link continua
+    // existindo porque uma empresa nova pode nao ter agenda configurada ainda, e
+    // e melhor avisar que o time entra em contato do que mandar um e-mail com um
+    // botao que nao leva a lugar nenhum.
     const paragraphs = [
-      `${oi} Chegou a hora da conversa sobre a vaga de ${jobTitle}.`,
+      `${oi} Sua conversa pra vaga de ${jobTitle} está marcada pra acontecer, só falta você escolher quando.`,
     ];
     if (schedulingUrl) {
       paragraphs.push(
-        'Escolhe o horário que funciona pra você. Se nenhum encaixar, responde este e-mail que a gente dá um jeito.',
+        'Abre a agenda no botão abaixo e escolhe o horário que funciona pra você. Dá pra ver os dias livres e marcar em um minuto.',
+      );
+      // Duas frases que derrubam falta e ansiedade, nessa ordem: o que esperar
+      // (ninguem gosta de entrar numa conversa sem saber o formato) e a saida
+      // caso nenhum horario sirva. Sem isso o candidato some em vez de avisar.
+      paragraphs.push(
+        'É um papo pra gente se conhecer melhor: como você trabalha, o que te interessa na vaga e o que você quer saber da gente. Não precisa preparar nada.',
+      );
+      paragraphs.push(
+        'Se nenhum horário encaixar, responde este e-mail que a gente acha outro jeito.',
       );
     } else {
       paragraphs.push(
@@ -116,7 +127,7 @@ function composeEmail(args: {
       );
     }
     return {
-      subject: `Vamos conversar, ${candidateFirstName || 'tudo bem'}?`,
+      subject: `${candidateFirstName || 'Oi'}, escolhe o melhor horário pra gente conversar`,
       heading: 'Bora bater um papo',
       paragraphs,
       button: schedulingUrl ? { label: 'Escolher horário', url: schedulingUrl } : undefined,
@@ -170,8 +181,9 @@ function composeWhatsapp(args: {
   jobTitle: string;
   candidateFirstName: string;
   formUrl: string | null;
+  schedulingUrl: string | null;
 }): string | null {
-  const { toStatus, companyName, jobTitle, candidateFirstName, formUrl } = args;
+  const { toStatus, companyName, jobTitle, candidateFirstName, formUrl, schedulingUrl } = args;
   const oi = candidateFirstName ? `Oi, ${candidateFirstName}!` : 'Oi!';
 
   switch (toStatus) {
@@ -180,7 +192,15 @@ function composeWhatsapp(args: {
         formUrl ? ` Dá pra preencher por aqui: ${formUrl}` : ''
       }`;
     case 'entrevista':
-      return `${oi} Aqui é do time da ${companyName}. Gostamos do seu perfil pra vaga de ${jobTitle} e queremos marcar uma conversa. Qual o melhor dia e horário pra você?`;
+      // Com agenda configurada, mandar o link em vez de perguntar horário: duas
+      // vias diferentes pro mesmo passo (e-mail com agenda, WhatsApp pedindo
+      // disponibilidade) fazem o candidato responder no WhatsApp um horário que
+      // a agenda talvez não tenha, e alguém do time vira intermediário à toa.
+      return `${oi} Aqui é do time da ${companyName}. Gostamos do seu perfil pra vaga de ${jobTitle} e queremos marcar uma conversa.${
+        schedulingUrl
+          ? ` Escolhe o melhor horário por aqui: ${schedulingUrl}`
+          : ' Qual o melhor dia e horário pra você?'
+      }`;
     case 'proposta':
       return `${oi} Aqui é do time da ${companyName}. Temos uma boa notícia sobre a vaga de ${jobTitle}: queremos seguir com você. Em breve alinhamos os detalhes da proposta.`;
     case 'contratado':
@@ -208,6 +228,11 @@ Deno.serve(async (req) => {
 
   const applicationId = (payload.applicationId ?? '').trim();
   const toStatus = (payload.toStatus ?? '').trim();
+  // linkOnly: o recrutador só quer o link pra mandar na mão (o candidato não
+  // achou o e-mail, caiu em spam, trocou de endereço). Gera o link e NÃO envia
+  // e-mail. Sem isso, pegar o link de novo significaria disparar outro e-mail
+  // pro candidato, que é exatamente o que já não funcionou.
+  const linkOnly = payload.linkOnly === true;
   // O link que vai pro candidato precisa ser o endereço público de produção.
   // APP_URL manda; o origin do navegador é só plano B (senão vaza localhost).
   const configuredAppUrl = (Deno.env.get('APP_URL') ?? '').trim().replace(/\/+$/, '');
@@ -280,7 +305,8 @@ Deno.serve(async (req) => {
 
   // 4) Se for fit_cultural, mint token pro form individual do candidato.
   let formUrl: string | null = null;
-  if (toStatus === 'fit_cultural' && candidateEmail && origin && companySlug && jobSlug) {
+  const wantsFormLink = toStatus === 'fit_cultural' || (linkOnly && toStatus === 'triagem');
+  if (wantsFormLink && candidateEmail && origin && companySlug && jobSlug) {
     try {
       const token = generateToken();
       const tokenHash = await sha256Hex(token);
@@ -310,7 +336,7 @@ Deno.serve(async (req) => {
   let emailSent = false;
   let emailError: string | null = null;
 
-  if (spec && candidateEmail) {
+  if (spec && candidateEmail && !linkOnly) {
     if (!emailConfigured()) {
       emailError = 'E-mail ainda não configurado';
     } else {
@@ -345,6 +371,7 @@ Deno.serve(async (req) => {
 
   // 6) Link de WhatsApp pro recrutador mandar na mão.
   const whatsappMessage = composeWhatsapp({
+    schedulingUrl,
     toStatus,
     companyName,
     jobTitle,
@@ -360,6 +387,9 @@ Deno.serve(async (req) => {
     emailSent,
     emailError,
     formUrl,
+    // Vai no retorno pra o botão "copiar link da etapa" achar o link da agenda
+    // quando o candidato já está em entrevista.
+    schedulingUrl,
     whatsappUrl,
     toStatus,
   });

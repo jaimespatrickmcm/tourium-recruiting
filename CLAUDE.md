@@ -86,6 +86,22 @@ Key routing rules:
 
 ## Hard rules
 
+- **Você não trabalha sozinho. Todo trabalho novo nasce em worktree próprio.** Tem mais de uma sessão mexendo neste repositório ao mesmo tempo, e a árvore principal quase sempre tem alteração não commitada de outra pessoa. Trabalhar direto nela faz `git add src` varrer o trabalho alheio pro seu commit.
+
+  ```bash
+  git fetch origin main
+  git worktree add .claude/worktrees/<nome> -b feature/<nome> origin/main
+  cd .claude/worktrees/<nome>
+  ```
+
+  Regras que vêm junto:
+  - **NUNCA** `git reset --hard`, `git checkout <arquivo>` ou `git restore` em arquivo que você não editou. Pra sincronizar, `git pull --ff-only`.
+  - Antes de commitar, `git status` e adicione **arquivo por arquivo**. Nada de `git add .` nem `git add src`.
+  - Se aparecer alteração não commitada que não é sua, **pare e pergunte**. Não descarte, não commite junto.
+  - Terminou e mergeou: `git worktree remove .claude/worktrees/<nome>`.
+
+- **`npm run lint` antes de subir mudança de UI.** O script existia desde o início, mas o projeto não tinha arquivo de config do ESLint, então o lint nunca rodou de verdade: só falhava dizendo que não achou configuração. Isso deixou passar um `useEffect` colocado abaixo de um return antecipado, que derrubou a página da vaga em produção com o React #310. Nem `npm run build` nem `npm run typecheck` pegam ordem de hooks, porque é regra de runtime do React. `react-hooks/rules-of-hooks` está como **error**.
+
 - **Sem direct push:** usar `/devops *push` ou PR via GitHub. Hook `no-direct-push` bloqueia.
 - **RLS sempre:** nenhuma query nova escapa do filtro `company_id`. Toda nova tabela tenant-scoped começa com `enable row level security` + policy.
 - **Service role NUNCA no client:** `service_role` e `ANTHROPIC_API_KEY` moram em Supabase secrets, jamais em `.env` do front nem em `import.meta.env`.

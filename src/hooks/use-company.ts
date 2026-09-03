@@ -4,6 +4,10 @@ import { useAuth } from '@/hooks/use-auth';
 
 export type DnaDocument = {
   culture?: string;
+  /** O que nao pode faltar em quem entra. Metade positiva do fit. */
+  must_have?: string;
+  /** Quem nao funciona aqui. Metade negativa, sem a qual fit vira simpatia. */
+  anti_fit?: string;
   benefits?: string[];
   // legacy fields kept for backward compat (old wizard data lives here)
   values?: string[];
