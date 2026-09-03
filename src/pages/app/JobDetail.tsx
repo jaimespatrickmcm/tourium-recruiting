@@ -69,6 +69,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { parseDescriptionSections, DescriptionBody } from '@/lib/job-description';
 import { cn } from '@/lib/utils';
 import { InterviewGuide } from '@/components/interview-guide';
+import { CandidateSkills } from '@/components/candidate-skills';
 import {
   Dialog,
   DialogContent,
@@ -3074,6 +3075,18 @@ function CandidateDetail({
                     <InterviewGuide applicationId={app.id} companyId={app.company_id} />
                   </section>
                 )}
+
+                {/* Skills. Fica depois da decisao da etapa e antes das
+                    evidencias: a pergunta "ela passa desta fase?" vem primeiro,
+                    e "o que ela sabe fazer" e o detalhamento logo em seguida. */}
+                <section className="mb-7">
+                  <div className="mb-3 flex items-baseline justify-between gap-3">
+                    <h3 className="text-eyebrow font-bold uppercase text-ink-subtle">
+                      Skills mapeadas
+                    </h3>
+                  </div>
+                  <CandidateSkills applicationId={app.id} companyId={app.company_id} />
+                </section>
 
                 <StageDecision
                   analysis={analysis}
