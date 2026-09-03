@@ -1,70 +1,87 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Target, Trash2, UserMinus, UserPlus } from 'lucide-react';
+import {
+  ArrowLeft,
+  Ban,
+  CheckCircle2,
+  Clock3,
+  Mail,
+  Send,
+  Trash2,
+  UserMinus,
+  UserPlus,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { BrandCtaButton } from '@/components/brand-cta';
-import { ScoutCard } from '@/components/scout-card';
+import { CollaboratorDevelopmentPanel } from '@/components/people/collaborator-development-panel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/lib/supabase';
+import { formatDatePtBR } from '@/hooks/use-collaborators';
 import { invokeEdge } from '@/lib/functions';
-import { SCOUT_AREAS, areaLabel, type ScoutAreaKey } from '@/lib/scout-areas';
-import {
-  groupScoreBatches,
-  latestScoreByArea,
-  overallFromLatest,
-  formatDatePtBR,
-  formatShortDatePtBR,
-  type Collaborator,
-  type CollaboratorScore,
-  type DevelopmentGoal,
-  type ScoreBatch,
-} from '@/hooks/use-collaborators';
-import { cn } from '@/lib/utils';
-import type { GoalStatus } from '@/types/database';
+import { supabase } from '@/lib/supabase';
+import type { Database } from '@/types/database';
+
+type Collaborator = Database['public']['Tables']['collaborators']['Row'];
+
+const ACCESS_STATUS = {
+  active: {
+    label: 'Acesso ativo',
+    className: 'border-positive/20 bg-positive-tint text-positive',
+    icon: CheckCircle2,
+  },
+  pending: {
+    label: 'Confirmação pendente',
+    className: 'border-warning/20 bg-warning-tint text-warning',
+    icon: Clock3,
+  },
+  revoked: {
+    label: 'Acesso revogado',
+    className: 'border-line-soft bg-surface-sunken text-ink-muted',
+    icon: Ban,
+  },
+} as const;
 
 export function TeamDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [collaborator, setCollaborator] = useState<Collaborator | null>(null);
-  const [scores, setScores] = useState<CollaboratorScore[]>([]);
-  const [goals, setGoals] = useState<DevelopmentGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [accessEmail, setAccessEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [revoking, setRevoking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id) return;
-    const [collabRes, scoresRes, goalsRes] = await Promise.all([
-      supabase.from('collaborators').select('*').eq('id', id).maybeSingle(),
-      supabase
-        .from('collaborator_scores')
-        .select('*')
-        .eq('collaborator_id', id)
-        .order('recorded_at', { ascending: true }),
-      supabase
-        .from('development_goals')
-        .select('*')
-        .eq('collaborator_id', id)
-        .order('created_at', { ascending: true }),
-    ]);
-
-    if (collabRes.error) {
-      console.error('[TeamDetail] fetch error:', collabRes.error);
-      toast.error('Erro ao carregar colaborador.');
-      setLoading(false);
-      return;
-    }
-    if (!collabRes.data) {
+    if (!id) {
       setNotFound(true);
       setLoading(false);
       return;
     }
-    setCollaborator(collabRes.data);
-    setScores(scoresRes.data ?? []);
-    setGoals(goalsRes.data ?? []);
+
+    const { data, error } = await supabase
+      .from('collaborators')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[TeamDetail] fetch error:', error);
+      toast.error('Não conseguimos carregar esta pessoa.');
+      setLoading(false);
+      return;
+    }
+
+    if (!data) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+
+    setCollaborator(data);
+    setAccessEmail(data.pending_corporate_email ?? data.corporate_email ?? data.email);
+    setNotFound(false);
     setLoading(false);
   }, [id]);
 
@@ -72,173 +89,325 @@ export function TeamDetail() {
     void load();
   }, [load]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white p-8 text-ink-subtle text-sm">Carregando...</div>
-    );
-  }
-
-  if (notFound || !collaborator) {
-    return (
-      <div className="min-h-screen bg-white p-8">
-        <p className="text-ink-muted mb-4">Colaborador não encontrado.</p>
-        <Link to="/app/time" className="text-sky-600 text-callout hover:underline">
-          Voltar pro time
-        </Link>
-      </div>
-    );
-  }
-
-  const latest = latestScoreByArea(scores);
-  const dimensions = SCOUT_AREAS.filter((a) => latest.has(a.key)).map((a) => ({
-    area: a.key,
-    score: latest.get(a.key)!,
-  }));
-  const overall = overallFromLatest(latest) ?? 0;
-  const batches = groupScoreBatches(scores);
-  const history = batches.map((b) => ({
-    label: formatShortDatePtBR(b.recordedAt),
-    overall: b.overall,
-  }));
-
   async function toggleStatus() {
-    if (!collaborator) return;
-    const desligar = collaborator.status === 'ativo';
-    const ok = window.confirm(
-      desligar
-        ? `Desligar ${collaborator.full_name}? A pessoa sai da lista de ativos, mas todo o histórico continua salvo.`
-        : `Reativar ${collaborator.full_name}? A pessoa volta pra lista de ativos.`,
+    if (!collaborator || updatingStatus) return;
+
+    const endingEmployment = collaborator.status === 'ativo';
+    const confirmed = window.confirm(
+      endingEmployment
+        ? `Desligar ${collaborator.full_name}? O acesso corporativo será revogado e o histórico continuará salvo.`
+        : `Reativar ${collaborator.full_name}? O acesso continuará revogado até você enviar um novo convite.`,
     );
-    if (!ok) return;
-    const { error } = await supabase
-      .from('collaborators')
-      .update({ status: desligar ? 'desligado' : 'ativo' })
-      .eq('id', collaborator.id);
-    if (error) {
-      toast.error(error.message ?? 'Erro ao atualizar status');
+    if (!confirmed) return;
+
+    setUpdatingStatus(true);
+    try {
+      if (endingEmployment) {
+        const { error } = await invokeEdge('revoke-collaborator-access', {
+          collaboratorId: collaborator.id,
+          endEmployment: true,
+        });
+        if (error) throw error;
+        toast.success('Pessoa desligada e acesso revogado.');
+      } else {
+        const { error } = await supabase
+          .from('collaborators')
+          .update({ status: 'ativo', employment_ended_at: null })
+          .eq('id', collaborator.id);
+        if (error) throw error;
+        toast.success('Pessoa reativada. Envie um novo convite para liberar o acesso.');
+      }
+      await load();
+    } catch (statusError) {
+      toast.error(
+        statusError instanceof Error
+          ? statusError.message
+          : 'Não conseguimos atualizar o vínculo.',
+      );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  async function inviteAccess(event: FormEvent) {
+    event.preventDefault();
+    if (!collaborator || inviting) return;
+
+    const corporateEmail = accessEmail.trim().toLowerCase();
+    if (!corporateEmail) {
+      toast.error('Informe o e-mail corporativo.');
       return;
     }
-    toast.success(desligar ? 'Colaborador desligado.' : 'Colaborador reativado.');
-    void load();
+
+    setInviting(true);
+    const { error } = await invokeEdge('invite-collaborator-access', {
+      action: 'invite',
+      collaboratorId: collaborator.id,
+      corporateEmail,
+    });
+    setInviting(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(`Convite enviado para ${corporateEmail}.`);
+    await load();
+  }
+
+  async function revokeAccess() {
+    if (!collaborator || revoking) return;
+
+    const confirmed = window.confirm(
+      `Revogar o acesso de ${collaborator.full_name}? O vínculo e o histórico serão preservados.`,
+    );
+    if (!confirmed) return;
+
+    setRevoking(true);
+    const { error } = await invokeEdge('revoke-collaborator-access', {
+      collaboratorId: collaborator.id,
+      endEmployment: false,
+    });
+    setRevoking(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success('Acesso corporativo revogado.');
+    await load();
   }
 
   async function deleteCollaborator() {
-    if (!collaborator) return;
+    if (!collaborator || deleting) return;
+
     const name = collaborator.full_name;
     setDeleting(true);
     const { error } = await invokeEdge('delete-collaborator', {
       collaboratorId: collaborator.id,
     });
+
     if (error) {
-      toast.error(error.message || 'Não deu pra excluir.');
+      toast.error(error.message || 'Não conseguimos excluir esta pessoa.');
       setDeleting(false);
       return;
     }
+
     toast.success(`${name} saiu do time.`);
     navigate('/app/time');
   }
 
-  return (
-    <div className="relative min-h-screen bg-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[400px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.05),transparent_70%)]" />
+  if (loading) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center bg-canvas px-4 text-footnote text-ink-muted"
+        role="status"
+        aria-live="polite"
+      >
+        Carregando pessoa...
+      </div>
+    );
+  }
 
-      <div className="relative max-w-5xl mx-auto px-8 py-12">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <Link
-              to="/app/time"
-              className="inline-flex items-center gap-1.5 text-footnote font-medium text-ink-subtle hover:text-ink transition-colors mb-4"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Time
-            </Link>
-            <h1 className="font-satoshi font-bold text-[32px] md:text-[40px] tracking-[-0.7px] leading-[1.1] text-ink">
-              {collaborator.full_name}
-            </h1>
-            <p className="text-callout text-ink-muted mt-2">
-              {collaborator.role_title ? `${collaborator.role_title} · ` : ''}
-              desde {formatDatePtBR(collaborator.hired_at)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void toggleStatus()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-line-soft bg-white text-footnote font-semibold text-ink hover:border-line transition-colors whitespace-nowrap"
+  if (notFound || !collaborator) {
+    return (
+      <main className="min-h-screen bg-canvas px-4 py-12 sm:px-6">
+        <div className="surface-card mx-auto max-w-lg p-6 text-center sm:p-8">
+          <h1 className="font-satoshi text-title-2 font-bold text-ink">Pessoa não encontrada</h1>
+          <p className="mt-2 text-body text-ink-muted">
+            O vínculo pode ter sido removido ou não pertencer à sua empresa.
+          </p>
+          <Link
+            to="/app/time"
+            className="mt-6 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-brand px-5 text-callout font-semibold text-white transition-colors duration-200 hover:bg-brand-hover"
           >
-            {collaborator.status === 'ativo' ? (
-              <>
-                <UserMinus className="h-3.5 w-3.5" />
-                Desligar
-              </>
-            ) : (
-              <>
-                <UserPlus className="h-3.5 w-3.5" />
-                Reativar
-              </>
-            )}
-          </button>
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Voltar pro time
+          </Link>
         </div>
+      </main>
+    );
+  }
 
-        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8 items-start">
-          {/* Coluna esquerda: scout card */}
-          <div className="lg:sticky lg:top-8">
-            {dimensions.length > 0 ? (
-              <ScoutCard
-                name={collaborator.full_name}
-                subtitle={collaborator.role_title}
-                overall={overall}
-                dimensions={dimensions}
-                history={history}
-                badge={collaborator.status === 'desligado' ? 'Desligado' : null}
-              />
-            ) : (
-              <div className="rounded-card border border-line-soft bg-white p-8 text-center">
-                <p className="text-callout font-semibold text-ink mb-1">
-                  Sem avaliações ainda
-                </p>
-                <p className="text-footnote text-ink-muted leading-relaxed">
-                  Registra a primeira avaliação ao lado e o scout card aparece aqui.
-                </p>
+  const statusConfig = ACCESS_STATUS[collaborator.access_status];
+  const AccessIcon = statusConfig.icon;
+  const displayedEmail = collaborator.pending_corporate_email ?? collaborator.corporate_email;
+  const isActiveEmployee = collaborator.status === 'ativo' && !collaborator.employment_ended_at;
+
+  return (
+    <main className="min-h-screen bg-canvas canvas-tint">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+        <header className="mb-8">
+          <Link
+            to="/app/time"
+            className="mb-4 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-2 text-footnote font-semibold text-ink-muted transition-colors duration-200 hover:text-ink"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Time
+          </Link>
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="break-words font-satoshi text-title-1 font-bold text-ink">
+                  {collaborator.full_name}
+                </h1>
+                <span
+                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-caption font-semibold ${
+                    collaborator.status === 'ativo'
+                      ? 'border-positive/20 bg-positive-tint text-positive'
+                      : 'border-line-soft bg-surface-sunken text-ink-muted'
+                  }`}
+                >
+                  {collaborator.status === 'ativo' ? 'Ativo' : 'Desligado'}
+                </span>
               </div>
+              <p className="mt-2 text-callout text-ink-muted">
+                {collaborator.role_title ? `${collaborator.role_title}, ` : ''}
+                no time desde {formatDatePtBR(collaborator.hired_at)}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void toggleStatus()}
+              disabled={updatingStatus}
+              className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 self-start rounded-full border border-line bg-surface px-4 text-footnote font-semibold text-ink transition-colors duration-200 hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {collaborator.status === 'ativo' ? (
+                <UserMinus className="h-4 w-4" aria-hidden />
+              ) : (
+                <UserPlus className="h-4 w-4" aria-hidden />
+              )}
+              {updatingStatus
+                ? 'Atualizando...'
+                : collaborator.status === 'ativo'
+                  ? 'Desligar'
+                  : 'Reativar'}
+            </button>
+          </div>
+        </header>
+
+        <section
+          className="surface-card mb-8 p-5 sm:p-6"
+          aria-labelledby="corporate-access-title"
+        >
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="icon-tile h-10 w-10">
+                  <Mail className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2
+                    id="corporate-access-title"
+                    className="font-satoshi text-title-3 font-bold text-ink"
+                  >
+                    Acesso da pessoa
+                  </h2>
+                  <span
+                    className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-caption font-semibold ${statusConfig.className}`}
+                  >
+                    <AccessIcon className="h-3.5 w-3.5" aria-hidden />
+                    {statusConfig.label}
+                  </span>
+                </div>
+              </div>
+
+              <p className="mt-4 max-w-2xl text-footnote leading-relaxed text-ink-muted">
+                {collaborator.access_status === 'active'
+                  ? `${displayedEmail ?? 'O e-mail confirmado'} pode entrar na área pessoal e acompanhar os próprios dados.`
+                  : collaborator.access_status === 'pending'
+                    ? `O convite foi enviado para ${displayedEmail ?? 'o e-mail informado'} e aguarda confirmação.`
+                    : 'O acesso está bloqueado. Envie um novo convite quando quiser liberar a área pessoal.'}
+              </p>
+            </div>
+
+            {collaborator.access_status !== 'revoked' && (
+              <button
+                type="button"
+                onClick={() => void revokeAccess()}
+                disabled={revoking}
+                className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-critical/30 bg-surface px-4 text-footnote font-semibold text-critical transition-colors duration-200 hover:bg-critical-tint disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Ban className="h-4 w-4" aria-hidden />
+                {revoking ? 'Revogando...' : 'Revogar acesso'}
+              </button>
             )}
           </div>
 
-          {/* Coluna direita: avaliação, metas, timeline */}
-          <div className="space-y-8">
-            <AssessmentSection collaborator={collaborator} latest={latest} onSaved={load} />
-            <GoalsSection collaborator={collaborator} goals={goals} onChanged={load} />
-            <TimelineSection collaborator={collaborator} batches={batches} goals={goals} />
-          </div>
-        </div>
+          <form onSubmit={inviteAccess} className="mt-6 border-t border-line-soft pt-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="corporate-email" className="text-footnote font-semibold text-ink">
+                  E-mail corporativo
+                </Label>
+                <Input
+                  id="corporate-email"
+                  type="email"
+                  value={accessEmail}
+                  onChange={(event) => setAccessEmail(event.target.value)}
+                  disabled={!isActiveEmployee || inviting}
+                  autoComplete="email"
+                  placeholder="nome@empresa.com.br"
+                  className="mt-1.5 min-h-11"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!isActiveEmployee || inviting}
+                className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-brand px-5 text-callout font-semibold text-white transition-colors duration-200 hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" aria-hidden />
+                {inviting
+                  ? 'Enviando...'
+                  : collaborator.access_status === 'pending'
+                    ? 'Reenviar convite'
+                    : collaborator.access_status === 'active'
+                      ? 'Trocar e-mail'
+                      : 'Enviar convite'}
+              </button>
+            </div>
+            {!isActiveEmployee && (
+              <p className="mt-2 text-caption text-ink-muted">
+                Reative a pessoa antes de enviar um novo convite.
+              </p>
+            )}
+          </form>
+        </section>
 
-        {/* Zona de exclusão: apaga de vez, pra limpar o time nos testes.
-            Desligar continua sendo o caminho normal (preserva o histórico). */}
-        <div className="mt-10 border-t border-line-soft pt-5">
+        <CollaboratorDevelopmentPanel collaboratorId={collaborator.id} mode="admin" />
+
+        <section
+          className="mt-10 border-t border-line-soft pt-6"
+          aria-labelledby="delete-person-title"
+        >
           {confirmDelete ? (
-            <div className="rounded-card bg-critical-tint p-4">
-              <p className="mb-1 text-footnote font-semibold text-ink">
+            <div className="rounded-card border border-critical/20 bg-critical-tint p-5 sm:p-6">
+              <h2 id="delete-person-title" className="text-callout font-semibold text-ink">
                 Excluir {collaborator.full_name} de vez?
+              </h2>
+              <p className="mt-1 max-w-2xl text-footnote leading-relaxed text-ink-muted">
+                Isso apaga a pessoa, as avaliações e as metas. A candidatura de origem continua no pipeline. Não dá pra desfazer.
               </p>
-              <p className="mb-3 text-caption text-ink-muted">
-                Apaga a pessoa, as avaliações e as metas. A candidatura de origem, se houver,
-                continua no pipeline. Não dá pra desfazer.
-              </p>
-              <div className="flex items-center gap-2">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <button
                   type="button"
                   onClick={() => void deleteCollaborator()}
                   disabled={deleting}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-critical px-4 text-footnote font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-critical px-5 text-footnote font-semibold text-white transition-opacity duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  <Trash2 className="h-4 w-4" aria-hidden />
                   {deleting ? 'Excluindo...' : 'Excluir de vez'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
                   disabled={deleting}
-                  className="inline-flex h-9 items-center rounded-full px-4 text-footnote font-semibold text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
+                  className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full px-5 text-footnote font-semibold text-ink-muted transition-colors duration-200 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -246,449 +415,18 @@ export function TeamDetail() {
             </div>
           ) : (
             <button
+              id="delete-person-title"
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="inline-flex items-center gap-1.5 text-caption font-medium text-ink-subtle transition-colors hover:text-critical"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-2 text-caption font-semibold text-ink-subtle transition-colors duration-200 hover:text-critical"
             >
-              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              <Trash2 className="h-4 w-4" aria-hidden />
               Excluir do time
             </button>
           )}
-        </div>
+        </section>
       </div>
-    </div>
-  );
-}
-
-// ── Registrar avaliação ──────────────────────────────────────────────────────
-
-function AssessmentSection({
-  collaborator,
-  latest,
-  onSaved,
-}: {
-  collaborator: Collaborator;
-  latest: Map<string, number>;
-  onSaved: () => Promise<void>;
-}) {
-  const [values, setValues] = useState<Record<ScoutAreaKey, string>>(() => buildInitial(latest));
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  // Re-prefill quando os últimos scores mudam (ex.: depois de salvar).
-  useEffect(() => {
-    setValues(buildInitial(latest));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify([...latest.entries()])]);
-
-  function buildInitial(map: Map<string, number>): Record<ScoutAreaKey, string> {
-    const initial = {} as Record<ScoutAreaKey, string>;
-    for (const a of SCOUT_AREAS) {
-      initial[a.key] = map.has(a.key) ? String(map.get(a.key)) : '';
-    }
-    return initial;
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const parsed = {} as Record<ScoutAreaKey, number>;
-    for (const a of SCOUT_AREAS) {
-      const raw = values[a.key].trim();
-      const n = Number(raw);
-      if (raw === '' || Number.isNaN(n) || n < 0 || n > 100) {
-        toast.error(`O score de ${a.label} precisa estar entre 0 e 100.`);
-        return;
-      }
-      parsed[a.key] = Math.round(n);
-    }
-    setSaving(true);
-    const recordedAt = new Date().toISOString();
-    const trimmedNote = note.trim() || null;
-    const rows = SCOUT_AREAS.map((a) => ({
-      collaborator_id: collaborator.id,
-      company_id: collaborator.company_id,
-      area: a.key,
-      score: parsed[a.key],
-      note: trimmedNote,
-      source: 'avaliacao' as const,
-      recorded_at: recordedAt,
-    }));
-    const { error } = await supabase.from('collaborator_scores').insert(rows);
-    setSaving(false);
-    if (error) {
-      toast.error(error.message ?? 'Erro ao registrar avaliação');
-      return;
-    }
-    toast.success('Avaliação registrada.');
-    setNote('');
-    await onSaved();
-  }
-
-  return (
-    <section className="rounded-card border border-line-soft bg-white p-6">
-      <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-ink mb-1">
-        Registrar avaliação
-      </h2>
-      <p className="text-footnote text-ink-muted mb-5">
-        Dá uma nota de 0 a 100 por área. Cada avaliação vira um ponto na evolução do scout card.
-      </p>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {SCOUT_AREAS.map((a) => (
-          <div key={a.key} className="flex items-center gap-3">
-            <Label
-              htmlFor={`score-${a.key}`}
-              className="w-28 shrink-0 text-footnote font-medium text-ink-muted"
-            >
-              {a.label}
-            </Label>
-            <Input
-              id={`score-${a.key}`}
-              type="number"
-              min={0}
-              max={100}
-              value={values[a.key]}
-              onChange={(e) => setValues((prev) => ({ ...prev, [a.key]: e.target.value }))}
-              className="max-w-[110px]"
-              required
-            />
-          </div>
-        ))}
-        <div className="pt-2 space-y-1.5">
-          <Label htmlFor="assessment-note" className="text-footnote font-medium text-ink-muted">
-            Nota (opcional)
-          </Label>
-          <Textarea
-            id="assessment-note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Contexto da avaliação, destaques, pontos de atenção..."
-            rows={3}
-          />
-        </div>
-        <div className="pt-2">
-          <BrandCtaButton type="submit" size="sm" disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar avaliação'}
-          </BrandCtaButton>
-        </div>
-      </form>
-    </section>
-  );
-}
-
-// ── Plano de desenvolvimento ─────────────────────────────────────────────────
-
-const GOAL_STATUS_STYLE: Record<GoalStatus, { label: string; className: string }> = {
-  em_andamento: {
-    label: 'Em andamento',
-    className: 'bg-sky-50 border-sky-100 text-sky-800',
-  },
-  concluida: {
-    label: 'Concluída',
-    className: 'bg-emerald-50 border-emerald-100 text-emerald-700',
-  },
-  pausada: {
-    label: 'Pausada',
-    className: 'bg-amber-50 border-amber-100 text-amber-700',
-  },
-};
-
-function GoalsSection({
-  collaborator,
-  goals,
-  onChanged,
-}: {
-  collaborator: Collaborator;
-  goals: DevelopmentGoal[];
-  onChanged: () => Promise<void>;
-}) {
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState('');
-  const [area, setArea] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) {
-      toast.error('A meta precisa de um título.');
-      return;
-    }
-    setSaving(true);
-    const { error } = await supabase.from('development_goals').insert({
-      collaborator_id: collaborator.id,
-      company_id: collaborator.company_id,
-      title: title.trim(),
-      area: area || null,
-      due_date: dueDate || null,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error.message ?? 'Erro ao criar meta');
-      return;
-    }
-    toast.success('Meta criada.');
-    setTitle('');
-    setArea('');
-    setDueDate('');
-    setShowForm(false);
-    await onChanged();
-  }
-
-  async function updateGoal(goal: DevelopmentGoal, patch: { status: GoalStatus; completed_at?: string | null }, message: string) {
-    const { error } = await supabase.from('development_goals').update(patch).eq('id', goal.id);
-    if (error) {
-      toast.error(error.message ?? 'Erro ao atualizar meta');
-      return;
-    }
-    toast.success(message);
-    await onChanged();
-  }
-
-  return (
-    <section className="rounded-card border border-line-soft bg-white p-6">
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-ink">
-          Plano de desenvolvimento
-        </h2>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line-soft bg-white text-caption font-semibold text-ink hover:border-line transition-colors whitespace-nowrap"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Nova meta
-        </button>
-      </div>
-      <p className="text-footnote text-ink-muted mb-5">
-        Metas de evolução ligadas às áreas do scout card.
-      </p>
-
-      {showForm && (
-        <form
-          onSubmit={handleAdd}
-          className="mb-5 rounded-card border border-line-soft bg-canvas p-4 space-y-3"
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="goal-title" className="text-footnote font-semibold text-ink">
-              Título
-            </Label>
-            <Input
-              id="goal-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Liderar o onboarding do próximo contratado"
-              required
-            />
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="goal-area" className="text-footnote font-semibold text-ink">
-                Área (opcional)
-              </Label>
-              <select
-                id="goal-area"
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Sem área</option>
-                {SCOUT_AREAS.map((a) => (
-                  <option key={a.key} value={a.key}>
-                    {a.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="goal-due" className="text-footnote font-semibold text-ink">
-                Prazo (opcional)
-              </Label>
-              <Input
-                id="goal-due"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="pt-1">
-            <BrandCtaButton type="submit" size="sm" disabled={saving}>
-              {saving ? 'Criando...' : 'Criar meta'}
-            </BrandCtaButton>
-          </div>
-        </form>
-      )}
-
-      {goals.length === 0 ? (
-        <div className="rounded-card border border-dashed border-line-soft p-8 text-center">
-          <div className="inline-flex h-10 w-10 rounded-tile bg-surface-sunken items-center justify-center mb-3">
-            <Target className="h-5 w-5 text-ink-muted" strokeWidth={1.5} />
-          </div>
-          <p className="text-callout text-ink-muted">
-            Nenhuma meta ainda. Cria a primeira pra dar direção ao desenvolvimento.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {goals.map((goal) => {
-            const style = GOAL_STATUS_STYLE[goal.status];
-            return (
-              <div key={goal.id} className="rounded-card border border-line-soft p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-callout font-semibold text-ink">{goal.title}</p>
-                    {goal.description && (
-                      <p className="text-footnote text-ink-muted mt-0.5">{goal.description}</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-full border px-2.5 py-0.5 text-eyebrow font-bold uppercase',
-                          style.className,
-                        )}
-                      >
-                        {style.label}
-                      </span>
-                      {goal.area && (
-                        <span className="inline-flex items-center rounded-full bg-surface-sunken border border-line-soft px-2.5 py-0.5 text-caption font-semibold text-ink-muted">
-                          {areaLabel(goal.area)}
-                        </span>
-                      )}
-                      {goal.due_date && (
-                        <span className="text-caption text-ink-subtle">
-                          prazo {formatDatePtBR(goal.due_date)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center gap-3">
-                  {goal.status === 'em_andamento' && (
-                    <>
-                      <GoalAction
-                        label="Concluir"
-                        onClick={() =>
-                          void updateGoal(
-                            goal,
-                            { status: 'concluida', completed_at: new Date().toISOString() },
-                            'Meta concluída.',
-                          )
-                        }
-                      />
-                      <GoalAction
-                        label="Pausar"
-                        onClick={() =>
-                          void updateGoal(goal, { status: 'pausada' }, 'Meta pausada.')
-                        }
-                      />
-                    </>
-                  )}
-                  {goal.status === 'pausada' && (
-                    <GoalAction
-                      label="Reativar"
-                      onClick={() =>
-                        void updateGoal(goal, { status: 'em_andamento' }, 'Meta reativada.')
-                      }
-                    />
-                  )}
-                  {goal.status === 'concluida' && (
-                    <GoalAction
-                      label="Reativar"
-                      onClick={() =>
-                        void updateGoal(
-                          goal,
-                          { status: 'em_andamento', completed_at: null },
-                          'Meta reativada.',
-                        )
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function GoalAction({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-caption font-semibold text-sky-700 hover:text-sky-900 transition-colors"
-    >
-      {label}
-    </button>
-  );
-}
-
-// ── Linha do tempo ───────────────────────────────────────────────────────────
-
-type TimelineEvent = { key: string; date: string; title: string; detail: string | null };
-
-function TimelineSection({
-  collaborator,
-  batches,
-  goals,
-}: {
-  collaborator: Collaborator;
-  batches: ScoreBatch[];
-  goals: DevelopmentGoal[];
-}) {
-  const events: TimelineEvent[] = [
-    {
-      key: 'hired',
-      date: collaborator.hired_at,
-      title: 'Contratação',
-      detail: collaborator.application_id ? null : 'Adicionado manualmente',
-    },
-    ...batches.map((b, i) => ({
-      key: `batch-${i}`,
-      date: b.recordedAt,
-      title:
-        b.source === 'analise_inicial'
-          ? `Análise inicial, geral ${b.overall}`
-          : `Avaliação registrada, geral ${b.overall}`,
-      detail: null,
-    })),
-    ...goals.map((g) => ({
-      key: `goal-created-${g.id}`,
-      date: g.created_at,
-      title: `Meta criada: ${g.title}`,
-      detail: null,
-    })),
-    ...goals
-      .filter((g) => g.completed_at)
-      .map((g) => ({
-        key: `goal-done-${g.id}`,
-        date: g.completed_at!,
-        title: `Meta concluída: ${g.title}`,
-        detail: null,
-      })),
-  ].sort((a, b) => a.date.localeCompare(b.date));
-
-  return (
-    <section className="rounded-card border border-line-soft bg-white p-6">
-      <h2 className="font-satoshi font-bold text-[18px] tracking-[-0.3px] text-ink mb-5">
-        Linha do tempo
-      </h2>
-      <div>
-        {events.map((event, i) => (
-          <div key={event.key} className="relative pl-7 pb-6 last:pb-0">
-            {i < events.length - 1 && (
-              <span className="absolute left-[5px] top-4 bottom-0 w-px bg-gray-200" />
-            )}
-            <span className="absolute left-0 top-1.5 h-[11px] w-[11px] rounded-full holo-gradient" />
-            <p className="text-callout font-medium text-ink leading-snug">{event.title}</p>
-            {event.detail && <p className="text-caption text-ink-muted mt-0.5">{event.detail}</p>}
-            <p className="text-caption text-ink-subtle mt-0.5">{formatDatePtBR(event.date)}</p>
-          </div>
-        ))}
-      </div>
-    </section>
+    </main>
   );
 }
 

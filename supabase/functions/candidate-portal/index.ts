@@ -1,7 +1,8 @@
 // Edge Function: candidate-portal
 // Serve a área do candidato sem sessão do Supabase Auth. O candidato manda um
-// token (guardamos só o hash), resolvemos o e-mail e devolvemos candidaturas,
-// jornada e perfil. Tudo com service role, que passa por cima da RLS.
+// token (guardamos só o hash), resolvemos o e-mail e devolvemos somente dados
+// do recrutamento: candidaturas e perfil. Dados pós-contratação exigem uma
+// sessão autenticada e nunca passam por este endpoint.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -70,11 +71,22 @@ Deno.serve(async (req) => {
   const tokenHash = await sha256Hex(token);
   const { data: tokenRow, error: tokenError } = await admin
     .from('applicant_tokens')
-    .select('id, email')
+    .select('id, email, expires_at, revoked_at, consumed_at')
     .eq('token_hash', tokenHash)
     .maybeSingle();
 
-  if (tokenError || !tokenRow) {
+  const expiresAt = tokenRow?.expires_at ? new Date(tokenRow.expires_at).getTime() : Number.NaN;
+  // consumed_at hoje nunca é preenchido (o token é multiuso dentro do TTL de
+  // 30min, senão o refresh da página derrubaria a sessão do candidato), mas a
+  // checagem honra o contrato do schema: se alguém marcar, o token morre.
+  if (
+    tokenError ||
+    !tokenRow ||
+    tokenRow.revoked_at ||
+    tokenRow.consumed_at ||
+    !Number.isFinite(expiresAt) ||
+    expiresAt <= Date.now()
+  ) {
     return jsonResponse({ error: 'Acesso inválido ou expirado' }, 401);
   }
 
@@ -196,55 +208,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Jornada: colaborador cujo e-mail bate com o do candidato.
-  let jornada: Record<string, unknown> | null = null;
-  const { data: collabRows } = await admin
-    .from('collaborators')
-    .select('id, company_id, full_name, role_title, hired_at, status')
-    .eq('email', email)
-    .order('hired_at', { ascending: false });
-
-  if (collabRows && collabRows.length > 0) {
-    const current =
-      collabRows.find((c) => c.status === 'ativo') ?? collabRows[0];
-
-    const [scoresRes, goalsRes, companyRes] = await Promise.all([
-      admin
-        .from('collaborator_scores')
-        .select('area, score, recorded_at')
-        .eq('collaborator_id', current.id as string)
-        .order('recorded_at', { ascending: true }),
-      admin
-        .from('development_goals')
-        .select('id, title, description, area, status, due_date, completed_at, created_at')
-        .eq('collaborator_id', current.id as string)
-        .order('created_at', { ascending: true }),
-      admin
-        .from('companies')
-        .select('name')
-        .eq('id', current.company_id as string)
-        .maybeSingle(),
-    ]);
-
-    jornada = {
-      collaborator: {
-        id: current.id,
-        company_id: current.company_id,
-        full_name: current.full_name,
-        role_title: current.role_title,
-        hired_at: current.hired_at,
-        status: current.status,
-        company_name: companyRes.data?.name ?? null,
-      },
-      scores: scoresRes.data ?? [],
-      goals: goalsRes.data ?? [],
-    };
-  }
-
   return jsonResponse({
     ok: true,
     profile: { ...(profile ?? { email }), cv_feedback: cvFeedback },
     applications,
-    jornada,
   });
 });

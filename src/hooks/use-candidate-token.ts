@@ -39,37 +39,9 @@ export type CandidateApplication = {
   }>;
 };
 
-export type CandidateScore = { area: string; score: number; recorded_at: string };
-
-export type CandidateGoal = {
-  id: string;
-  title: string;
-  description: string | null;
-  area: string | null;
-  status: 'em_andamento' | 'concluida' | 'pausada';
-  due_date: string | null;
-  completed_at: string | null;
-  created_at: string;
-};
-
-export type CandidateJornada = {
-  collaborator: {
-    id: string;
-    company_id: string;
-    full_name: string;
-    role_title: string | null;
-    hired_at: string;
-    status: 'ativo' | 'desligado';
-    company_name: string | null;
-  };
-  scores: CandidateScore[];
-  goals: CandidateGoal[];
-};
-
 export type CandidatePortalData = {
   profile: CandidateProfile;
   applications: CandidateApplication[];
-  jornada: CandidateJornada | null;
 };
 
 export type ProfileUpdate = {
@@ -126,7 +98,19 @@ export function useCandidateToken() {
       const { data: res, error: fnError } = await supabase.functions.invoke('candidate-portal', {
         body: { token: current, action: 'get' },
       });
-      if (fnError) throw fnError;
+      if (fnError) {
+        // Tokens agora expiram (30min): um 401 com token salvo no localStorage
+        // prendia a pessoa numa tela de erro cujo retry nunca funciona. Limpa
+        // e volta pro formulário de acesso pedir um link novo.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const status = (fnError as any)?.context?.status;
+        if (status === 401 || status === 403) {
+          clearToken();
+          setError('Seu link de acesso expirou. Peça um novo abaixo.');
+          return;
+        }
+        throw fnError;
+      }
       if (!res?.ok) {
         // Token inválido ou expirado: limpa pra cair de volta no acesso.
         if (res?.error) {
@@ -139,14 +123,13 @@ export function useCandidateToken() {
       setData({
         profile: res.profile as CandidateProfile,
         applications: (res.applications ?? []) as CandidateApplication[],
-        jornada: (res.jornada ?? null) as CandidateJornada | null,
       });
     } catch {
       setError('Não conseguimos carregar sua área agora.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearToken]);
 
   const updateProfile = useCallback(
     async (updates: ProfileUpdate) => {

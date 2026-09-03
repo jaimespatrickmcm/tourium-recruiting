@@ -1,7 +1,6 @@
 // Acesso do candidato por token (sem OAuth). Duas entradas:
 // 1) ?token=... na URL: guarda o token e entra na área.
-// 2) e-mail: pede acesso via request-candidate-access e, se achar candidatura,
-//    guarda o token retornado e entra na área.
+// 2) e-mail: pede um link de acesso, enviado para o endereço informado.
 // Mobile-first.
 
 import { useEffect, useState } from 'react';
@@ -12,10 +11,10 @@ import { useCandidateToken } from '@/hooks/use-candidate-token';
 
 // Formulário de acesso reutilizável. Usado nesta página e no shell da área
 // (TokenArea) quando ainda não há token.
-export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) {
+export function AccessForm() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [notFound, setNotFound] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const emailValid = /^\S+@\S+\.\S+$/.test(email.trim());
@@ -24,7 +23,7 @@ export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) 
     e.preventDefault();
     if (!emailValid || loading) return;
     setLoading(true);
-    setNotFound(false);
+    setSent(false);
     setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke('request-candidate-access', {
@@ -35,11 +34,7 @@ export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) 
         setError(data?.error ?? 'Não conseguimos verificar agora. Tente de novo.');
         return;
       }
-      if (!data.found) {
-        setNotFound(true);
-        return;
-      }
-      onAccess(data.token as string);
+      setSent(true);
     } catch {
       setError('Não conseguimos verificar agora. Tente de novo em instantes.');
     } finally {
@@ -63,7 +58,7 @@ export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) 
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
-              setNotFound(false);
+              setSent(false);
               setError(null);
             }}
             placeholder="voce@email.com"
@@ -75,11 +70,11 @@ export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) 
         </p>
       </div>
 
-      {notFound && (
-        <div className="rounded-tile bg-amber-50 border border-amber-100 px-4 py-3">
-          <p className="text-footnote text-amber-900 leading-relaxed">
-            Não achamos candidaturas com esse e-mail. Confira se digitou certo, ou candidate-se pela
-            página de carreiras de uma empresa que usa a Noren.
+      {sent && (
+        <div className="rounded-tile bg-emerald-50 border border-emerald-100 px-4 py-3" role="status">
+          <p className="text-footnote text-emerald-900 leading-relaxed">
+            Confira sua caixa de entrada. Se houver uma candidatura nesse e-mail, o link de acesso
+            chega em alguns minutos.
           </p>
         </div>
       )}
@@ -91,7 +86,7 @@ export function AccessForm({ onAccess }: { onAccess: (token: string) => void }) 
         disabled={!emailValid || loading}
         className="w-full h-12 rounded-lg holo-gradient text-white font-semibold text-callout transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {loading ? 'Verificando...' : 'Ver minhas candidaturas'}
+        {loading ? 'Enviando...' : 'Enviar link de acesso'}
       </button>
     </form>
   );
@@ -110,11 +105,6 @@ export function CandidateAccess() {
       navigate('/candidato', { replace: true });
     }
   }, [tokenParam, setToken, navigate]);
-
-  function handleAccess(token: string) {
-    setToken(token);
-    navigate('/candidato', { replace: true });
-  }
 
   if (tokenParam) {
     return (
@@ -136,11 +126,10 @@ export function CandidateAccess() {
         <div className="bg-white rounded-card border border-line-soft shadow-md p-6 sm:p-8">
           <h1 className="text-2xl font-bold mb-2 text-ink">Sua área de candidato</h1>
           <p className="text-sm text-ink-muted mb-6">
-            Informe seu e-mail pra ver o andamento das suas candidaturas, sua jornada e seu perfil.
-            Sem senha, sem complicação.
+            Informe seu e-mail pra receber um link e acompanhar suas candidaturas.
           </p>
 
-          <AccessForm onAccess={handleAccess} />
+          <AccessForm />
         </div>
 
         <p className="text-xs text-ink-subtle mt-6 text-center">

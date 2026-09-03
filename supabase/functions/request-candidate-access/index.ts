@@ -1,11 +1,11 @@
 // Edge Function: request-candidate-access
-// Endpoint público. O candidato informa o e-mail e, se existir candidatura com
-// esse e-mail, geramos um token de acesso (estilo magic link) e devolvemos o
-// token + o caminho de acesso. Sem provedor de e-mail ainda, então retornamos o
-// token direto pra UI usar na sessão. Tudo com service role.
+// Endpoint público. Se o e-mail tiver candidatura, envia um link de acesso.
+// A resposta é sempre genérica para não revelar quais e-mails estão cadastrados.
+// O token nunca é devolvido à UI nem registrado em texto puro.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { renderEmail, sendEmail } from '../_shared/email.ts';
 
 type Payload = { email?: string };
 
@@ -34,6 +34,13 @@ function generateToken(): string {
   return `${crypto.randomUUID()}${crypto.randomUUID()}${extraHex}`.replace(/-/g, '');
 }
 
+function genericSuccess() {
+  return jsonResponse({
+    ok: true,
+    message: 'Se existir uma candidatura com esse e-mail, você receberá um link de acesso.',
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Método não permitido' }, 405);
@@ -52,7 +59,10 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseUrl || !serviceRoleKey) return jsonResponse({ error: 'Server misconfigured' }, 500);
+  const publicAppUrl = (Deno.env.get('APP_URL') ?? '').trim().replace(/\/+$/, '');
+  if (!supabaseUrl || !serviceRoleKey || !/^https?:\/\//.test(publicAppUrl)) {
+    return jsonResponse({ error: 'Server misconfigured' }, 500);
+  }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -67,12 +77,12 @@ Deno.serve(async (req) => {
     .limit(1);
 
   if (appsError) {
-    return jsonResponse({ error: 'Não conseguimos verificar agora. Tente de novo.' }, 500);
+    console.error('request-candidate-access applications lookup failed', appsError.message);
+    return genericSuccess();
   }
 
   if (!apps || apps.length === 0) {
-    // Sinal leve: não achamos candidaturas. Não revelamos nada além disso.
-    return jsonResponse({ ok: true, found: false });
+    return genericSuccess();
   }
 
   const latest = apps[0] as {
@@ -100,23 +110,64 @@ Deno.serve(async (req) => {
     .from('applicant_profiles')
     .upsert(profileRow, { onConflict: 'email' });
   if (upsertError) {
-    return jsonResponse({ error: 'Não conseguimos preparar seu acesso agora.' }, 500);
+    console.error('request-candidate-access profile upsert failed', upsertError.message);
+    return genericSuccess();
   }
 
-  // Gera token, guarda só o hash.
+  // Evita disparos repetidos em sequência. A resposta continua igual.
+  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+  const { data: recentToken } = await admin
+    .from('applicant_tokens')
+    .select('id')
+    .eq('email', email)
+    .is('revoked_at', null)
+    .gte('created_at', oneMinuteAgo)
+    .limit(1)
+    .maybeSingle();
+  if (recentToken) return genericSuccess();
+
+  // Gera token com validade curta e guarda só o hash.
   const token = generateToken();
   const tokenHash = await sha256Hex(token);
-  const { error: tokenError } = await admin
+  const expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+  const { data: insertedToken, error: tokenError } = await admin
     .from('applicant_tokens')
-    .insert({ email, token_hash: tokenHash });
-  if (tokenError) {
-    return jsonResponse({ error: 'Não conseguimos gerar seu acesso agora.' }, 500);
+    .insert({ email, token_hash: tokenHash, expires_at: expiresAt })
+    .select('id')
+    .single();
+  if (tokenError || !insertedToken) {
+    console.error(
+      'request-candidate-access token insert failed',
+      tokenError?.message ?? 'insert returned no row',
+    );
+    return genericSuccess();
   }
 
-  return jsonResponse({
-    ok: true,
-    found: true,
-    token,
-    accessPath: `/candidato/acesso?token=${token}`,
-  });
+  const accessUrl = `${publicAppUrl}/candidato/acesso?token=${encodeURIComponent(token)}`;
+  try {
+    await sendEmail({
+      to: email,
+      subject: 'Seu acesso às candidaturas',
+      html: renderEmail({
+        title: 'Seu acesso às candidaturas',
+        companyName: 'Noren',
+        heading: 'Acesse suas candidaturas',
+        paragraphs: [
+          'Recebemos um pedido para acessar sua área de candidato.',
+          'O link fica disponível por 30 minutos. Se você não fez esse pedido, pode ignorar este e-mail.',
+        ],
+        button: { label: 'Ver minhas candidaturas', url: accessUrl },
+        fallbackUrl: accessUrl,
+      }),
+    });
+  } catch (error) {
+    await admin.from('applicant_tokens').delete().eq('id', insertedToken.id);
+    console.error(
+      'request-candidate-access email send failed',
+      error instanceof Error ? error.message : 'unknown error',
+    );
+    return genericSuccess();
+  }
+
+  return genericSuccess();
 });

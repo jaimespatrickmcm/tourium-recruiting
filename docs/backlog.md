@@ -87,6 +87,39 @@ Com umas 20, medir de novo antes de mexer nos cortes da escala.
 
 ---
 
+## Dívidas conhecidas do pós-contratação (revisão de 2026-09-03)
+
+Achados de revisão que ficaram de fora do PR da área de pessoas, por ordem de
+importância. Nenhum bloqueia o dogfood com o time atual (todo mundo é confiável
+e é pouca gente), mas antes de vender pra fora os três primeiros viram P1.
+
+- **Convites sem rate limit**: `invite-collaborator-access` e
+  `invite-review-assignment` não limitam frequência. O arch doc pede rate limit
+  no convite; hoje um owner (ou a própria pessoa, no 360) dispara e-mails à
+  vontade. Mesma pendência em `request-candidate-access`: só tem dedupe de
+  1/min por e-mail, sem limite por IP nem Turnstile.
+- **Magic links se atropelam**: cada `generateLink` invalida o OTP anterior do
+  mesmo e-mail. Dois convites quase juntos pro mesmo avaliador deixam o
+  primeiro e-mail com link morto. Redesenho: resolver o auth user por
+  getUserByEmail e mandar um único link com redirect estável.
+- **Persistência do agente não é atômica**: generate-development-plan grava em
+  sequência (skills → plano → metas → ações) com guards e descarte do plano em
+  falha parcial, mas o certo é uma RPC transacional única.
+- **Corrida close vs submit na 360**: submit_review_response não trava a linha
+  da review; um envio durante o close pode ficar fora do consolidado.
+- **Salário retroativo**: record_salary_change não fecha o novo período quando
+  há vigência posterior, e não dá pra corrigir lançamento do mesmo dia pela UI.
+- **Exclusão de colaborador deixa auth user órfão**: delete_collaborator_cascade
+  apaga os dados mas o usuário Auth pessoal continua existindo (LGPD).
+- **Custo do agente não vai pra tabela**: costCents volta na resposta mas não há
+  ai_call_log (a tabela do plano de custo nunca foi criada no projeto).
+- **Mensagens cruas do Postgres em inglês** vazam em toasts de conflito
+  (dimensão duplicada, avaliação já respondida, períodos sobrepostos).
+- **Refetch total após cada mutação** no painel da pessoa (~15 queries); com
+  volume real, migrar pra invalidação granular (TanStack Query).
+
+---
+
 ## Perguntas abertas
 
 - Quando o candidato vê a devolutiva do currículo: assim que sai, ou só no fim

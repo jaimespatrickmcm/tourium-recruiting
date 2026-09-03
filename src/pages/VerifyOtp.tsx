@@ -19,6 +19,7 @@ const attemptedTokens = new Set<string>();
 type VerifyState = {
   email?: string;
   flow?: 'signup' | 'login';
+  returnTo?: string;
 };
 
 export function VerifyOtp() {
@@ -80,6 +81,22 @@ export function VerifyOtp() {
       return;
     }
     toast.success(flow === 'signup' ? 'Conta criada. Bem-vindo ao Noren.' : 'Logado.');
+    if (state.returnTo?.startsWith('/')) {
+      navigate(state.returnTo, { replace: true });
+      return;
+    }
+    const userId = result.data.user?.id;
+    if (userId && flow === 'login') {
+      const { data: collaborator } = await supabase
+        .from('collaborators')
+        .select('id')
+        .eq('auth_user_id', userId)
+        .eq('access_status', 'active')
+        .eq('status', 'ativo')
+        .maybeSingle();
+      navigate(collaborator ? '/pessoa' : '/app', { replace: true });
+      return;
+    }
     navigate('/app', { replace: true });
   }
 
