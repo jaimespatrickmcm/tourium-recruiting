@@ -93,7 +93,7 @@ const SETUP: (NavItem & { hint: string })[] = [
 export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, role } = useAuth();
   const [setupOpen, setSetupOpen] = useState(false);
   const setupRef = useRef<HTMLDivElement>(null);
 
@@ -143,7 +143,7 @@ export function BottomNav() {
           </Link>
           <div className="mr-1.5 h-5 w-px bg-line-soft" aria-hidden />
 
-          {PRIMARY.map((item) => {
+          {PRIMARY.filter((item) => item.key !== 'time' || role === 'owner').map((item) => {
             const Icon = item.icon;
             const active = item.isActive(location.pathname);
             return (

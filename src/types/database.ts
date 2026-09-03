@@ -23,6 +23,40 @@ export type QuestionKind = 'profile' | 'culture' | 'reasoning' | 'curiosity';
 export type QuestionFormat = 'text' | 'number' | 'single_select' | 'multi_select';
 export type JobVisibility = 'public' | 'private';
 export type HighlightType = 'yes_no' | 'short_text';
+export type CollaboratorAccessStatus = 'pending' | 'active' | 'revoked';
+export type PerformanceReviewKind = 'standard' | '360';
+export type PerformanceReviewStatus = 'draft' | 'open' | 'closed';
+export type ReviewRelationship = 'self' | 'manager' | 'peer' | 'direct_report' | 'other';
+export type ReviewAssignmentStatus = 'pending' | 'in_progress' | 'submitted';
+export type CollaboratorSkillStatus = 'in_progress' | 'unlocked';
+export type DevelopmentPlanStatus = 'draft' | 'active' | 'completed' | 'cancelled';
+export type DevelopmentGoalStatus = 'not_started' | 'in_progress' | 'completed' | 'paused';
+export type DevelopmentActionKind = 'course' | 'practice' | 'mentoring' | 'reading' | 'other';
+export type DevelopmentActionStatus = 'not_started' | 'in_progress' | 'completed' | 'cancelled';
+export type EmploymentEventType = 'hired' | 'role_changed' | 'status_changed';
+
+export type CollaboratorAddress = {
+  street?: string;
+  number?: string;
+  complement?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+};
+
+export type CollaboratorLifetimeEvent = {
+  event_id: string;
+  event_type: string;
+  occurred_at: string;
+  title: string;
+  score: number | null;
+  amount_minor: number | null;
+  currency: string | null;
+  skill_id: string | null;
+  goal_id: string | null;
+  source_id: string | null;
+  metadata: Json;
+};
 
 /** Perfil de requisitos interno da vaga (jobs.requirements). Nunca exposto ao candidato. */
 export type JobRequirements = {
@@ -246,6 +280,11 @@ export type Database = {
           role_title: string | null;
           hired_at: string;
           status: CollaboratorStatus;
+          auth_user_id: string | null;
+          corporate_email: string | null;
+          pending_corporate_email: string | null;
+          access_status: CollaboratorAccessStatus;
+          employment_ended_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -298,6 +337,316 @@ export type Database = {
           title: string;
         };
         Update: Partial<Database['public']['Tables']['development_goals']['Row']>;
+        Relationships: [];
+      };
+      collaborator_private_profiles: {
+        Row: {
+          collaborator_id: string;
+          company_id: string;
+          birth_date: string | null;
+          address: CollaboratorAddress | null;
+          shirt_size: string | null;
+          food_preferences: string[];
+          dietary_restrictions: string[];
+          personal_data: Json;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['collaborator_private_profiles']['Row']> & {
+          collaborator_id: string;
+          company_id: string;
+        };
+        Update: Partial<Database['public']['Tables']['collaborator_private_profiles']['Row']>;
+        Relationships: [];
+      };
+      salary_history: {
+        Row: {
+          id: string;
+          collaborator_id: string;
+          company_id: string;
+          amount_minor: number;
+          currency: string;
+          effective_from: string;
+          effective_to: string | null;
+          reason: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['salary_history']['Row']> & {
+          collaborator_id: string;
+          company_id: string;
+          amount_minor: number;
+          effective_from: string;
+        };
+        Update: Partial<Database['public']['Tables']['salary_history']['Row']>;
+        Relationships: [];
+      };
+      performance_reviews: {
+        Row: {
+          id: string;
+          company_id: string;
+          collaborator_id: string;
+          kind: PerformanceReviewKind;
+          title: string;
+          review_date: string;
+          period_start: string | null;
+          period_end: string | null;
+          status: PerformanceReviewStatus;
+          overall_score: number | null;
+          summary: string | null;
+          created_by: string | null;
+          closed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['performance_reviews']['Row']> & {
+          company_id: string;
+          collaborator_id: string;
+          title: string;
+          review_date: string;
+        };
+        Update: Partial<Database['public']['Tables']['performance_reviews']['Row']>;
+        Relationships: [];
+      };
+      review_dimensions: {
+        Row: {
+          id: string;
+          company_id: string;
+          review_id: string;
+          skill_id: string | null;
+          name: string;
+          description: string | null;
+          weight: number;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['review_dimensions']['Row']> & {
+          company_id: string;
+          review_id: string;
+          name: string;
+        };
+        Update: Partial<Database['public']['Tables']['review_dimensions']['Row']>;
+        Relationships: [];
+      };
+      review_assignments: {
+        Row: {
+          id: string;
+          company_id: string;
+          review_id: string;
+          evaluator_user_id: string | null;
+          evaluator_email: string | null;
+          relationship: ReviewRelationship;
+          status: ReviewAssignmentStatus;
+          access_token_hash: string | null;
+          access_token_expires_at: string | null;
+          access_token_used_at: string | null;
+          submitted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['review_assignments']['Row']> & {
+          company_id: string;
+          review_id: string;
+          relationship: ReviewRelationship;
+        };
+        Update: Partial<Database['public']['Tables']['review_assignments']['Row']>;
+        Relationships: [];
+      };
+      review_responses: {
+        Row: {
+          id: string;
+          company_id: string;
+          assignment_id: string;
+          overall_comment: string | null;
+          submitted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['review_responses']['Row']> & {
+          company_id: string;
+          assignment_id: string;
+        };
+        Update: Partial<Database['public']['Tables']['review_responses']['Row']>;
+        Relationships: [];
+      };
+      review_response_items: {
+        Row: {
+          id: string;
+          company_id: string;
+          response_id: string;
+          dimension_id: string;
+          score: number;
+          comment: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['review_response_items']['Row']> & {
+          company_id: string;
+          response_id: string;
+          dimension_id: string;
+          score: number;
+        };
+        Update: Partial<Database['public']['Tables']['review_response_items']['Row']>;
+        Relationships: [];
+      };
+      skills: {
+        Row: {
+          id: string;
+          company_id: string;
+          name: string;
+          description: string | null;
+          category: string | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['skills']['Row']> & {
+          company_id: string;
+          name: string;
+        };
+        Update: Partial<Database['public']['Tables']['skills']['Row']>;
+        Relationships: [];
+      };
+      collaborator_skills: {
+        Row: {
+          collaborator_id: string;
+          skill_id: string;
+          company_id: string;
+          level: number;
+          status: CollaboratorSkillStatus;
+          unlocked_at: string | null;
+          evidence: string | null;
+          source_review_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['collaborator_skills']['Row']> & {
+          collaborator_id: string;
+          skill_id: string;
+          company_id: string;
+        };
+        Update: Partial<Database['public']['Tables']['collaborator_skills']['Row']>;
+        Relationships: [];
+      };
+      development_plans: {
+        Row: {
+          id: string;
+          company_id: string;
+          collaborator_id: string;
+          title: string;
+          description: string | null;
+          status: DevelopmentPlanStatus;
+          starts_at: string | null;
+          target_date: string | null;
+          completed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['development_plans']['Row']> & {
+          company_id: string;
+          collaborator_id: string;
+          title: string;
+        };
+        Update: Partial<Database['public']['Tables']['development_plans']['Row']>;
+        Relationships: [];
+      };
+      development_plan_goals: {
+        Row: {
+          id: string;
+          company_id: string;
+          plan_id: string;
+          skill_id: string | null;
+          title: string;
+          description: string | null;
+          target_level: number | null;
+          success_criteria: string | null;
+          due_date: string | null;
+          status: DevelopmentGoalStatus;
+          progress_percent: number;
+          completed_at: string | null;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['development_plan_goals']['Row']> & {
+          company_id: string;
+          plan_id: string;
+          title: string;
+        };
+        Update: Partial<Database['public']['Tables']['development_plan_goals']['Row']>;
+        Relationships: [];
+      };
+      development_actions: {
+        Row: {
+          id: string;
+          company_id: string;
+          goal_id: string;
+          title: string;
+          description: string | null;
+          kind: DevelopmentActionKind;
+          due_date: string | null;
+          status: DevelopmentActionStatus;
+          completed_at: string | null;
+          resource_url: string | null;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['development_actions']['Row']> & {
+          company_id: string;
+          goal_id: string;
+          title: string;
+        };
+        Update: Partial<Database['public']['Tables']['development_actions']['Row']>;
+        Relationships: [];
+      };
+      development_checkins: {
+        Row: {
+          id: string;
+          company_id: string;
+          plan_id: string;
+          goal_id: string | null;
+          occurred_at: string;
+          progress_percent: number | null;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['development_checkins']['Row']> & {
+          company_id: string;
+          plan_id: string;
+          occurred_at: string;
+        };
+        Update: Partial<Database['public']['Tables']['development_checkins']['Row']>;
+        Relationships: [];
+      };
+      employment_events: {
+        Row: {
+          id: string;
+          company_id: string;
+          collaborator_id: string;
+          event_type: EmploymentEventType;
+          occurred_at: string;
+          title: string;
+          metadata: Json;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['employment_events']['Row']> & {
+          company_id: string;
+          collaborator_id: string;
+          event_type: EmploymentEventType;
+          occurred_at: string;
+          title: string;
+        };
+        Update: Partial<Database['public']['Tables']['employment_events']['Row']>;
         Relationships: [];
       };
       company_questions: {
@@ -449,7 +798,44 @@ export type Database = {
         Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      get_review_assignment_context: {
+        Args: { target_assignment_id: string };
+        Returns: Array<{
+          id: string;
+          title: string;
+          review_date: string;
+          status: PerformanceReviewStatus;
+          kind: PerformanceReviewKind;
+        }>;
+      };
+      get_collaborator_lifetime: {
+        Args: { target_collaborator_id: string };
+        Returns: CollaboratorLifetimeEvent[];
+      };
+      record_salary_change: {
+        Args: {
+          target_collaborator_id: string;
+          new_amount_minor: number;
+          new_currency?: string;
+          new_effective_from: string;
+          change_reason?: string | null;
+        };
+        Returns: Database['public']['Tables']['salary_history']['Row'];
+      };
+      close_performance_review: {
+        Args: { target_review_id: string };
+        Returns: Database['public']['Tables']['performance_reviews']['Row'];
+      };
+      submit_review_response: {
+        Args: {
+          target_assignment_id: string;
+          response_comment?: string | null;
+          response_items: Json;
+        };
+        Returns: Database['public']['Tables']['review_responses']['Row'];
+      };
+    };
     Enums: {
       user_role: UserRole;
       company_plan: CompanyPlan;

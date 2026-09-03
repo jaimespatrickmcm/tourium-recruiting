@@ -16,6 +16,8 @@ import { JobDetail } from '@/pages/app/JobDetail';
 import { Candidates } from '@/pages/app/Candidates';
 import { Team } from '@/pages/app/Team';
 import { TeamDetail } from '@/pages/app/TeamDetail';
+import { EmployeeDevelopment } from '@/pages/employee/Development';
+import { ReviewAssignment } from '@/pages/ReviewAssignment';
 import { CandidateAccess } from '@/pages/candidate/Access';
 import { CandidateTokenArea } from '@/pages/candidate/TokenArea';
 import { ProtectedRoute } from '@/components/protected-route';
@@ -59,11 +61,33 @@ export const router = createBrowserRouter([
   { path: '/candidato/acesso', element: <CandidateAccess /> },
   { path: '/candidato', element: <CandidateTokenArea /> },
 
+  // Área pessoal do colaborador. O vínculo é ativado pela Edge Function e a
+  // autorização dos dados é aplicada por RLS, sem papel corporativo no JWT.
+  {
+    path: '/pessoa',
+    element: (
+      <ProtectedRoute redirectTo="/app" allowCandidate>
+        <EmployeeDevelopment />
+      </ProtectedRoute>
+    ),
+  },
+
+  // Formulário individual de avaliação. A RLS limita o conteúdo à assignment
+  // ligada ao auth.uid() do participante.
+  {
+    path: '/avaliacao/360',
+    element: (
+      <ProtectedRoute allowCandidate>
+        <ReviewAssignment />
+      </ProtectedRoute>
+    ),
+  },
+
   // Company/HR area
   {
     path: '/app',
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['owner', 'recruiter', 'viewer']}>
         <AppLayout />
       </ProtectedRoute>
     ),
@@ -75,8 +99,22 @@ export const router = createBrowserRouter([
       { path: 'jobs', element: <Jobs /> },
       { path: 'jobs/:id', element: <JobDetail /> },
       { path: 'candidatos', element: <Candidates /> },
-      { path: 'time', element: <Team /> },
-      { path: 'time/:id', element: <TeamDetail /> },
+      {
+        path: 'time',
+        element: (
+          <ProtectedRoute allowedRoles={['owner']} redirectTo="/app">
+            <Team />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'time/:id',
+        element: (
+          <ProtectedRoute allowedRoles={['owner']} redirectTo="/app">
+            <TeamDetail />
+          </ProtectedRoute>
+        ),
+      },
       { path: 'company', element: <Navigate to="/app/empresa" replace /> },
       { path: 'jobs/new', element: <Navigate to="/app/jobs" replace /> },
     ],

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<LoginForm>({
@@ -33,7 +34,11 @@ export function Login() {
       });
       if (error) throw error;
       toast.success('Código enviado pro seu email.');
-      navigate('/verify-otp', { state: { email: values.email, flow: 'login' } });
+      const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+      const returnTo = from?.pathname?.startsWith('/')
+        ? `${from.pathname}${from.search ?? ''}`
+        : undefined;
+      navigate('/verify-otp', { state: { email: values.email, flow: 'login', returnTo } });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar código.';
       toast.error(message);
