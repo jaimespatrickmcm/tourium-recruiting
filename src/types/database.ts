@@ -408,6 +408,30 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['applicant_profiles']['Row']>;
         Relationships: [];
       };
+      candidate_skills: {
+        Row: {
+          id: string;
+          application_id: string;
+          company_id: string;
+          skill_id: string | null;
+          name: string;
+          kind: string;
+          level: number | null;
+          source: string;
+          evidence: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['candidate_skills']['Row']> & {
+          application_id: string;
+          company_id: string;
+          name: string;
+          kind: string;
+          source: string;
+        };
+        Update: Partial<Database['public']['Tables']['candidate_skills']['Row']>;
+        Relationships: [];
+      };
       interview_questions: {
         Row: {
           id: string;
