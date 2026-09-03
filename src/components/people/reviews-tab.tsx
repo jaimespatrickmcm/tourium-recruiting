@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { EmptyState, SectionCard, StatusPill, formatDate, selectClass, submitClass } from '@/components/people/shared';
+import { EmptyState, SectionCard, StatusPill, formatDate, selectClass, submitClass, todayLocal } from '@/components/people/shared';
 import type { ReturnTypeOfDevelopmentHook } from '@/components/people/types';
 import type { PerformanceReviewKind, ReviewRelationship } from '@/types/database';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,7 @@ export function ReviewsTab({ model }: { model: ReturnTypeOfDevelopmentHook }) {
   const { user } = useAuth();
   const [showCreate, setShowCreate] = useState(model.reviews.length === 0);
   const [title, setTitle] = useState('');
-  const [reviewDate, setReviewDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reviewDate, setReviewDate] = useState(() => todayLocal());
   const [kind, setKind] = useState<PerformanceReviewKind>('standard');
   const [summary, setSummary] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(model.reviews[0]?.id ?? null);

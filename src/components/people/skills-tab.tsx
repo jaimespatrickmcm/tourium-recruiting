@@ -28,7 +28,10 @@ export function SkillsTab({ model }: { model: ReturnTypeOfDevelopmentHook }) {
   async function saveSkill(event: FormEvent) {
     event.preventDefault();
     if (!selectedSkill) { toast.error('Escolha uma skill.'); return; }
-    try { await model.saveCollaboratorSkill(selectedSkill, { level: Number(level), status, evidence: evidence.trim() || null, unlockedAt: status === 'unlocked' ? new Date().toISOString() : null }); setEvidence(''); toast.success(status === 'unlocked' ? 'Skill desbloqueada.' : 'Evolução registrada.'); }
+    // Preserva o unlocked_at original: re-salvar uma skill já desbloqueada não
+    // pode mudar a data do marco no lifetime.
+    const current = currentBySkill.get(selectedSkill);
+    try { await model.saveCollaboratorSkill(selectedSkill, { level: Number(level), status, evidence: evidence.trim() || null, unlockedAt: status === 'unlocked' ? (current?.unlocked_at ?? new Date().toISOString()) : null }); setEvidence(''); toast.success(status === 'unlocked' ? 'Skill desbloqueada.' : 'Evolução registrada.'); }
     catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível salvar a skill.'); }
   }
 

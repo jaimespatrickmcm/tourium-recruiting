@@ -9,6 +9,13 @@ export function formatDate(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? 'Sem data' : date.toLocaleDateString('pt-BR');
 }
 
+// Data de hoje no fuso do navegador, formato YYYY-MM-DD pra <input type="date">.
+// toISOString() usa UTC e entre 21h e meia-noite no Brasil devolve o dia
+// seguinte, então os defaults de formulário gravavam a data errada.
+export function todayLocal(): string {
+  return new Intl.DateTimeFormat('sv-SE').format(new Date());
+}
+
 export function formatMoney(amountMinor: number, currency = 'BRL'): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(amountMinor / 100);
 }

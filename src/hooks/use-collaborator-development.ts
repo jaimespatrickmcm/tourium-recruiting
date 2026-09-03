@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type {
   CollaboratorAddress,
@@ -190,8 +190,12 @@ export function useCollaboratorDevelopment(collaboratorId: string | null) {
   const [loading, setLoading] = useState(Boolean(collaboratorId));
   const [mutating, setMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Trocar de pessoa (ou refetch concorrente) não pode deixar a resposta mais
+  // lenta vencer: dados de um colaborador apareceriam sob o nome de outro.
+  const requestSeq = useRef(0);
 
   const fetchAll = useCallback(async () => {
+    const seq = ++requestSeq.current;
     if (!collaboratorId) {
       setData(EMPTY_DATA);
       setLoading(false);
@@ -375,6 +379,7 @@ export function useCollaboratorDevelopment(collaboratorId: string | null) {
 
       await Promise.all(leafQueries);
 
+      if (seq !== requestSeq.current) return;
       setData({
         collaborator,
         privateProfile: profileResult.data,
@@ -394,10 +399,15 @@ export function useCollaboratorDevelopment(collaboratorId: string | null) {
       });
       setError(null);
     } catch (fetchError) {
-      setData(EMPTY_DATA);
+      if (seq !== requestSeq.current) return;
+      // Erro transitório num refetch não pode apagar um painel já carregado.
+      // Só zera quando os dados na tela são de outra pessoa (ou não existem).
+      setData((current) =>
+        current.collaborator && current.collaborator.id === collaboratorId ? current : EMPTY_DATA,
+      );
       setError(errorMessage(fetchError));
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [collaboratorId]);
 

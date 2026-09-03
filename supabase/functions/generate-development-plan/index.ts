@@ -262,6 +262,22 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: false, error: 'Pessoa não encontrada' }, 404);
   }
 
+  // Um rascunho por vez. Segura duplo clique, segunda aba e retry impaciente
+  // antes de gastar a chamada do modelo.
+  const { data: existingDraft } = await db
+    .from('development_plans')
+    .select('id')
+    .eq('collaborator_id', collaborator.id)
+    .eq('status', 'draft')
+    .limit(1)
+    .maybeSingle();
+  if (existingDraft) {
+    return jsonResponse(
+      { ok: false, error: 'Já existe um rascunho de PDI pra esta pessoa. Ative ou descarte o atual antes de gerar outro.' },
+      409,
+    );
+  }
+
   // Contexto: candidatura, análise, avaliações e skills atuais, em paralelo.
   const [applicationResult, answersResult, analysisResult, reviewsResult, catalogResult, ownedResult] =
     await Promise.all([
@@ -463,6 +479,22 @@ Deno.serve(async (req) => {
     skillsLinked += 1;
   }
 
+  // Re-checa o rascunho depois da chamada do modelo (30-60s): duas gerações
+  // que passaram juntas pelo primeiro guard não podem virar dois rascunhos.
+  const { data: draftAfterAi } = await db
+    .from('development_plans')
+    .select('id')
+    .eq('collaborator_id', collaborator.id)
+    .eq('status', 'draft')
+    .limit(1)
+    .maybeSingle();
+  if (draftAfterAi) {
+    return jsonResponse(
+      { ok: false, error: 'Outro rascunho acabou de ser criado pra esta pessoa. Revise o que já está na aba de desenvolvimento.' },
+      409,
+    );
+  }
+
   // PDI em rascunho. A ativação é decisão humana na aba de desenvolvimento.
   const { data: plan, error: planError } = await db
     .from('development_plans')
@@ -479,6 +511,12 @@ Deno.serve(async (req) => {
   if (planError || !plan) {
     console.error('generate-development-plan plan insert failed', planError?.message);
     return jsonResponse({ ok: false, error: 'Não conseguimos criar o rascunho do PDI' }, 500);
+  }
+
+  // DELETE não é liberado ao cliente, então falha parcial nas metas/ações não
+  // pode deixar um rascunho pela metade parecendo completo: cancela o plano.
+  async function discardPartialPlan(planId: string) {
+    await db.from('development_plans').update({ status: 'cancelled' }).eq('id', planId);
   }
 
   let goalsCreated = 0;
@@ -504,7 +542,8 @@ Deno.serve(async (req) => {
       .single();
     if (goalError || !createdGoal) {
       console.error('generate-development-plan goal insert failed', goalError?.message);
-      return jsonResponse({ ok: false, error: 'Não conseguimos salvar as metas do PDI' }, 500);
+      await discardPartialPlan(plan.id);
+      return jsonResponse({ ok: false, error: 'Não conseguimos salvar as metas do PDI. As skills foram registradas; gere o plano de novo.' }, 500);
     }
     goalsCreated += 1;
 
@@ -519,7 +558,8 @@ Deno.serve(async (req) => {
       });
       if (actionError) {
         console.error('generate-development-plan action insert failed', actionError.message);
-        return jsonResponse({ ok: false, error: 'Não conseguimos salvar as ações do PDI' }, 500);
+        await discardPartialPlan(plan.id);
+        return jsonResponse({ ok: false, error: 'Não conseguimos salvar as ações do PDI. As skills foram registradas; gere o plano de novo.' }, 500);
       }
     }
   }

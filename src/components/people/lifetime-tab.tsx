@@ -4,7 +4,7 @@ import type { ReturnTypeOfDevelopmentHook } from '@/components/people/types';
 
 const EVENT_ICON: Record<string, typeof Clock3> = {
   hired: UserRound, salary_changed: CircleDollarSign, review_closed: CalendarCheck,
-  skill_unlocked: Award, goal_created: Target, goal_completed: Target,
+  skill_unlocked: Award, development_goal_completed: Target, development_checkin: Clock3,
 };
 
 export function LifetimeTab({ model }: { model: ReturnTypeOfDevelopmentHook }) {

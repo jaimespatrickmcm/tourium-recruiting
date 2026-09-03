@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LogOut, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { CollaboratorDevelopmentPanel } from '@/components/people/collaborator-development-panel';
 import { useAuth } from '@/hooks/use-auth';
 import { invokeEdge } from '@/lib/functions';
@@ -59,6 +60,8 @@ export function EmployeeDevelopment() {
     setSigningOut(true);
     try {
       await signOut();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível sair. Tente de novo.');
     } finally {
       setSigningOut(false);
     }

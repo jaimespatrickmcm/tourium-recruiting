@@ -101,6 +101,20 @@ verify_jwt = true
 [functions.generate-development-plan]
 verify_jwt = true
 
+# invite-collaborator-access: owner convida; a própria pessoa ativa. Ambas as
+# ações validam JWT internamente via getUser().
+[functions.invite-collaborator-access]
+verify_jwt = true
+
+# invite-review-assignment: owner ou a própria pessoa avaliada. Valida JWT +
+# vínculo internamente.
+[functions.invite-review-assignment]
+verify_jwt = true
+
+# revoke-collaborator-access: owner-only. Valida JWT + role internamente.
+[functions.revoke-collaborator-access]
+verify_jwt = true
+
 # application-prefill: público. Valida token do candidato (applicant_tokens) pra
 # devolver os dados que já temos e pré-preencher o form individual.
 [functions.application-prefill]

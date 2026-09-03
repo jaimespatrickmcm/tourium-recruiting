@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { EmptyState, SectionCard, StatusPill, formatDate, selectClass, submitClass } from '@/components/people/shared';
+import { EmptyState, SectionCard, StatusPill, formatDate, selectClass, submitClass, todayLocal } from '@/components/people/shared';
 import type { ReturnTypeOfDevelopmentHook } from '@/components/people/types';
 import type { DevelopmentGoalStatus } from '@/types/database';
 import { useAuth } from '@/hooks/use-auth';
@@ -45,7 +45,7 @@ export function DevelopmentTab({ model }: { model: ReturnTypeOfDevelopmentHook }
 
   async function createPlan(event: FormEvent) {
     event.preventDefault();
-    try { const plan = await model.createPlan({ title: planTitle.trim(), description: planDescription.trim() || null, targetDate: targetDate || null, startsAt: new Date().toISOString().slice(0, 10), status: 'active' }); if (!plan) throw new Error('O PDI não foi retornado após a criação.'); setSelectedPlanId(plan.id); setPlanTitle(''); setPlanDescription(''); setTargetDate(''); setShowPlan(false); toast.success('PDI criado.'); }
+    try { const plan = await model.createPlan({ title: planTitle.trim(), description: planDescription.trim() || null, targetDate: targetDate || null, startsAt: todayLocal(), status: 'active' }); if (!plan) throw new Error('O PDI não foi retornado após a criação.'); setSelectedPlanId(plan.id); setPlanTitle(''); setPlanDescription(''); setTargetDate(''); setShowPlan(false); toast.success('PDI criado.'); }
     catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível criar o PDI.'); }
   }
 
@@ -109,7 +109,7 @@ function PlanDetail({ model, plan }: { model: ReturnTypeOfDevelopmentHook; plan:
     catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível concluir a meta.'); }
   }
   async function activatePlan() {
-    try { await model.updatePlan(plan.id, { status: 'active', starts_at: new Date().toISOString().slice(0, 10) }); toast.success('PDI ativado.'); }
+    try { await model.updatePlan(plan.id, { status: 'active', starts_at: todayLocal() }); toast.success('PDI ativado.'); }
     catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível ativar o PDI.'); }
   }
   async function discardPlan() {

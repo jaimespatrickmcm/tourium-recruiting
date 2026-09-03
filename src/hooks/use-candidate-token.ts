@@ -98,7 +98,19 @@ export function useCandidateToken() {
       const { data: res, error: fnError } = await supabase.functions.invoke('candidate-portal', {
         body: { token: current, action: 'get' },
       });
-      if (fnError) throw fnError;
+      if (fnError) {
+        // Tokens agora expiram (30min): um 401 com token salvo no localStorage
+        // prendia a pessoa numa tela de erro cujo retry nunca funciona. Limpa
+        // e volta pro formulário de acesso pedir um link novo.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const status = (fnError as any)?.context?.status;
+        if (status === 401 || status === 403) {
+          clearToken();
+          setError('Seu link de acesso expirou. Peça um novo abaixo.');
+          return;
+        }
+        throw fnError;
+      }
       if (!res?.ok) {
         // Token inválido ou expirado: limpa pra cair de volta no acesso.
         if (res?.error) {
@@ -117,7 +129,7 @@ export function useCandidateToken() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearToken]);
 
   const updateProfile = useCallback(
     async (updates: ProfileUpdate) => {

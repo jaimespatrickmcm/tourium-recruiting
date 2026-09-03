@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { EmptyState, SectionCard, formatDate, formatMoney, submitClass } from '@/components/people/shared';
+import { EmptyState, SectionCard, formatDate, formatMoney, submitClass, todayLocal } from '@/components/people/shared';
 import type { ReturnTypeOfDevelopmentHook } from '@/components/people/types';
 
 type ProfileForm = {
@@ -29,7 +29,7 @@ const EMPTY_FORM: ProfileForm = {
 export function ProfileTab({ model }: { model: ReturnTypeOfDevelopmentHook }) {
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
   const [salary, setSalary] = useState('');
-  const [salaryDate, setSalaryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [salaryDate, setSalaryDate] = useState(() => todayLocal());
   const [salaryReason, setSalaryReason] = useState('');
 
   useEffect(() => {
@@ -74,7 +74,14 @@ export function ProfileTab({ model }: { model: ReturnTypeOfDevelopmentHook }) {
 
   async function saveSalary(event: FormEvent) {
     event.preventDefault();
-    const normalized = salary.includes(',') ? salary.replace(/\./g, '').replace(',', '.') : salary;
+    // Formato pt-BR: vírgula é decimal e ponto é milhar. Sem vírgula, "8.500"
+    // é oito mil e quinhentos, não Number("8.500") = 8.5 (salário 1000x menor).
+    const raw = salary.trim();
+    const normalized = raw.includes(',')
+      ? raw.replace(/\./g, '').replace(',', '.')
+      : /^\d{1,3}(\.\d{3})+$/.test(raw)
+        ? raw.replace(/\./g, '')
+        : raw;
     const amount = Number(normalized);
     if (!Number.isFinite(amount) || amount <= 0) {
       toast.error('Informe um salário válido.');
