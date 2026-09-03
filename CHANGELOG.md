@@ -2,6 +2,30 @@
 
 Registro de mudanças relevantes do Noren. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/).
 
+## [0.8.0] - 2026-09-03
+
+A jornada da pessoa continua depois da contratação.
+
+### Added
+- Página da pessoa no time virou um painel completo: visão geral, perfil privado (endereço, nascimento, preferências), salário com histórico por vigência, avaliações datadas e 360, skills com nível e evidência, lifetime e PDI com metas, ações e check-ins.
+- Acesso da própria pessoa: o Admin vincula o e-mail corporativo, a pessoa confirma por magic link e entra em uma área própria (/pessoa) vendo e editando só os próprios dados. Revogação corta o acesso na hora.
+- Avaliação 360 com convite por e-mail: cada participante responde só a avaliação atribuída, sem ver salário, perfil ou outras respostas.
+- Primeira versão pelo agente na aba de desenvolvimento: ele lê o cargo, as respostas da candidatura e a análise, registra as skills que a pessoa demonstra (com nível e evidência) e propõe um PDI em rascunho. Nada ativa sem revisão humana.
+- Botão "Usar skills da pessoa" cria as dimensões de uma avaliação a partir das skills registradas, pra acompanhar a evolução das mesmas skills ao longo do tempo.
+
+### Changed
+- Acesso do candidato às candidaturas agora chega por link no e-mail, com validade de 30 minutos. A API parou de devolver o token na resposta e responde igual pra qualquer e-mail.
+- Área de time no menu e as rotas /app/time ficaram restritas ao Admin.
+
+### Fixed
+- Timeline (lifetime) quebrava ao carregar por um erro de SQL na ordenação dos eventos.
+- Histórico local de migrations alinhado ao banco remoto, destravando os deploys de schema.
+
+### Security
+- Todas as tabelas novas com RLS owner + própria pessoa; salário e dados privados fora do alcance de recruiter, viewer e anônimo.
+- Content-Security-Policy no deploy (Cloudflare Pages).
+- Tokens legados de candidato ganharam expiração, revogação e uso único.
+
 ## [0.7.1] - 2026-08-14
 
 Dá pra tirar alguém do time.
