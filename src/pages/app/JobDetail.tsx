@@ -315,6 +315,15 @@ function AnswerRow({
 // Depois delas, ter respondido nao diz nada sobre a etapa atual.
 const FORM_IS_THE_EVIDENCE = new Set<ApplicationStatus>(['triagem', 'fit_cultural']);
 
+// Etapas em que a aba de entrevista faz sentido: a atual e as posteriores. Quem
+// ja passou dela precisa reler o que foi anotado.
+const SHOWS_INTERVIEW_TAB = new Set<ApplicationStatus>([
+  'entrevista',
+  'proposta',
+  'contratado',
+  'reprovado',
+]);
+
 const STAGE_LINK_LABEL: Partial<Record<ApplicationStatus, string>> = {
   triagem: 'Copiar link do formulário',
   fit_cultural: 'Copiar link do formulário',
@@ -2996,6 +3005,12 @@ function CandidateDetail({
               Análise
             </TabsTrigger>
             <TabsTrigger
+              value="scout"
+              className="rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Scout
+            </TabsTrigger>
+            <TabsTrigger
               value="respostas"
               className="gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
             >
@@ -3003,6 +3018,22 @@ function CandidateDetail({
               {answersCount > 0 && (
                 <span className="tabular-nums text-ink-subtle">{answersCount}</span>
               )}
+            </TabsTrigger>
+            {/* Entrevista so existe a partir da etapa: antes disso a aba
+                estaria vazia e so somaria ruido ao cabecalho. */}
+            {SHOWS_INTERVIEW_TAB.has(app.status) && (
+              <TabsTrigger
+                value="entrevista"
+                className="rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+              >
+                Entrevista
+              </TabsTrigger>
+            )}
+            <TabsTrigger
+              value="skills"
+              className="gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-semibold text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-e1"
+            >
+              Skills
             </TabsTrigger>
             <TabsTrigger
               value="historico"
@@ -3060,34 +3091,6 @@ function CandidateDetail({
               <div>
                 <StageTrackRail track={app.stage_track} currentStatus={app.status} />
 
-                {/* Roteiro da entrevista. So aparece na etapa de entrevista, e
-                    vem ANTES da analise: durante a conversa o entrevistador
-                    precisa do roteiro na mao, nao da leitura do formulario que
-                    ele ja fez antes de marcar. */}
-                {app.status === 'entrevista' && (
-                  <section className="mb-7">
-                    <div className="mb-3 flex items-baseline justify-between gap-3">
-                      <h3 className="text-eyebrow font-bold uppercase text-ink-subtle">
-                        Roteiro da entrevista
-                      </h3>
-                      <span className="text-caption text-ink-subtle">salva sozinho</span>
-                    </div>
-                    <InterviewGuide applicationId={app.id} companyId={app.company_id} />
-                  </section>
-                )}
-
-                {/* Skills. Fica depois da decisao da etapa e antes das
-                    evidencias: a pergunta "ela passa desta fase?" vem primeiro,
-                    e "o que ela sabe fazer" e o detalhamento logo em seguida. */}
-                <section className="mb-7">
-                  <div className="mb-3 flex items-baseline justify-between gap-3">
-                    <h3 className="text-eyebrow font-bold uppercase text-ink-subtle">
-                      Skills mapeadas
-                    </h3>
-                  </div>
-                  <CandidateSkills applicationId={app.id} companyId={app.company_id} />
-                </section>
-
                 <StageDecision
                   analysis={analysis}
                   dims={dims}
@@ -3098,7 +3101,22 @@ function CandidateDetail({
                 {stageDims.length > 0 && (
                   <StageScout stageDims={stageDims} evidenceStage={analysis.evidence_stage} />
                 )}
+              </div>
+            ) : (
+              <p className="py-6 text-center text-callout text-ink-muted">
+                Sem análise ainda.
+              </p>
+            )}
+          </TabsContent>
 
+          <TabsContent value="scout" className="mt-0">
+            {analysis ? (
+              <div>
+                {/* Leitura de longo prazo, separada da decisao da etapa. Sao
+                    perguntas diferentes: "ela avanca desta fase?" se responde
+                    com a evidencia desta etapa, e "quem e essa pessoa daqui a
+                    dois anos?" se responde com o scout, o potencial e o perfil.
+                    Empilhadas na mesma aba, a segunda enterrava a primeira. */}
                 {dims.length > 0 && (
                   <div className="mb-6 border-t border-line-soft pt-6">
                     <p className="mb-4 text-eyebrow font-bold uppercase text-ink-subtle">
@@ -3179,10 +3197,13 @@ function CandidateDetail({
                   </div>
                 )}
               </div>
-            ) : null}
+            ) : (
+              <p className="py-6 text-center text-callout text-ink-muted">
+                O scout aparece depois que a análise roda.
+              </p>
+            )}
           </TabsContent>
 
-          {/* O que o candidato respondeu no formulário, na ordem de leitura */}
           <TabsContent value="respostas" className="mt-0">
             {answersLoading ? (
               <p className="text-footnote text-ink-subtle">Carregando respostas...</p>
@@ -3277,6 +3298,21 @@ function CandidateDetail({
           </TabsContent>
 
           {/* Linha do tempo */}
+          {SHOWS_INTERVIEW_TAB.has(app.status) && (
+            <TabsContent value="entrevista" className="mt-0">
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <p className="text-caption leading-snug text-ink-muted">
+                  Preencha durante a conversa. Salva sozinho, não tem botão de enviar.
+                </p>
+              </div>
+              <InterviewGuide applicationId={app.id} companyId={app.company_id} />
+            </TabsContent>
+          )}
+
+          <TabsContent value="skills" className="mt-0">
+            <CandidateSkills applicationId={app.id} companyId={app.company_id} />
+          </TabsContent>
+
           <TabsContent value="historico" className="mt-0">
             <ol>
               {timeline.map((entry, i) => {
