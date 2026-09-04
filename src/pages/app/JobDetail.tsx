@@ -509,6 +509,7 @@ const VERDICT_TONE: Record<string, Tone> = {
 const EVIDENCE_STAGE_LABELS: Record<string, string> = {
   cv: 'Baseado só no currículo',
   form: 'Com respostas do formulário',
+  interview: 'Com o registro da entrevista',
 };
 
 // Controle de situacao da vaga. Os tres estados ja existiam no banco e a policy

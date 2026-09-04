@@ -13,7 +13,7 @@
 
 import type { ApplicationStatus } from '@/types/database';
 
-export type EvidenceStage = 'cv' | 'form';
+export type EvidenceStage = 'cv' | 'form' | 'interview';
 
 // Etapa -> evidência que justifica uma nota naquela etapa.
 //
@@ -24,6 +24,10 @@ export type EvidenceStage = 'cv' | 'form';
 export const STAGE_EVIDENCE: Partial<Record<ApplicationStatus, EvidenceStage>> = {
   triagem: 'cv',
   fit_cultural: 'form',
+  // A entrevista passou a ter fonte de dado: as anotações do roteiro, vindas da
+  // transcrição ou preenchidas na conversa. Antes ela era a única etapa sem
+  // evidência própria, e por isso aparecia sempre como "ainda não avaliada".
+  entrevista: 'interview',
 };
 
 // Etapas que entram na trilha de histórico, na ordem do funil.
@@ -155,7 +159,7 @@ export function missingEvidenceLabel(
   if (track.has(status)) return null;
   if (status === 'triagem') return 'aguardando análise';
   if (status === 'fit_cultural') return 'aguardando resposta do formulário';
-  if (status === 'entrevista') return 'entrevista ainda não avaliada';
+  if (status === 'entrevista') return 'aguardando registro da entrevista';
   return null;
 }
 
